@@ -16,11 +16,8 @@ class AuthRepositoryImpl(
 
     override suspend fun signUp(email: String, password: String): Result<AuthResult> {
         return runCatching {
-            api.signUp(email, password)
-            val signInResponse = api.signIn(email, password)
-            val session = signInResponse.toSession()
-            sessionStore.save(session)
-            AuthResult(userId = session.userId)
+            val response = api.signUp(email, password)
+            AuthResult(userId = response.user?.id ?: "pending_email_confirmation")
         }
     }
 

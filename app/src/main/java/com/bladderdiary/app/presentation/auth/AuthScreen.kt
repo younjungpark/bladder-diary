@@ -85,5 +85,10 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
+
+        state.infoMessage?.let {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = it, color = MaterialTheme.colorScheme.primary)
+        }
     }
 }

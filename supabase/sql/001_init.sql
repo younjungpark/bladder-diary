@@ -16,17 +16,20 @@ create index if not exists idx_voiding_events_user_voided_at
 
 alter table public.voiding_events enable row level security;
 
-create policy if not exists "voiding_events_select_own"
+drop policy if exists "voiding_events_select_own" on public.voiding_events;
+create policy "voiding_events_select_own"
   on public.voiding_events
   for select
   using (auth.uid() = user_id);
 
-create policy if not exists "voiding_events_insert_own"
+drop policy if exists "voiding_events_insert_own" on public.voiding_events;
+create policy "voiding_events_insert_own"
   on public.voiding_events
   for insert
   with check (auth.uid() = user_id);
 
-create policy if not exists "voiding_events_update_own"
+drop policy if exists "voiding_events_update_own" on public.voiding_events;
+create policy "voiding_events_update_own"
   on public.voiding_events
   for update
   using (auth.uid() = user_id)
