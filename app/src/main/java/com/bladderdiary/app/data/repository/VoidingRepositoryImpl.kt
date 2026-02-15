@@ -19,7 +19,11 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import java.util.UUID
 
@@ -39,26 +43,33 @@ class VoidingRepositoryImpl(
 
         return runCatching {
             val now = Clock.System.now()
-            val event = VoidingEventEntity(
-                localId = UUID.randomUUID().toString(),
+            addPendingCreate(
                 userId = session.userId,
-                voidedAtEpochMs = now.toEpochMilliseconds(),
-                localDate = now.toLocalDate(),
-                isDeleted = false,
-                syncState = SyncState.PENDING_CREATE,
-                updatedAtEpochMs = now.toEpochMilliseconds()
+                epochMs = now.toEpochMilliseconds(),
+                localDate = now.toLocalDate()
             )
-            val queueItem = SyncQueueEntity(
-                queueId = UUID.randomUUID().toString(),
-                eventLocalId = event.localId,
-                action = SyncAction.CREATE,
-                retryCount = 0,
-                lastError = null
+            syncScheduler.request()
+        }
+    }
+
+    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int): Result<Unit> {
+        val session = authRepository.getSession() ?: return Result.failure(
+            IllegalStateException("로그인이 필요합니다.")
+        )
+        if (hour !in 0..23 || minute !in 0..59) {
+            return Result.failure(IllegalArgumentException("시간 형식이 올바르지 않습니다."))
+        }
+
+        return runCatching {
+            val localDateTime = LocalDateTime(date, LocalTime(hour = hour, minute = minute))
+            val epochMs = localDateTime
+                .toInstant(TimeZone.currentSystemDefault())
+                .toEpochMilliseconds()
+            addPendingCreate(
+                userId = session.userId,
+                epochMs = epochMs,
+                localDate = date.toString()
             )
-            db.withTransaction {
-                eventDao.upsert(event)
-                queueDao.upsert(queueItem)
-            }
             syncScheduler.request()
         }
     }
@@ -191,6 +202,29 @@ class VoidingRepositoryImpl(
             userId = event.userId,
             deletedAtIso = Instant.fromEpochMilliseconds(event.updatedAtEpochMs).toString()
         )
+    }
+
+    private suspend fun addPendingCreate(userId: String, epochMs: Long, localDate: String) {
+        val event = VoidingEventEntity(
+            localId = UUID.randomUUID().toString(),
+            userId = userId,
+            voidedAtEpochMs = epochMs,
+            localDate = localDate,
+            isDeleted = false,
+            syncState = SyncState.PENDING_CREATE,
+            updatedAtEpochMs = Clock.System.now().toEpochMilliseconds()
+        )
+        val queueItem = SyncQueueEntity(
+            queueId = UUID.randomUUID().toString(),
+            eventLocalId = event.localId,
+            action = SyncAction.CREATE,
+            retryCount = 0,
+            lastError = null
+        )
+        db.withTransaction {
+            eventDao.upsert(event)
+            queueDao.upsert(queueItem)
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import kotlinx.datetime.LocalDate
 
 interface VoidingRepository {
     suspend fun addNow(): Result<Unit>
+    suspend fun addAt(date: LocalDate, hour: Int, minute: Int): Result<Unit>
     fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>>
     fun observeDailyCount(date: LocalDate): Flow<Int>
     fun observePendingSyncCount(): Flow<Int>

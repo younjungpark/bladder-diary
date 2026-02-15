@@ -81,6 +81,20 @@ class MainViewModel(
         }
     }
 
+    fun addAtSelectedTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            val date = _uiState.value.selectedDate
+            _uiState.update { it.copy(isAdding = true, message = null) }
+            val result = addVoidingEventUseCase(date, hour, minute)
+            _uiState.update {
+                it.copy(
+                    isAdding = false,
+                    message = if (result.isSuccess) "지정한 시간으로 저장되었습니다." else result.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
+
     fun goPreviousDay() {
         selectedDate.value = selectedDate.value.plus(-1, DateTimeUnit.DAY)
     }
