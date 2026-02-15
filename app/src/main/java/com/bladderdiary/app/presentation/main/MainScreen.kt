@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -134,20 +136,17 @@ fun MainScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         TextButton(
-                            onClick = viewModel::goPreviousDay,
-                            modifier = Modifier.height(40.dp)
+                            onClick = viewModel::goPreviousDay
                         ) {
                             Text("이전", style = MaterialTheme.typography.labelLarge)
                         }
                         TextButton(
-                            onClick = { picker.show() },
-                            modifier = Modifier.height(40.dp)
+                            onClick = { picker.show() }
                         ) {
                             Text(state.selectedDate.toString(), style = MaterialTheme.typography.labelLarge)
                         }
                         TextButton(
-                            onClick = viewModel::goNextDay,
-                            modifier = Modifier.height(40.dp)
+                            onClick = viewModel::goNextDay
                         ) {
                             Text("다음", style = MaterialTheme.typography.labelLarge)
                         }
@@ -163,9 +162,9 @@ fun MainScreen(
                         enabled = !state.isAdding,
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp)
+                            .height(48.dp)
                     ) {
-                        Text("지금 기록", style = MaterialTheme.typography.labelLarge)
+                        Text("지금 기록", style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
                     Button(
                         onClick = {
@@ -186,15 +185,21 @@ fun MainScreen(
                         enabled = !state.isAdding,
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp)
+                            .height(48.dp)
                     ) {
-                        Text("시간 지정 저장", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            text = "시간 지정",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
                 Text(
                     text = "총 ${state.dailyCount}회",
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 if (state.pendingSyncCount > 0) {
                     Text(
@@ -218,7 +223,7 @@ fun MainScreen(
                         )
                     }
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(state.events, key = { it.localId }) { event ->
                             EventItem(event = event, onDelete = { viewModel.askDelete(event.localId) })
                         }
@@ -260,15 +265,19 @@ private fun EventItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = event.voidedAtEpochMs.toTimeText(),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            IconButton(onClick = onDelete) {
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(28.dp)
+            ) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "삭제",
