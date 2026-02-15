@@ -1,0 +1,11 @@
+package com.bladderdiary.app.domain.usecase
+
+import com.bladderdiary.app.domain.model.VoidingRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
+
+class GetDailyCountUseCase(
+    private val repository: VoidingRepository
+) {
+    operator fun invoke(date: LocalDate): Flow<Int> = repository.observeDailyCount(date)
+}

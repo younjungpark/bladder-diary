@@ -1,0 +1,13 @@
+package com.bladderdiary.app.domain.model
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
+
+interface VoidingRepository {
+    suspend fun addNow(): Result<Unit>
+    fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>>
+    fun observeDailyCount(date: LocalDate): Flow<Int>
+    fun observePendingSyncCount(): Flow<Int>
+    suspend fun delete(localId: String): Result<Unit>
+    suspend fun syncPending(): Result<SyncReport>
+}

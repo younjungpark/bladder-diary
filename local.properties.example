@@ -1,0 +1,4 @@
+## local.properties.sample
+## 실제 local.properties 파일을 생성해서 아래 값을 채워주세요.
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
