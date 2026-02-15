@@ -18,11 +18,14 @@ Supabase + Room 기반 배뇨일기 안드로이드 MVP입니다.
 1. Supabase 프로젝트 생성
 2. SQL Editor에서 `supabase/sql/001_init.sql` 실행
 3. Authentication에서 Email provider 활성화
-4. 프로젝트 루트 `local.properties`에 아래 값 추가
+4. Authentication > Providers에서 Google, Kakao provider 활성화 및 앱 키 등록
+5. Authentication > URL Configuration에서 Redirect URL에 `bladderdiary://auth/callback` 추가
+6. 프로젝트 루트 `local.properties`에 아래 값 추가
 
 ```properties
 SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+SUPABASE_REDIRECT_URI=bladderdiary://auth/callback
 ```
 
 ## 실행

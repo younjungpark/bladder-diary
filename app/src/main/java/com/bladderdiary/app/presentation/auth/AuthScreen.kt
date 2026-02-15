@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bladderdiary.app.domain.model.SocialProvider
 
 @Composable
 fun AuthScreen(
@@ -131,6 +132,38 @@ fun AuthScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedButton(
+                        onClick = { viewModel.signInWithSocial(SocialProvider.GOOGLE) },
+                        enabled = !state.isOAuthLoading && !state.isLoading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (state.pendingProvider == SocialProvider.GOOGLE && state.isOAuthLoading) {
+                                "Google 로그인 진행 중..."
+                            } else {
+                                "Google로 계속"
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { viewModel.signInWithSocial(SocialProvider.KAKAO) },
+                        enabled = !state.isOAuthLoading && !state.isLoading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (state.pendingProvider == SocialProvider.KAKAO && state.isOAuthLoading) {
+                                "카카오 로그인 진행 중..."
+                            } else {
+                                "카카오로 계속"
+                            }
+                        )
+                    }
                 }
             }
 
@@ -148,6 +181,15 @@ fun AuthScreen(
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            state.oauthErrorMessage?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

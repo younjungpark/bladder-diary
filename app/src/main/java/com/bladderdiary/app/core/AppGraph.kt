@@ -4,6 +4,7 @@ import android.content.Context
 import com.bladderdiary.app.data.local.AppDatabase
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
+import com.bladderdiary.app.data.remote.SupabaseAuthClient
 import com.bladderdiary.app.data.repository.AuthRepositoryImpl
 import com.bladderdiary.app.data.repository.VoidingRepositoryImpl
 import com.bladderdiary.app.domain.model.AuthRepository
@@ -19,6 +20,7 @@ object AppGraph {
     private lateinit var db: AppDatabase
     private lateinit var sessionStore: SessionStore
     private lateinit var supabaseApi: SupabaseApi
+    private lateinit var supabaseAuthClient: SupabaseAuthClient
     private lateinit var syncScheduler: SyncScheduler
 
     lateinit var authRepository: AuthRepository
@@ -41,10 +43,13 @@ object AppGraph {
         db = AppDatabase.create(context)
         sessionStore = SessionStore(context)
         supabaseApi = SupabaseApi()
+        supabaseAuthClient = SupabaseAuthClient()
         syncScheduler = SyncScheduler(context)
 
         authRepository = AuthRepositoryImpl(
+            appContext = context.applicationContext,
             api = supabaseApi,
+            authClient = supabaseAuthClient,
             sessionStore = sessionStore
         )
         voidingRepository = VoidingRepositoryImpl(
