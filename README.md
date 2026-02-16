@@ -1,6 +1,6 @@
-# BladderDiary (배뇨일기)
+# BladderDiary
 
-Supabase + Room 기반 배뇨일기 안드로이드 MVP입니다.
+Supabase + Room 기반 BladderDiary 안드로이드 MVP입니다.
 
 ## 핵심 기능
 - 이메일 회원가입/로그인

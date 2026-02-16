@@ -87,7 +87,7 @@ fun MainScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "배뇨일기",
+                        text = "BladderDiary",
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
