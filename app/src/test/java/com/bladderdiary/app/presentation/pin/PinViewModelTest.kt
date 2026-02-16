@@ -96,4 +96,5 @@ private class FakeAuthRepository : AuthRepository {
         sessionState.value = null
     }
     override suspend fun getSession(): UserSession? = sessionState.value
+    override suspend fun refreshSession(): Result<UserSession> = Result.success(sessionState.value!!)
 }

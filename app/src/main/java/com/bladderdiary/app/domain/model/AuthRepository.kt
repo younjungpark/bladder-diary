@@ -11,4 +11,5 @@ interface AuthRepository {
     suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult>
     suspend fun signOut()
     suspend fun getSession(): UserSession?
+    suspend fun refreshSession(): Result<UserSession>
 }

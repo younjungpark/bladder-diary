@@ -201,12 +201,26 @@ fun MainScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
+                if (state.isSyncing) {
+                    Text(
+                        text = "동기화 중...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 if (state.pendingSyncCount > 0) {
                     Text(
                         text = "동기화 대기 ${state.pendingSyncCount}건",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.tertiary
                     )
+                    state.pendingSyncError?.let { rawError ->
+                        Text(
+                            text = "동기화 오류: ${rawError.toUiErrorText()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
 
                 if (state.events.isEmpty()) {
@@ -294,4 +308,9 @@ private fun Long.toTimeText(): String {
         .atZone(ZoneId.systemDefault())
         .toLocalTime()
         .format(formatter)
+}
+
+private fun String.toUiErrorText(maxLen: Int = 120): String {
+    val normalized = replace('\n', ' ').replace('\r', ' ').trim()
+    return if (normalized.length <= maxLen) normalized else normalized.take(maxLen) + "..."
 }

@@ -76,4 +76,8 @@ object AppGraph {
         deleteVoidingEventUseCase = DeleteVoidingEventUseCase(voidingRepository)
         syncEventsUseCase = SyncEventsUseCase(voidingRepository)
     }
+
+    fun requestSync() {
+        syncScheduler.request()
+    }
 }

@@ -10,6 +10,12 @@ data class AuthRequest(
 )
 
 @Serializable
+data class RefreshTokenRequest(
+    @SerialName("refresh_token")
+    val refreshToken: String
+)
+
+@Serializable
 data class AuthUserDto(
     val id: String
 )

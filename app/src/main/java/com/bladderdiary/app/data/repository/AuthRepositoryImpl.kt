@@ -63,6 +63,22 @@ class AuthRepositoryImpl(
 
     override suspend fun getSession(): UserSession? = sessionFlow.first()
 
+    override suspend fun refreshSession(): Result<UserSession> {
+        val current = getSession() ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
+        if (current.refreshToken.isBlank()) {
+            return Result.failure(IllegalStateException("리프레시 토큰이 없습니다. 다시 로그인해주세요."))
+        }
+        return runCatching {
+            val response = api.refreshSession(current.refreshToken)
+            val refreshed = response.toSession(
+                fallbackUserId = current.userId,
+                fallbackRefreshToken = current.refreshToken
+            )
+            sessionStore.save(refreshed)
+            refreshed
+        }
+    }
+
     private fun isChromeAvailable(): Boolean {
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
         intent.`package` = CHROME_PACKAGE
@@ -74,9 +90,12 @@ class AuthRepositoryImpl(
     }
 }
 
-private fun com.bladderdiary.app.data.remote.dto.AuthResponseDto.toSession(): UserSession {
-    val userId = user?.id ?: throw IllegalStateException("사용자 정보가 없습니다.")
+private fun com.bladderdiary.app.data.remote.dto.AuthResponseDto.toSession(
+    fallbackUserId: String? = null,
+    fallbackRefreshToken: String? = null
+): UserSession {
+    val userId = user?.id ?: fallbackUserId ?: throw IllegalStateException("사용자 정보가 없습니다.")
     val accessToken = accessToken ?: throw IllegalStateException("액세스 토큰이 없습니다.")
-    val refreshToken = refreshToken ?: ""
+    val refreshToken = refreshToken ?: fallbackRefreshToken ?: ""
     return UserSession(userId, accessToken, refreshToken)
 }

@@ -3,6 +3,7 @@ package com.bladderdiary.app.data.remote
 import com.bladderdiary.app.BuildConfig
 import com.bladderdiary.app.data.remote.dto.AuthRequest
 import com.bladderdiary.app.data.remote.dto.AuthResponseDto
+import com.bladderdiary.app.data.remote.dto.RefreshTokenRequest
 import com.bladderdiary.app.data.remote.dto.SoftDeleteRequestDto
 import com.bladderdiary.app.data.remote.dto.VoidingEventRemoteDto
 import io.ktor.client.HttpClient
@@ -56,6 +57,18 @@ class SupabaseApi {
         }
         if (response.status != HttpStatusCode.OK) {
             throw IllegalStateException("로그인 실패: ${response.bodyAsText()}")
+        }
+        return response.body()
+    }
+
+    suspend fun refreshSession(refreshToken: String): AuthResponseDto {
+        val response = client.post("$baseUrl/auth/v1/token?grant_type=refresh_token") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            setBody(RefreshTokenRequest(refreshToken))
+        }
+        if (response.status != HttpStatusCode.OK) {
+            throw IllegalStateException("세션 갱신 실패: ${response.bodyAsText()}")
         }
         return response.body()
     }

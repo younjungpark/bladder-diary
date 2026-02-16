@@ -9,6 +9,8 @@ interface VoidingRepository {
     fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>>
     fun observeDailyCount(date: LocalDate): Flow<Int>
     fun observePendingSyncCount(): Flow<Int>
+    fun observePendingSyncError(): Flow<String?>
+    fun observeSyncInProgress(): Flow<Boolean>
     suspend fun delete(localId: String): Result<Unit>
     suspend fun syncPending(): Result<SyncReport>
 }

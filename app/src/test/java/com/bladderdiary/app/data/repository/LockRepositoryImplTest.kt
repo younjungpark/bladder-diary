@@ -108,6 +108,11 @@ private class FakeAuthRepository : AuthRepository {
     }
 
     override suspend fun getSession(): UserSession? = sessionState.value
+
+    override suspend fun refreshSession(): Result<UserSession> {
+        return sessionState.value?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("로그인이 필요합니다."))
+    }
 }
 
 private class FakePinStore : PinStoreDataSource {

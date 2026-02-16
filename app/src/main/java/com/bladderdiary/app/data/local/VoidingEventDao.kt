@@ -35,6 +35,12 @@ interface VoidingEventDao {
     @Query("SELECT * FROM voiding_events WHERE local_id = :localId LIMIT 1")
     suspend fun getById(localId: String): VoidingEventEntity?
 
-    @Query("SELECT COUNT(*) FROM voiding_events WHERE user_id = :userId AND sync_state != 'SYNCED'")
+    @Query(
+        """
+        SELECT COUNT(*) FROM voiding_events
+        WHERE user_id = :userId
+          AND sync_state IN ('PENDING_CREATE', 'PENDING_DELETE')
+        """
+    )
     fun observePendingCount(userId: String): Flow<Int>
 }

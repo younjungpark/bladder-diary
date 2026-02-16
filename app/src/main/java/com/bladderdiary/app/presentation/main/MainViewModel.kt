@@ -27,6 +27,8 @@ data class MainUiState(
     val dailyCount: Int = 0,
     val events: List<VoidingEvent> = emptyList(),
     val pendingSyncCount: Int = 0,
+    val pendingSyncError: String? = null,
+    val isSyncing: Boolean = false,
     val isAdding: Boolean = false,
     val confirmDeleteEventId: String? = null,
     val message: String? = null
@@ -47,17 +49,27 @@ class MainViewModel(
 
     init {
         viewModelScope.launch {
+            val syncStateFlow = combine(
+                voidingRepository.observePendingSyncCount(),
+                voidingRepository.observePendingSyncError(),
+                voidingRepository.observeSyncInProgress()
+            ) { pending, pendingError, isSyncing ->
+                Triple(pending, pendingError, isSyncing)
+            }
             combine(
                 selectedDate,
                 selectedDate.flatMapLatest { date -> getDailyEventsUseCase(date) },
                 selectedDate.flatMapLatest { date -> getDailyCountUseCase(date) },
-                voidingRepository.observePendingSyncCount()
-            ) { date, events, count, pending ->
+                syncStateFlow
+            ) { date, events, count, syncState ->
+                val (pending, pendingError, isSyncing) = syncState
                 MainUiState(
                     selectedDate = date,
                     events = events,
                     dailyCount = count,
                     pendingSyncCount = pending,
+                    pendingSyncError = pendingError,
+                    isSyncing = isSyncing,
                     isAdding = _uiState.value.isAdding,
                     confirmDeleteEventId = _uiState.value.confirmDeleteEventId,
                     message = _uiState.value.message
