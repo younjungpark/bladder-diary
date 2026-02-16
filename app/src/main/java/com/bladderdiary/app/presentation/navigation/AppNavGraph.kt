@@ -9,10 +9,18 @@ import com.bladderdiary.app.presentation.auth.AuthScreen
 import com.bladderdiary.app.presentation.auth.AuthViewModel
 import com.bladderdiary.app.presentation.main.MainScreen
 import com.bladderdiary.app.presentation.main.MainViewModel
+import com.bladderdiary.app.presentation.pin.PinScreen
+import com.bladderdiary.app.presentation.pin.PinViewModel
 
 @Composable
 fun AppNavGraph() {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(AppGraph.authRepository))
+    val pinViewModel: PinViewModel = viewModel(
+        factory = PinViewModel.factory(
+            authRepository = AppGraph.authRepository,
+            lockRepository = AppGraph.lockRepository
+        )
+    )
     val mainViewModel: MainViewModel = viewModel(
         factory = MainViewModel.factory(
             addVoidingEventUseCase = AppGraph.addVoidingEventUseCase,
@@ -23,13 +31,19 @@ fun AppNavGraph() {
         )
     )
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
 
-    if (authState.isLoggedIn) {
+    if (!authState.isLoggedIn) {
+        AuthScreen(viewModel = authViewModel)
+    } else if (!pinState.isPinSet || !pinState.isUnlocked) {
+        PinScreen(viewModel = pinViewModel)
+    } else {
         MainScreen(
             viewModel = mainViewModel,
-            onSignOut = authViewModel::signOut
+            onSignOut = {
+                pinViewModel.clearRuntimeUnlock()
+                authViewModel.signOut()
+            }
         )
-    } else {
-        AuthScreen(viewModel = authViewModel)
     }
 }
