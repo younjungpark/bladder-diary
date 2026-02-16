@@ -9,6 +9,7 @@ import com.bladderdiary.app.domain.model.SocialProvider
 import com.bladderdiary.app.domain.model.UserSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,7 +44,7 @@ class PinViewModelTest {
         val viewModel = PinViewModel(FakeAuthRepository(), lockRepo, startTicker = false)
 
         viewModel.onPinChange("0000")
-        viewModel.submit()
+        advanceUntilIdle()
 
         assertEquals("PIN이 올바르지 않습니다.", viewModel.uiState.value.errorMessage)
     }

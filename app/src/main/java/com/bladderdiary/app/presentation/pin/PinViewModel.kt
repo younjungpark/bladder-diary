@@ -84,22 +84,43 @@ class PinViewModel(
     }
 
     fun onPinChange(value: String) {
+        val nextPin = value.filter(Char::isDigit).take(4)
         _uiState.update {
             it.copy(
-                pin = value.filter(Char::isDigit).take(4),
+                pin = nextPin,
                 errorMessage = null,
                 infoMessage = null
             )
         }
+        val current = _uiState.value
+        if (
+            current.mode == PinMode.UNLOCK &&
+            nextPin.length == 4 &&
+            !current.isSubmitting &&
+            !current.isLocked
+        ) {
+            submit()
+        }
     }
 
     fun onConfirmPinChange(value: String) {
+        val nextConfirmPin = value.filter(Char::isDigit).take(4)
         _uiState.update {
             it.copy(
-                confirmPin = value.filter(Char::isDigit).take(4),
+                confirmPin = nextConfirmPin,
                 errorMessage = null,
                 infoMessage = null
             )
+        }
+        val current = _uiState.value
+        if (
+            current.mode == PinMode.SETUP &&
+            current.pin.length == 4 &&
+            nextConfirmPin.length == 4 &&
+            !current.isSubmitting &&
+            !current.isLocked
+        ) {
+            submit()
         }
     }
 

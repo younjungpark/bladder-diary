@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -20,10 +21,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,6 +42,25 @@ fun PinScreen(
     viewModel: PinViewModel
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pinFocusRequester = remember { FocusRequester() }
+    val confirmFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(state.mode, state.pin.length, state.confirmPin.length, state.isLocked, state.isSubmitting) {
+        if (state.isLocked || state.isSubmitting) return@LaunchedEffect
+        if (state.mode == PinMode.SETUP) {
+            if (state.pin.length < 4) {
+                pinFocusRequester.requestFocus()
+                keyboardController?.show()
+            } else if (state.confirmPin.length < 4) {
+                confirmFocusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        } else {
+            pinFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -81,7 +107,9 @@ fun PinScreen(
                     PinInputField(
                         value = state.pin,
                         onValueChange = viewModel::onPinChange,
-                        placeholder = "PIN 4자리"
+                        placeholder = "PIN 4자리",
+                        focusRequester = pinFocusRequester,
+                        onDone = viewModel::submit
                     )
 
                     if (state.mode == PinMode.SETUP) {
@@ -89,12 +117,14 @@ fun PinScreen(
                         PinInputField(
                             value = state.confirmPin,
                             onValueChange = viewModel::onConfirmPinChange,
-                            placeholder = "PIN 확인 4자리"
+                            placeholder = "PIN 확인 4자리",
+                            focusRequester = confirmFocusRequester,
+                            onDone = viewModel::submit
                         )
                     } else {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "남은 시도 횟수: ${state.remainingAttempts}회",
+                            text = "PIN 4자리를 입력하면 자동으로 잠금 해제됩니다. (남은 시도 ${state.remainingAttempts}회)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.secondary
                         )
@@ -127,13 +157,15 @@ fun PinScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Button(
-                        onClick = viewModel::submit,
-                        enabled = state.submitEnabled,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = if (state.mode == PinMode.SETUP) "PIN 설정" else "잠금 해제")
+                    if (state.mode == PinMode.SETUP) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Button(
+                            onClick = viewModel::submit,
+                            enabled = state.submitEnabled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = "PIN 설정")
+                        }
                     }
 
                     if (state.mode == PinMode.UNLOCK) {
@@ -156,7 +188,9 @@ fun PinScreen(
 private fun PinInputField(
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String
+    placeholder: String,
+    focusRequester: FocusRequester,
+    onDone: () -> Unit
 ) {
     val shape = RoundedCornerShape(12.dp)
     Box(
@@ -179,10 +213,16 @@ private fun PinInputField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.NumberPassword,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
             visualTransformation = if (value.isEmpty()) VisualTransformation.None else PasswordVisualTransformation(),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
         )
         if (value.isEmpty()) {
             Text(
