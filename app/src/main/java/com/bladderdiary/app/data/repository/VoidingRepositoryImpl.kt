@@ -199,6 +199,68 @@ class VoidingRepositoryImpl(
         }
     }
 
+    override suspend fun fetchAndSyncAll(): Result<Unit> {
+        activeSyncCount.update { it + 1 }
+        try {
+            // 1. 기존 기기의 미동기화 기록 업로드 완료
+            syncPending()
+
+            val session = authRepository.getSession() ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
+            return runCatching {
+                var accessToken = session.accessToken
+                var remoteEventsResult = runCatching { api.getVoidingEvents(accessToken, session.userId) }
+                
+                if (remoteEventsResult.isFailure && remoteEventsResult.exceptionOrNull().isJwtExpired()) {
+                    val refreshed = authRepository.refreshSession()
+                    if (refreshed.isSuccess) {
+                        accessToken = refreshed.getOrThrow().accessToken
+                        remoteEventsResult = runCatching { api.getVoidingEvents(accessToken, session.userId) }
+                    }
+                }
+                
+                val dtos = remoteEventsResult.getOrThrow()
+                
+                // 2. Dto를 Entity로 변환하며 다운로드 반영
+                val entities = dtos.map { dto ->
+                    val isDeleted = dto.deletedAt != null
+                    val epochMs = try {
+                        Instant.parse(dto.voidedAt).toEpochMilliseconds()
+                    } catch (e: Exception) {
+                        0L // 기본값이나 에러처리
+                    }
+                    val updatedEpochMs = if (isDeleted) {
+                        try {
+                            Instant.parse(dto.deletedAt!!).toEpochMilliseconds()
+                        } catch (e: Exception) {
+                            Clock.System.now().toEpochMilliseconds()
+                        }
+                    } else {
+                        Clock.System.now().toEpochMilliseconds()
+                    }
+
+                    VoidingEventEntity(
+                        localId = dto.id,
+                        userId = session.userId,
+                        voidedAtEpochMs = epochMs,
+                        localDate = dto.localDate,
+                        isDeleted = isDeleted,
+                        syncState = SyncState.SYNCED,
+                        updatedAtEpochMs = updatedEpochMs
+                    )
+                }
+                
+                // 3. 내부 DB 갱신
+                if (entities.isNotEmpty()) {
+                    db.withTransaction {
+                        eventDao.upsertAll(entities)
+                    }
+                }
+            }
+        } finally {
+            activeSyncCount.update { count -> (count - 1).coerceAtLeast(0) }
+        }
+    }
+
     private suspend fun syncCreate(accessToken: String, event: VoidingEventEntity) {
         val instant = Instant.fromEpochMilliseconds(event.voidedAtEpochMs)
         val dto = VoidingEventRemoteDto(

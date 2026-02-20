@@ -2,20 +2,36 @@ package com.bladderdiary.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val SlateBlue = Color(0xFF2C4A71)
-val SlateBlueSoft = Color(0xFFD8E6FF)
-val NavyInk = Color(0xFF0F2745)
-val Steel = Color(0xFF51607A)
-val SteelSoft = Color(0xFFD9E2F3)
-val TealAccent = Color(0xFF266D7E)
-val AppBackground = Color(0xFFF3F6FB)
-val AppSurface = Color(0xFFFBFCFF)
-val AppSurfaceVariant = Color(0xFFE6EBF4)
-val AppOutline = Color(0xFF8B95A7)
+// Light Theme
+val PrimaryLight = Color(0xFF4A8895) // Soft Teal
+val OnPrimaryLight = Color(0xFFFFFFFF)
+val PrimaryContainerLight = Color(0xFFD0E8ED)
+val OnPrimaryContainerLight = Color(0xFF0D323A)
+val SecondaryLight = Color(0xFF8C71A3) // Soft Lavender
+val OnSecondaryLight = Color(0xFFFFFFFF)
+val SecondaryContainerLight = Color(0xFFEADBFF)
+val OnSecondaryContainerLight = Color(0xFF2B0E4C)
+val TertiaryLight = Color(0xFFDE7472) // Soft Coral
+val BackgroundLight = Color(0xFFF7F9FA)
+val OnBackgroundLight = Color(0xFF191C1D)
+val SurfaceLight = Color(0xFFFFFFFF)
+val OnSurfaceLight = Color(0xFF191C1D)
+val SurfaceVariantLight = Color(0xFFE6EBEB)
+val OutlineLight = Color(0xFF9FA5A7)
 
-val SlateBlueDark = Color(0xFFAFC9F6)
-val NavyDark = Color(0xFF071A31)
-val AppBackgroundDark = Color(0xFF0D1522)
-val AppSurfaceDark = Color(0xFF121D2E)
-val AppSurfaceVariantDark = Color(0xFF223148)
-val AppOutlineDark = Color(0xFF77839A)
+// Dark Theme
+val PrimaryDark = Color(0xFF8FCDDA)
+val OnPrimaryDark = Color(0xFF13363E)
+val PrimaryContainerDark = Color(0xFF2E4E55)
+val OnPrimaryContainerDark = Color(0xFFD0E8ED)
+val SecondaryDark = Color(0xFFCEB5E8)
+val OnSecondaryDark = Color(0xFF381F4C)
+val SecondaryContainerDark = Color(0xFF513669)
+val OnSecondaryContainerDark = Color(0xFFEADBFF)
+val TertiaryDark = Color(0xFFFFB3B1)
+val BackgroundDark = Color(0xFF191C1D)
+val OnBackgroundDark = Color(0xFFE1E3E4)
+val SurfaceDark = Color(0xFF1C2021)
+val OnSurfaceDark = Color(0xFFE1E3E4)
+val SurfaceVariantDark = Color(0xFF3E484A)
+val OutlineDark = Color(0xFF899193)

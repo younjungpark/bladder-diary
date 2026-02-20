@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.MainActivity
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.VoidingRepository
 import com.bladderdiary.app.domain.model.SocialProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,8 @@ data class AuthUiState(
 )
 
 class AuthViewModel(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val voidingRepository: VoidingRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -44,6 +46,10 @@ class AuthViewModel(
                 handleOAuthCallback(callbackUrl)
             }
             .launchIn(viewModelScope)
+            
+        // 로그인 상태가 되면 기기 백업이 없을 경우를 대비해 1회 데이터 복원을 시도합니다.
+        // sessionFlow에서 isLoggedIn이 true로 바뀔 때 바로 다운로드를 트리거할 수도 있지만
+        // 명시적으로 submit / handleOAuthCallback 성공 시 호출하는 편이 안전합니다.
     }
 
     fun onEmailChange(value: String) {
@@ -98,6 +104,17 @@ class AuthViewModel(
                     oauthErrorMessage = null,
                     infoMessage = "회원가입 요청이 처리되었습니다. 이메일을 확인한 뒤 로그인해주세요."
                 )
+            } else if (result.isSuccess && isLoginMode) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = null,
+                    oauthErrorMessage = null,
+                    infoMessage = null
+                )
+                // 로그인 완료 후 데이터 다운로드
+                viewModelScope.launch {
+                    voidingRepository.fetchAndSyncAll()
+                }
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -140,6 +157,10 @@ class AuthViewModel(
                     oauthErrorMessage = null,
                     infoMessage = null
                 )
+                // Oauth 로그인 완료 후 데이터 다운로드
+                viewModelScope.launch {
+                    voidingRepository.fetchAndSyncAll()
+                }
             } else {
                 _uiState.value = _uiState.value.copy(
                     isOAuthLoading = false,
@@ -157,11 +178,11 @@ class AuthViewModel(
     }
 
     companion object {
-        fun factory(authRepository: AuthRepository): ViewModelProvider.Factory {
+        fun factory(authRepository: AuthRepository, voidingRepository: VoidingRepository): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AuthViewModel(authRepository) as T
+                    return AuthViewModel(authRepository, voidingRepository) as T
                 }
             }
         }

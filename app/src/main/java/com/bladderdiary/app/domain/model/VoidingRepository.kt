@@ -12,5 +12,6 @@ interface VoidingRepository {
     fun observePendingSyncError(): Flow<String?>
     fun observeSyncInProgress(): Flow<Boolean>
     suspend fun delete(localId: String): Result<Unit>
+    suspend fun fetchAndSyncAll(): Result<Unit>
     suspend fun syncPending(): Result<SyncReport>
 }

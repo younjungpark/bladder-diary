@@ -10,6 +10,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -97,5 +98,17 @@ class SupabaseApi {
         if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.NoContent)) {
             throw IllegalStateException("이벤트 삭제 동기화 실패: ${response.bodyAsText()}")
         }
+    }
+
+    suspend fun getVoidingEvents(accessToken: String, userId: String): List<VoidingEventRemoteDto> {
+        val response = client.get("$baseUrl/rest/v1/voiding_events?user_id=eq.$userId") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+        }
+        if (response.status != HttpStatusCode.OK) {
+            throw IllegalStateException("이벤트 다운로드 실패: ${response.bodyAsText()}")
+        }
+        return response.body()
     }
 }

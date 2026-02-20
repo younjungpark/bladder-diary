@@ -12,6 +12,9 @@ interface VoidingEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(event: VoidingEventEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(events: List<VoidingEventEntity>)
+
     @Update
     suspend fun update(event: VoidingEventEntity)
 

@@ -8,39 +8,39 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
-    primary = SlateBlue,
-    onPrimary = AppSurface,
-    primaryContainer = SlateBlueSoft,
-    onPrimaryContainer = NavyInk,
-    secondary = Steel,
-    onSecondary = AppSurface,
-    secondaryContainer = SteelSoft,
-    onSecondaryContainer = NavyInk,
-    tertiary = TealAccent,
-    background = AppBackground,
-    onBackground = NavyInk,
-    surface = AppSurface,
-    onSurface = NavyInk,
-    surfaceVariant = AppSurfaceVariant,
-    outline = AppOutline
+    primary = PrimaryLight,
+    onPrimary = OnPrimaryLight,
+    primaryContainer = PrimaryContainerLight,
+    onPrimaryContainer = OnPrimaryContainerLight,
+    secondary = SecondaryLight,
+    onSecondary = OnSecondaryLight,
+    secondaryContainer = SecondaryContainerLight,
+    onSecondaryContainer = OnSecondaryContainerLight,
+    tertiary = TertiaryLight,
+    background = BackgroundLight,
+    onBackground = OnBackgroundLight,
+    surface = SurfaceLight,
+    onSurface = OnSurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    outline = OutlineLight
 )
 
 private val DarkColors = darkColorScheme(
-    primary = SlateBlueDark,
-    onPrimary = NavyDark,
-    primaryContainer = NavyInk,
-    onPrimaryContainer = SlateBlueSoft,
-    secondary = Color(0xFFB7C2D9),
-    onSecondary = Color(0xFF1E2A40),
-    secondaryContainer = AppSurfaceVariantDark,
-    onSecondaryContainer = Color(0xFFD7DEEA),
-    tertiary = Color(0xFF8FD3E4),
-    background = AppBackgroundDark,
-    onBackground = Color(0xFFE1E8F4),
-    surface = AppSurfaceDark,
-    onSurface = Color(0xFFE1E8F4),
-    surfaceVariant = AppSurfaceVariantDark,
-    outline = AppOutlineDark
+    primary = PrimaryDark,
+    onPrimary = OnPrimaryDark,
+    primaryContainer = PrimaryContainerDark,
+    onPrimaryContainer = OnPrimaryContainerDark,
+    secondary = SecondaryDark,
+    onSecondary = OnSecondaryDark,
+    secondaryContainer = SecondaryContainerDark,
+    onSecondaryContainer = OnSecondaryContainerDark,
+    tertiary = TertiaryDark,
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    outline = OutlineDark
 )
 
 @Composable

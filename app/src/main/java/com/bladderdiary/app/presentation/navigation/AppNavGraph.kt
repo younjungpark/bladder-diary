@@ -14,7 +14,12 @@ import com.bladderdiary.app.presentation.pin.PinViewModel
 
 @Composable
 fun AppNavGraph() {
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(AppGraph.authRepository))
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModel.factory(
+            AppGraph.authRepository,
+            AppGraph.voidingRepository
+        )
+    )
     val pinViewModel: PinViewModel = viewModel(
         factory = PinViewModel.factory(
             authRepository = AppGraph.authRepository,

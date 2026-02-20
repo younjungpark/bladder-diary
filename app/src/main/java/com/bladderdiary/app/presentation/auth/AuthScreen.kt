@@ -204,21 +204,16 @@ private fun CompactInputField(
     placeholder: String,
     isPassword: Boolean = false
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(48.dp)
             .background(
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 shape = shape
             )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = shape
-            )
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
