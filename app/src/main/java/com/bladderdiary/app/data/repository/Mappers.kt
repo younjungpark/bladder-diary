@@ -11,6 +11,7 @@ fun VoidingEventEntity.toDomain(): VoidingEvent {
         localDate = localDate,
         isDeleted = isDeleted,
         syncState = syncState,
-        updatedAtEpochMs = updatedAtEpochMs
+        updatedAtEpochMs = updatedAtEpochMs,
+        memo = memo
     )
 }

@@ -21,5 +21,7 @@ data class VoidingEventEntity(
     @ColumnInfo(name = "sync_state")
     val syncState: SyncState,
     @ColumnInfo(name = "updated_at_epoch_ms")
-    val updatedAtEpochMs: Long
+    val updatedAtEpochMs: Long,
+    @ColumnInfo(name = "memo")
+    val memo: String? = null
 )

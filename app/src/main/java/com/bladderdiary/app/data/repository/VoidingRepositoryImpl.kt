@@ -15,6 +15,7 @@ import com.bladderdiary.app.domain.model.VoidingRepository
 import com.bladderdiary.app.worker.SyncScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -39,7 +40,7 @@ class VoidingRepositoryImpl(
     private val queueDao = db.syncQueueDao()
     private val activeSyncCount = MutableStateFlow(0)
 
-    override suspend fun addNow(): Result<Unit> {
+    override suspend fun addNow(memo: String?): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -49,13 +50,14 @@ class VoidingRepositoryImpl(
             addPendingCreate(
                 userId = session.userId,
                 epochMs = now.toEpochMilliseconds(),
-                localDate = now.toLocalDate()
+                localDate = now.toLocalDate(),
+                memo = memo
             )
             syncNowOrSchedule()
         }
     }
 
-    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int): Result<Unit> {
+    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int, memo: String?): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -71,7 +73,8 @@ class VoidingRepositoryImpl(
             addPendingCreate(
                 userId = session.userId,
                 epochMs = epochMs,
-                localDate = date.toString()
+                localDate = date.toString(),
+                memo = memo
             )
             syncNowOrSchedule()
         }
@@ -89,6 +92,7 @@ class VoidingRepositoryImpl(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> {
         return authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
@@ -99,6 +103,23 @@ class VoidingRepositoryImpl(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<kotlinx.datetime.LocalDate, Int>> {
+        val pattern = "$yearMonth-%"
+        return authRepository.sessionFlow.flatMapLatest { session ->
+            if (session == null) {
+                flowOf(emptyMap())
+            } else {
+                eventDao.observeMonthlyCounts(session.userId, pattern).map { dtoList ->
+                    dtoList.associate { dto ->
+                        kotlinx.datetime.LocalDate.parse(dto.localDate) to dto.count
+                    }
+                }
+            }
+        }.catch { emit(emptyMap()) }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observePendingSyncCount(): Flow<Int> {
         return authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
@@ -137,6 +158,33 @@ class VoidingRepositoryImpl(
                 queueId = UUID.randomUUID().toString(),
                 eventLocalId = localId,
                 action = SyncAction.DELETE,
+                retryCount = 0,
+                lastError = null
+            )
+            db.withTransaction {
+                eventDao.update(updatedEvent)
+                queueDao.upsert(queueItem)
+            }
+            syncNowOrSchedule()
+        }
+    }
+
+    override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> {
+        val event = eventDao.getById(localId) ?: return Result.failure(
+            IllegalStateException("기록을 찾을 수 없습니다.")
+        )
+
+        return runCatching {
+            val nowEpochMs = Clock.System.now().toEpochMilliseconds()
+            val updatedEvent = event.copy(
+                memo = memo,
+                syncState = SyncState.PENDING_CREATE, // Use CREATE for upsert
+                updatedAtEpochMs = nowEpochMs
+            )
+            val queueItem = SyncQueueEntity(
+                queueId = UUID.randomUUID().toString(),
+                eventLocalId = localId,
+                action = SyncAction.CREATE,
                 retryCount = 0,
                 lastError = null
             )
@@ -245,7 +293,8 @@ class VoidingRepositoryImpl(
                         localDate = dto.localDate,
                         isDeleted = isDeleted,
                         syncState = SyncState.SYNCED,
-                        updatedAtEpochMs = updatedEpochMs
+                        updatedAtEpochMs = updatedEpochMs,
+                        memo = dto.memo
                     )
                 }
                 
@@ -269,7 +318,8 @@ class VoidingRepositoryImpl(
             voidedAt = instant.toString(),
             localDate = event.localDate,
             clientRef = event.localId,
-            deletedAt = null
+            deletedAt = null,
+            memo = event.memo
         )
         api.upsertVoidingEvent(accessToken, dto)
     }
@@ -283,7 +333,7 @@ class VoidingRepositoryImpl(
         )
     }
 
-    private suspend fun addPendingCreate(userId: String, epochMs: Long, localDate: String) {
+    private suspend fun addPendingCreate(userId: String, epochMs: Long, localDate: String, memo: String?) {
         val event = VoidingEventEntity(
             localId = UUID.randomUUID().toString(),
             userId = userId,
@@ -291,7 +341,8 @@ class VoidingRepositoryImpl(
             localDate = localDate,
             isDeleted = false,
             syncState = SyncState.PENDING_CREATE,
-            updatedAtEpochMs = Clock.System.now().toEpochMilliseconds()
+            updatedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
+            memo = memo
         )
         val queueItem = SyncQueueEntity(
             queueId = UUID.randomUUID().toString(),

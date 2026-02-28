@@ -15,7 +15,9 @@ data class VoidingEventRemoteDto(
     @SerialName("client_ref")
     val clientRef: String,
     @SerialName("deleted_at")
-    val deletedAt: String? = null
+    val deletedAt: String? = null,
+    @SerialName("memo")
+    val memo: String? = null
 )
 
 @Serializable

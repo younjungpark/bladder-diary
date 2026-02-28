@@ -9,6 +9,7 @@ import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
+import com.bladderdiary.app.domain.usecase.UpdateVoidingEventMemoUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +40,7 @@ class MainViewModel(
     private val getDailyEventsUseCase: GetDailyEventsUseCase,
     private val getDailyCountUseCase: GetDailyCountUseCase,
     private val deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
+    private val updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
     private val voidingRepository: VoidingRepository
 ) : ViewModel() {
     private val selectedDate = MutableStateFlow(
@@ -80,10 +82,10 @@ class MainViewModel(
         }
     }
 
-    fun addNow() {
+    fun addNow(memo: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase()
+            val result = addVoidingEventUseCase(memo)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -93,15 +95,26 @@ class MainViewModel(
         }
     }
 
-    fun addAtSelectedTime(hour: Int, minute: Int) {
+    fun addAtSelectedTime(hour: Int, minute: Int, memo: String? = null) {
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(date, hour, minute)
+            val result = addVoidingEventUseCase(date, hour, minute, memo)
             _uiState.update {
                 it.copy(
                     isAdding = false,
                     message = if (result.isSuccess) "지정한 시간으로 저장되었습니다." else result.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
+
+    fun updateMemo(localId: String, memo: String?) {
+        viewModelScope.launch {
+            val result = updateVoidingEventMemoUseCase(localId, memo)
+            _uiState.update {
+                it.copy(
+                    message = if (result.isSuccess) "메모가 업데이트되었습니다." else result.exceptionOrNull()?.message
                 )
             }
         }
@@ -150,6 +163,7 @@ class MainViewModel(
             getDailyEventsUseCase: GetDailyEventsUseCase,
             getDailyCountUseCase: GetDailyCountUseCase,
             deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
+            updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
             voidingRepository: VoidingRepository
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
@@ -160,6 +174,7 @@ class MainViewModel(
                         getDailyEventsUseCase = getDailyEventsUseCase,
                         getDailyCountUseCase = getDailyCountUseCase,
                         deleteVoidingEventUseCase = deleteVoidingEventUseCase,
+                        updateVoidingEventMemoUseCase = updateVoidingEventMemoUseCase,
                         voidingRepository = voidingRepository
                     ) as T
                 }

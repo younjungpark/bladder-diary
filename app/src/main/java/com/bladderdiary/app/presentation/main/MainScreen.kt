@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,13 +35,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -58,11 +64,20 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
+    onShowCalendar: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var inputMemo by remember { mutableStateOf("") }
+    var addTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    
+    // 기존 메모 조회 및 수정을 위한 상태
+    var viewMemoEvent by remember { mutableStateOf<VoidingEvent?>(null) }
+    var editMemoText by remember { mutableStateOf("") }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -99,6 +114,13 @@ fun MainScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
+                    IconButton(onClick = onShowCalendar) {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = "캘린더 보기",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = onSignOut) {
                         Icon(
                             Icons.Default.ExitToApp,
@@ -165,7 +187,11 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = viewModel::addNow,
+                        onClick = {
+                            addTime = null
+                            inputMemo = ""
+                            showAddDialog = true
+                        },
                         enabled = !state.isAdding,
                         modifier = Modifier
                             .weight(1f)
@@ -182,7 +208,9 @@ fun MainScreen(
                             TimePickerDialog(
                                 context,
                                 { _, hourOfDay, minute ->
-                                    viewModel.addAtSelectedTime(hourOfDay, minute)
+                                    addTime = Pair(hourOfDay, minute)
+                                    inputMemo = ""
+                                    showAddDialog = true
                                 },
                                 initialHour,
                                 initialMinute,
@@ -254,13 +282,102 @@ fun MainScreen(
                     }
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(state.events, key = { it.localId }) { event ->
-                            EventItem(event = event, onDelete = { viewModel.askDelete(event.localId) })
+                        itemsIndexed(state.events, key = { _, it -> it.localId }) { index, event ->
+                            val previousEvent = if (index < state.events.size - 1) state.events[index + 1] else null
+                            val intervalMs = previousEvent?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                            val intervalText = intervalMs?.let { ms ->
+                                if (ms > 0) {
+                                    val minutes = ms / (1000 * 60)
+                                    val hours = minutes / 60
+                                    val remainingMinutes = minutes % 60
+                                    if (hours > 0) "${hours}시간 ${remainingMinutes}분 경과" else "${remainingMinutes}분 경과"
+                                } else null
+                            }
+                            EventItem(
+                                event = event,
+                                intervalText = intervalText,
+                                onViewMemo = { 
+                                    viewMemoEvent = event
+                                    editMemoText = event.memo ?: ""
+                                },
+                                onDelete = { viewModel.askDelete(event.localId) }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = {
+                Text(
+                    text = if (addTime == null) "지금 기록 추가"
+                           else "${addTime!!.first}시 ${addTime!!.second}분 기록 추가"
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = inputMemo,
+                    onValueChange = { inputMemo = it },
+                    label = { Text("메모 (선택사항)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showAddDialog = false
+                    val memoToSave = inputMemo.trim().takeIf { it.isNotEmpty() }
+                    if (addTime == null) {
+                        viewModel.addNow(memoToSave)
+                    } else {
+                        viewModel.addAtSelectedTime(addTime!!.first, addTime!!.second, memoToSave)
+                    }
+                }) {
+                    Text("저장")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
+    if (viewMemoEvent != null) {
+        AlertDialog(
+            onDismissRequest = { viewMemoEvent = null },
+            title = {
+                Text(text = "메모 조회/수정")
+            },
+            text = {
+                OutlinedTextField(
+                    value = editMemoText,
+                    onValueChange = { editMemoText = it },
+                    label = { Text("메모") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val eventToUpdate = viewMemoEvent
+                    if (eventToUpdate != null) {
+                        viewModel.updateMemo(eventToUpdate.localId, editMemoText.trim().takeIf { it.isNotEmpty() })
+                    }
+                    viewMemoEvent = null
+                }) {
+                    Text("저장")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewMemoEvent = null }) {
+                    Text("닫기")
+                }
+            }
+        )
     }
 
     if (state.confirmDeleteEventId != null) {
@@ -285,6 +402,8 @@ fun MainScreen(
 @Composable
 private fun EventItem(
     event: VoidingEvent,
+    intervalText: String?,
+    onViewMemo: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -292,27 +411,59 @@ private fun EventItem(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = event.voidedAtEpochMs.toTimeText(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(28.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = MaterialTheme.colorScheme.secondary
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = event.voidedAtEpochMs.toTimeText(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (intervalText != null) {
+                        Text(
+                            text = intervalText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onViewMemo,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.List,
+                            contentDescription = "메모 보기",
+                            tint = if (!event.memo.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
             }
         }
     }

@@ -16,7 +16,9 @@ import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
+import com.bladderdiary.app.domain.usecase.GetMonthlyCountsUseCase
 import com.bladderdiary.app.domain.usecase.SyncEventsUseCase
+import com.bladderdiary.app.domain.usecase.UpdateVoidingEventMemoUseCase
 import com.bladderdiary.app.worker.SyncScheduler
 
 object AppGraph {
@@ -40,9 +42,13 @@ object AppGraph {
         private set
     lateinit var getDailyCountUseCase: GetDailyCountUseCase
         private set
+    lateinit var getMonthlyCountsUseCase: GetMonthlyCountsUseCase
+        private set
     lateinit var deleteVoidingEventUseCase: DeleteVoidingEventUseCase
         private set
     lateinit var syncEventsUseCase: SyncEventsUseCase
+        private set
+    lateinit var updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase
         private set
 
     fun init(context: Context) {
@@ -73,8 +79,10 @@ object AppGraph {
         addVoidingEventUseCase = AddVoidingEventUseCase(voidingRepository)
         getDailyEventsUseCase = GetDailyEventsUseCase(voidingRepository)
         getDailyCountUseCase = GetDailyCountUseCase(voidingRepository)
+        getMonthlyCountsUseCase = GetMonthlyCountsUseCase(voidingRepository)
         deleteVoidingEventUseCase = DeleteVoidingEventUseCase(voidingRepository)
         syncEventsUseCase = SyncEventsUseCase(voidingRepository)
+        updateVoidingEventMemoUseCase = UpdateVoidingEventMemoUseCase(voidingRepository)
     }
 
     fun requestSync() {

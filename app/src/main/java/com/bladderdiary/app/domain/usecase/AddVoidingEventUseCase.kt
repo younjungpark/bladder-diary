@@ -6,7 +6,7 @@ import kotlinx.datetime.LocalDate
 class AddVoidingEventUseCase(
     private val repository: VoidingRepository
 ) {
-    suspend operator fun invoke(): Result<Unit> = repository.addNow()
-    suspend operator fun invoke(date: LocalDate, hour: Int, minute: Int): Result<Unit> =
-        repository.addAt(date, hour, minute)
+    suspend operator fun invoke(memo: String? = null): Result<Unit> = repository.addNow(memo)
+    suspend operator fun invoke(date: LocalDate, hour: Int, minute: Int, memo: String? = null): Result<Unit> =
+        repository.addAt(date, hour, minute, memo)
 }

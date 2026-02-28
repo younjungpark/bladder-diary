@@ -35,6 +35,15 @@ interface VoidingEventDao {
     )
     fun observeDailyCount(userId: String, date: String): Flow<Int>
 
+    @Query(
+        """
+        SELECT local_date, COUNT(*) as count FROM voiding_events
+        WHERE user_id = :userId AND local_date LIKE :yearMonthPattern AND is_deleted = 0
+        GROUP BY local_date
+        """
+    )
+    fun observeMonthlyCounts(userId: String, yearMonthPattern: String): Flow<List<DailyCountDto>>
+
     @Query("SELECT * FROM voiding_events WHERE local_id = :localId LIMIT 1")
     suspend fun getById(localId: String): VoidingEventEntity?
 
