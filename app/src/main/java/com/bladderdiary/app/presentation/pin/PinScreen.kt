@@ -39,7 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun PinScreen(
-    viewModel: PinViewModel
+    viewModel: PinViewModel,
+    onCancel: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pinFocusRequester = remember { FocusRequester() }
@@ -165,6 +166,16 @@ fun PinScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(text = "PIN 설정")
+                        }
+
+                        if (onCancel != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = onCancel,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = "설정 취소")
+                            }
                         }
                     }
 

@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,7 +71,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
+    isPinSet: Boolean,
     onShowCalendar: () -> Unit,
+    onTogglePin: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -119,6 +123,13 @@ fun MainScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
+                    IconButton(onClick = onTogglePin) {
+                        Icon(
+                            if (isPinSet) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = if (isPinSet) "PIN 설정됨 (해제하려면 클릭)" else "PIN 설정 안됨 (설정하려면 클릭)",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = onShowCalendar) {
                         Icon(
                             Icons.Default.DateRange,

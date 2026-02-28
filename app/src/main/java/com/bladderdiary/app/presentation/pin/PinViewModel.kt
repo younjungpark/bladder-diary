@@ -61,9 +61,15 @@ class PinViewModel(
     init {
         lockRepository.observeLockState()
             .onEach { lockState ->
-                _uiState.update {
-                    it.copy(
-                        mode = if (lockState.isPinSet) PinMode.UNLOCK else PinMode.SETUP,
+                _uiState.update { current ->
+                    val newMode = if (lockState.isPinSet) PinMode.UNLOCK else PinMode.SETUP
+                    // 새로운 모드로 전환될 때 입력되어 있던 PIN 데이터 초기화
+                    val shouldClearPins = current.mode != newMode
+                    
+                    current.copy(
+                        mode = newMode,
+                        pin = if (shouldClearPins) "" else current.pin,
+                        confirmPin = if (shouldClearPins) "" else current.confirmPin,
                         isPinSet = lockState.isPinSet,
                         isUnlocked = lockState.isUnlocked,
                         failedAttempts = lockState.failedAttempts,
@@ -211,6 +217,17 @@ class PinViewModel(
 
     fun clearRuntimeUnlock() {
         lockRepository.clearRuntimeUnlock()
+    }
+
+    fun removePin() {
+        viewModelScope.launch {
+            val result = lockRepository.removePin()
+            if (result.isFailure) {
+                _uiState.update {
+                    it.copy(errorMessage = result.exceptionOrNull()?.message ?: "PIN 해제에 실패했습니다.")
+                }
+            }
+        }
     }
 
     companion object {

@@ -107,6 +107,14 @@ class LockRepositoryImpl(
         }
     }
 
+    override suspend fun removePin(): Result<Unit> {
+        return runCatching {
+            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+            pinStore.clearUser(session.userId)
+            unlockedUserId.value = null
+        }
+    }
+
     override fun clearRuntimeUnlock() {
         unlockedUserId.value = null
     }

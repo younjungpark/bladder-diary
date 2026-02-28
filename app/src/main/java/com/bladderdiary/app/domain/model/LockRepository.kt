@@ -14,5 +14,6 @@ interface LockRepository {
     suspend fun setPin(pin: String): Result<Unit>
     suspend fun verifyPin(pin: String): Result<Boolean>
     suspend fun resetForForgotPin(): Result<Unit>
+    suspend fun removePin(): Result<Unit>
     fun clearRuntimeUnlock()
 }

@@ -1,6 +1,7 @@
 package com.bladderdiary.app.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,11 +51,26 @@ fun AppNavGraph() {
     val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
     
     var showCalendar by rememberSaveable { mutableStateOf(false) }
+    var showPinSetup by rememberSaveable { mutableStateOf(false) }
+
+    // PIN 설정이 완료되면 showPinSetup을 false로 돌려줌
+    LaunchedEffect(pinState.isPinSet) {
+        if (pinState.isPinSet && showPinSetup) {
+            showPinSetup = false
+        }
+    }
 
     if (!authState.isLoggedIn) {
         AuthScreen(viewModel = authViewModel)
-    } else if (!pinState.isPinSet || !pinState.isUnlocked) {
+    } else if (pinState.isPinSet && !pinState.isUnlocked) {
+        // 이미 PIN이 설정되어 있고 잠긴 상태 (앱 시작/백그라운드 복귀 등)
         PinScreen(viewModel = pinViewModel)
+    } else if (showPinSetup) {
+        // 사용자가 PIN 설정을 원할 때 진입
+        PinScreen(
+            viewModel = pinViewModel,
+            onCancel = { showPinSetup = false }
+        )
     } else if (showCalendar) {
         CalendarScreen(
             viewModel = calendarViewModel,
@@ -67,7 +83,15 @@ fun AppNavGraph() {
     } else {
         MainScreen(
             viewModel = mainViewModel,
+            isPinSet = pinState.isPinSet,
             onShowCalendar = { showCalendar = true },
+            onTogglePin = {
+                if (pinState.isPinSet) {
+                    pinViewModel.removePin()
+                } else {
+                    showPinSetup = true
+                }
+            },
             onSignOut = {
                 pinViewModel.clearRuntimeUnlock()
                 authViewModel.signOut()
