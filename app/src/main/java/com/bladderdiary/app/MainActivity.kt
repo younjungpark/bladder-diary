@@ -45,13 +45,38 @@ class MainActivity : ComponentActivity() {
 
     private fun emitOAuthCallbackIfNeeded(intent: Intent?) {
         val data = intent?.data ?: return
-        if (data.scheme == "bladderdiary" && data.host == "auth") {
-            oauthCallbackChannel.trySend(data.toString())
-        }
+        if (!data.isCustomSchemeOAuthCallback()) return
+        val callback = data.toString()
+        if (isDuplicateCallback(callback)) return
+        oauthCallbackChannel.trySend(callback)
     }
 
     companion object {
         private val oauthCallbackChannel: Channel<String> = Channel(Channel.BUFFERED)
         val oauthCallbackFlow: Flow<String> = oauthCallbackChannel.receiveAsFlow()
+        private const val OAUTH_CALLBACK_DEDUPE_WINDOW_MS = 2_500L
+        private var lastCallbackUrl: String? = null
+        private var lastCallbackHandledAtMs: Long = 0L
+
+        @Synchronized
+        private fun isDuplicateCallback(url: String): Boolean {
+            val now = System.currentTimeMillis()
+            val isDuplicate = lastCallbackUrl == url && (now - lastCallbackHandledAtMs) <= OAUTH_CALLBACK_DEDUPE_WINDOW_MS
+            lastCallbackUrl = url
+            lastCallbackHandledAtMs = now
+            return isDuplicate
+        }
     }
+}
+
+private fun android.net.Uri.isCustomSchemeOAuthCallback(): Boolean {
+    return scheme.equals("bladderdiary", ignoreCase = true) &&
+        host.equals("auth", ignoreCase = true) &&
+        normalizedPathStartsWith("/callback")
+}
+
+private fun android.net.Uri.normalizedPathStartsWith(prefix: String): Boolean {
+    val normalizedPath = (path ?: "").lowercase()
+    val normalizedPrefix = prefix.lowercase()
+    return normalizedPath.startsWith(normalizedPrefix)
 }
