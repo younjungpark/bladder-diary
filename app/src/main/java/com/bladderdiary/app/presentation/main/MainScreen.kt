@@ -80,9 +80,7 @@ fun MainScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var inputMemo by remember { mutableStateOf("") }
-    var addTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
     
     // 기존 메모 조회 및 수정을 위한 상태
     var viewMemoEvent by remember { mutableStateOf<VoidingEvent?>(null) }
@@ -204,9 +202,7 @@ fun MainScreen(
                 ) {
                     Button(
                         onClick = {
-                            addTime = null
-                            inputMemo = ""
-                            showAddDialog = true
+                            viewModel.addNow(null)
                         },
                         enabled = !state.isAdding,
                         modifier = Modifier
@@ -241,9 +237,7 @@ fun MainScreen(
                             TimePickerDialog(
                                 context,
                                 { _, hourOfDay, minute ->
-                                    addTime = Pair(hourOfDay, minute)
-                                    inputMemo = ""
-                                    showAddDialog = true
+                                    viewModel.addAtSelectedTime(hourOfDay, minute, null)
                                 },
                                 initialHour,
                                 initialMinute,
@@ -354,43 +348,6 @@ fun MainScreen(
         }
     }
 
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = {
-                Text(
-                    text = if (addTime == null) "지금 기록 추가"
-                           else "${addTime!!.first}시 ${addTime!!.second}분 기록 추가"
-                )
-            },
-            text = {
-                OutlinedTextField(
-                    value = inputMemo,
-                    onValueChange = { inputMemo = it },
-                    label = { Text("메모 (선택사항)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showAddDialog = false
-                    val memoToSave = inputMemo.trim().takeIf { it.isNotEmpty() }
-                    if (addTime == null) {
-                        viewModel.addNow(memoToSave)
-                    } else {
-                        viewModel.addAtSelectedTime(addTime!!.first, addTime!!.second, memoToSave)
-                    }
-                }) {
-                    Text("저장")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("취소")
-                }
-            }
-        )
-    }
 
     if (viewMemoEvent != null) {
         AlertDialog(
