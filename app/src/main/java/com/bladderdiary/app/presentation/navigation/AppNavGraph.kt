@@ -15,7 +15,7 @@ import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.pin.PinScreen
 import com.bladderdiary.app.presentation.pin.PinViewModel
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 @Composable
@@ -50,8 +50,16 @@ fun AppNavGraph() {
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
     
-    var showCalendar by rememberSaveable { mutableStateOf(false) }
-    var showPinSetup by rememberSaveable { mutableStateOf(false) }
+    var showCalendar by remember { mutableStateOf(false) }
+    var showPinSetup by remember { mutableStateOf(false) }
+
+    // 로그인 화면으로 돌아가거나 재로그인 직후에는 PIN 설정 화면 자동 진입 상태를 초기화합니다.
+    LaunchedEffect(authState.isLoggedIn) {
+        if (!authState.isLoggedIn) {
+            showCalendar = false
+            showPinSetup = false
+        }
+    }
 
     // PIN 설정이 완료되면 showPinSetup을 false로 돌려줌
     LaunchedEffect(pinState.isPinSet) {
