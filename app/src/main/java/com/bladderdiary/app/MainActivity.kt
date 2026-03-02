@@ -10,12 +10,14 @@ import com.bladderdiary.app.core.AppGraph
 import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.navigation.AppNavGraph
 import com.bladderdiary.app.ui.theme.BladderDiaryTheme
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         emitOAuthCallbackIfNeeded(intent)
