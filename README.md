@@ -37,3 +37,13 @@ SUPABASE_REDIRECT_URI=bladderdiary://auth/callback
 ## 참고
 - 일별 기준은 **기기 로컬 타임존 자정**입니다.
 - 삭제는 소프트 삭제(`deleted_at`)로 원격 반영됩니다.
+
+## 라이선스
+- 이 프로젝트는 `Apache License 2.0`으로 공개됩니다.
+- 자세한 내용은 [LICENSE](/c:/work/BladderDiary/LICENSE) 파일을 참고하세요.
+- 단, `BladderDiary` 이름, 로고, 아이콘 등 브랜드 자산은 오픈소스 라이선스에 포함되지 않습니다.
+- 브랜드 사용 기준은 [TRADEMARK_POLICY.md](/c:/work/BladderDiary/TRADEMARK_POLICY.md)를 참고하세요.
+
+## 배포 문서
+- 개인정보 처리방침: [PRIVACY_POLICY.md](/c:/work/BladderDiary/PRIVACY_POLICY.md)
+- 의료 비고지 안내: [MEDICAL_DISCLAIMER.md](/c:/work/BladderDiary/MEDICAL_DISCLAIMER.md)
