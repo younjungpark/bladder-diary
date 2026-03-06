@@ -7,9 +7,12 @@ import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
 import com.bladderdiary.app.data.remote.SupabaseAuthClient
 import com.bladderdiary.app.data.repository.AuthRepositoryImpl
+import com.bladderdiary.app.data.repository.E2eeRepositoryImpl
 import com.bladderdiary.app.data.repository.LockRepositoryImpl
 import com.bladderdiary.app.data.repository.VoidingRepositoryImpl
+import com.bladderdiary.app.data.security.E2eeLocalKeyStore
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.LockRepository
 import com.bladderdiary.app.domain.model.VoidingRepository
 import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
@@ -34,6 +37,8 @@ object AppGraph {
     lateinit var voidingRepository: VoidingRepository
         private set
     lateinit var lockRepository: LockRepository
+        private set
+    lateinit var e2eeRepository: E2eeRepository
         private set
 
     lateinit var addVoidingEventUseCase: AddVoidingEventUseCase
@@ -65,11 +70,17 @@ object AppGraph {
             authClient = supabaseAuthClient,
             sessionStore = sessionStore
         )
+        e2eeRepository = E2eeRepositoryImpl(
+            authRepository = authRepository,
+            api = supabaseApi,
+            localKeyStore = E2eeLocalKeyStore(context.applicationContext)
+        )
         voidingRepository = VoidingRepositoryImpl(
             db = db,
             authRepository = authRepository,
             api = supabaseApi,
-            syncScheduler = syncScheduler
+            syncScheduler = syncScheduler,
+            e2eeRepository = e2eeRepository
         )
         lockRepository = LockRepositoryImpl(
             authRepository = authRepository,

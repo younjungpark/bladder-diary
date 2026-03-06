@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,7 +44,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,8 +73,10 @@ import java.time.format.DateTimeFormatter
 fun MainScreen(
     viewModel: MainViewModel,
     isPinSet: Boolean,
+    isE2eeEnabled: Boolean,
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
+    onSetupE2ee: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -108,37 +111,67 @@ fun MainScreen(
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         text = "BladderDiary",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
-                    IconButton(onClick = onTogglePin) {
+                    IconButton(
+                        onClick = onSetupE2ee,
+                        enabled = !isE2eeEnabled,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.VpnKey,
+                            contentDescription = if (isE2eeEnabled) "메모 종단간 암호화 설정됨" else "메모 종단간 암호화 설정",
+                            modifier = Modifier.size(22.dp),
+                            tint = if (isE2eeEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            }
+                        )
+                    }
+                    IconButton(
+                        onClick = onTogglePin,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             if (isPinSet) Icons.Default.Lock else Icons.Default.LockOpen,
                             contentDescription = if (isPinSet) "PIN 설정됨 (해제하려면 클릭)" else "PIN 설정 안됨 (설정하려면 클릭)",
+                            modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    IconButton(onClick = onShowCalendar) {
+                    IconButton(
+                        onClick = onShowCalendar,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             Icons.Default.DateRange,
                             contentDescription = "캘린더 보기",
+                            modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    IconButton(onClick = onSignOut) {
+                    IconButton(
+                        onClick = onSignOut,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             Icons.Default.ExitToApp,
                             contentDescription = "로그아웃",
+                            modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -280,6 +313,13 @@ fun MainScreen(
                         text = "동기화 중...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (isE2eeEnabled) {
+                    Text(
+                        text = "메모 종단간 암호화가 활성화되어 있습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 if (state.pendingSyncCount > 0) {

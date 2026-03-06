@@ -82,6 +82,8 @@ private class FakeLockRepository(
 
     override suspend fun resetForForgotPin(): Result<Unit> = Result.success(Unit)
 
+    override suspend fun removePin(): Result<Unit> = Result.success(Unit)
+
     override fun clearRuntimeUnlock() = Unit
 }
 

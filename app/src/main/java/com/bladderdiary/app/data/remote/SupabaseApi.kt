@@ -5,6 +5,7 @@ import com.bladderdiary.app.data.remote.dto.AuthRequest
 import com.bladderdiary.app.data.remote.dto.AuthResponseDto
 import com.bladderdiary.app.data.remote.dto.RefreshTokenRequest
 import com.bladderdiary.app.data.remote.dto.SoftDeleteRequestDto
+import com.bladderdiary.app.data.remote.dto.UserE2eeKeyRemoteDto
 import com.bladderdiary.app.data.remote.dto.VoidingEventRemoteDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -110,5 +111,30 @@ class SupabaseApi {
             throw IllegalStateException("이벤트 다운로드 실패: ${response.bodyAsText()}")
         }
         return response.body()
+    }
+
+    suspend fun upsertUserE2eeKey(accessToken: String, key: UserE2eeKeyRemoteDto) {
+        val response = client.post("$baseUrl/rest/v1/user_e2ee_keys?on_conflict=user_id") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+            header("Prefer", "resolution=merge-duplicates,return=minimal")
+            setBody(listOf(key))
+        }
+        if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.NoContent)) {
+            throw IllegalStateException("E2EE 키 저장 실패: ${response.bodyAsText()}")
+        }
+    }
+
+    suspend fun getUserE2eeKey(accessToken: String, userId: String): UserE2eeKeyRemoteDto? {
+        val response = client.get("$baseUrl/rest/v1/user_e2ee_keys?user_id=eq.$userId&limit=1") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+        }
+        if (response.status != HttpStatusCode.OK) {
+            throw IllegalStateException("E2EE 키 조회 실패: ${response.bodyAsText()}")
+        }
+        return response.body<List<UserE2eeKeyRemoteDto>>().firstOrNull()
     }
 }

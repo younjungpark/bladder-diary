@@ -12,6 +12,9 @@ interface SyncQueueDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: SyncQueueEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<SyncQueueEntity>)
+
     @Update
     suspend fun update(item: SyncQueueEntity)
 

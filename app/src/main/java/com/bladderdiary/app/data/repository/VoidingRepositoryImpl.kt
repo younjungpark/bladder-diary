@@ -6,7 +6,9 @@ import com.bladderdiary.app.data.local.SyncQueueEntity
 import com.bladderdiary.app.data.local.VoidingEventEntity
 import com.bladderdiary.app.data.remote.SupabaseApi
 import com.bladderdiary.app.data.remote.dto.VoidingEventRemoteDto
+import com.bladderdiary.app.data.security.MemoEncryptionScheme
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.SyncAction
 import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.SyncState
@@ -34,7 +36,8 @@ class VoidingRepositoryImpl(
     private val db: AppDatabase,
     private val authRepository: AuthRepository,
     private val api: SupabaseApi,
-    private val syncScheduler: SyncScheduler
+    private val syncScheduler: SyncScheduler,
+    private val e2eeRepository: E2eeRepository
 ) : VoidingRepository {
     private val eventDao = db.voidingEventDao()
     private val queueDao = db.syncQueueDao()
@@ -176,8 +179,16 @@ class VoidingRepositoryImpl(
 
         return runCatching {
             val nowEpochMs = Clock.System.now().toEpochMilliseconds()
+            val memoPayload = e2eeRepository.prepareMemoSyncPayload(
+                userId = event.userId,
+                eventId = event.localId,
+                localDate = event.localDate,
+                memo = memo
+            ).getOrThrow()
             val updatedEvent = event.copy(
                 memo = memo,
+                memoCiphertext = memoPayload.memoCiphertext,
+                memoEncryption = memoPayload.memoEncryption,
                 syncState = SyncState.PENDING_CREATE, // Use CREATE for upsert
                 updatedAtEpochMs = nowEpochMs
             )
@@ -285,6 +296,14 @@ class VoidingRepositoryImpl(
                     } else {
                         Clock.System.now().toEpochMilliseconds()
                     }
+                    val memoEncryption = dto.memoEncryption.ifBlank { MemoEncryptionScheme.NONE }
+                    val memo = e2eeRepository.decryptMemo(
+                        userId = session.userId,
+                        eventId = dto.id,
+                        localDate = dto.localDate,
+                        memoCiphertext = dto.memoCiphertext,
+                        memoEncryption = memoEncryption
+                    ).getOrNull()
 
                     VoidingEventEntity(
                         localId = dto.id,
@@ -294,7 +313,9 @@ class VoidingRepositoryImpl(
                         isDeleted = isDeleted,
                         syncState = SyncState.SYNCED,
                         updatedAtEpochMs = updatedEpochMs,
-                        memo = dto.memo
+                        memo = memo,
+                        memoCiphertext = dto.memoCiphertext,
+                        memoEncryption = memoEncryption
                     )
                 }
                 
@@ -319,7 +340,8 @@ class VoidingRepositoryImpl(
             localDate = event.localDate,
             clientRef = event.localId,
             deletedAt = null,
-            memo = event.memo
+            memoCiphertext = event.memoCiphertext,
+            memoEncryption = event.memoEncryption
         )
         api.upsertVoidingEvent(accessToken, dto)
     }
@@ -334,15 +356,24 @@ class VoidingRepositoryImpl(
     }
 
     private suspend fun addPendingCreate(userId: String, epochMs: Long, localDate: String, memo: String?) {
+        val localId = UUID.randomUUID().toString()
+        val memoPayload = e2eeRepository.prepareMemoSyncPayload(
+            userId = userId,
+            eventId = localId,
+            localDate = localDate,
+            memo = memo
+        ).getOrThrow()
         val event = VoidingEventEntity(
-            localId = UUID.randomUUID().toString(),
+            localId = localId,
             userId = userId,
             voidedAtEpochMs = epochMs,
             localDate = localDate,
             isDeleted = false,
             syncState = SyncState.PENDING_CREATE,
             updatedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
-            memo = memo
+            memo = memo,
+            memoCiphertext = memoPayload.memoCiphertext,
+            memoEncryption = memoPayload.memoEncryption
         )
         val queueItem = SyncQueueEntity(
             queueId = UUID.randomUUID().toString(),
@@ -362,6 +393,44 @@ class VoidingRepositoryImpl(
         val shouldScheduleRetry = syncResult.isFailure || (syncResult.getOrNull()?.failCount ?: 0) > 0
         if (shouldScheduleRetry) {
             syncScheduler.request()
+        }
+    }
+
+    override suspend fun requeueAllForUpload(): Result<Unit> {
+        val session = authRepository.getSession() ?: return Result.failure(
+            IllegalStateException("로그인이 필요합니다.")
+        )
+        return runCatching {
+            val nowEpochMs = Clock.System.now().toEpochMilliseconds()
+            val activeEvents = eventDao.getActiveByUserId(session.userId)
+            val updatedEvents = activeEvents.map { event ->
+                val memoPayload = e2eeRepository.prepareMemoSyncPayload(
+                    userId = event.userId,
+                    eventId = event.localId,
+                    localDate = event.localDate,
+                    memo = event.memo
+                ).getOrThrow()
+                event.copy(
+                    syncState = SyncState.PENDING_CREATE,
+                    updatedAtEpochMs = nowEpochMs,
+                    memoCiphertext = memoPayload.memoCiphertext,
+                    memoEncryption = memoPayload.memoEncryption
+                )
+            }
+            val queueItems = updatedEvents.map { event ->
+                SyncQueueEntity(
+                    queueId = UUID.randomUUID().toString(),
+                    eventLocalId = event.localId,
+                    action = SyncAction.CREATE,
+                    retryCount = 0,
+                    lastError = null
+                )
+            }
+            db.withTransaction {
+                eventDao.upsertAll(updatedEvents)
+                queueDao.upsertAll(queueItems)
+            }
+            syncNowOrSchedule()
         }
     }
 

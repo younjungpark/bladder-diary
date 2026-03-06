@@ -3,9 +3,20 @@ package com.bladderdiary.app.presentation.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bladderdiary.app.core.AppGraph
+import com.bladderdiary.app.presentation.e2ee.E2eePassphraseScreen
+import com.bladderdiary.app.presentation.e2ee.E2eePassphraseViewModel
 import com.bladderdiary.app.presentation.auth.AuthScreen
 import com.bladderdiary.app.presentation.auth.AuthViewModel
 import com.bladderdiary.app.presentation.main.CalendarScreen
@@ -17,6 +28,10 @@ import com.bladderdiary.app.presentation.pin.PinViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun AppNavGraph() {
@@ -37,6 +52,12 @@ fun AppNavGraph() {
             lockRepository = AppGraph.lockRepository
         )
     )
+    val e2eeViewModel: E2eePassphraseViewModel = viewModel(
+        factory = E2eePassphraseViewModel.factory(
+            e2eeRepository = AppGraph.e2eeRepository,
+            voidingRepository = AppGraph.voidingRepository
+        )
+    )
     val mainViewModel: MainViewModel = viewModel(
         factory = MainViewModel.factory(
             addVoidingEventUseCase = AppGraph.addVoidingEventUseCase,
@@ -49,15 +70,18 @@ fun AppNavGraph() {
     )
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
-    
+    val e2eeState by e2eeViewModel.uiState.collectAsStateWithLifecycle()
+
     var showCalendar by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
+    var showE2eeSetup by remember { mutableStateOf(false) }
 
     // 로그인 화면으로 돌아가거나 재로그인 직후에는 PIN 설정 화면 자동 진입 상태를 초기화합니다.
     LaunchedEffect(authState.isLoggedIn) {
         if (!authState.isLoggedIn) {
             showCalendar = false
             showPinSetup = false
+            showE2eeSetup = false
         }
     }
 
@@ -68,16 +92,38 @@ fun AppNavGraph() {
         }
     }
 
+    LaunchedEffect(e2eeState.isEnabled) {
+        if (e2eeState.isEnabled && showE2eeSetup) {
+            showE2eeSetup = false
+        }
+    }
+
     if (!authState.isLoggedIn) {
         AuthScreen(viewModel = authViewModel)
     } else if (pinState.isPinSet && !pinState.isUnlocked) {
         // 이미 PIN이 설정되어 있고 잠긴 상태 (앱 시작/백그라운드 복귀 등)
         PinScreen(viewModel = pinViewModel)
+    } else if (e2eeState.isCheckingRemoteState) {
+        SecurityLoadingScreen(message = "암호화 메모 상태를 확인하고 있습니다.")
+    } else if (e2eeState.isEnabled && !e2eeState.isUnlocked) {
+        E2eePassphraseScreen(
+            viewModel = e2eeViewModel,
+            onSignOut = {
+                pinViewModel.clearRuntimeUnlock()
+                e2eeViewModel.clearRuntimeUnlock()
+                authViewModel.signOut()
+            }
+        )
     } else if (showPinSetup) {
         // 사용자가 PIN 설정을 원할 때 진입
         PinScreen(
             viewModel = pinViewModel,
             onCancel = { showPinSetup = false }
+        )
+    } else if (showE2eeSetup) {
+        E2eePassphraseScreen(
+            viewModel = e2eeViewModel,
+            onCancel = { showE2eeSetup = false }
         )
     } else if (showCalendar) {
         CalendarScreen(
@@ -92,6 +138,7 @@ fun AppNavGraph() {
         MainScreen(
             viewModel = mainViewModel,
             isPinSet = pinState.isPinSet,
+            isE2eeEnabled = e2eeState.isEnabled,
             onShowCalendar = { showCalendar = true },
             onTogglePin = {
                 if (pinState.isPinSet) {
@@ -100,10 +147,46 @@ fun AppNavGraph() {
                     showPinSetup = true
                 }
             },
+            onSetupE2ee = {
+                if (!e2eeState.isEnabled) {
+                    showE2eeSetup = true
+                }
+            },
             onSignOut = {
                 pinViewModel.clearRuntimeUnlock()
+                e2eeViewModel.clearRuntimeUnlock()
                 authViewModel.signOut()
             }
         )
+    }
+}
+
+@Composable
+private fun SecurityLoadingScreen(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            )
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CircularProgressIndicator()
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
     }
 }

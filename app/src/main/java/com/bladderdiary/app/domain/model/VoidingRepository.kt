@@ -16,4 +16,5 @@ interface VoidingRepository {
     suspend fun delete(localId: String): Result<Unit>
     suspend fun fetchAndSyncAll(): Result<Unit>
     suspend fun syncPending(): Result<SyncReport>
+    suspend fun requeueAllForUpload(): Result<Unit>
 }

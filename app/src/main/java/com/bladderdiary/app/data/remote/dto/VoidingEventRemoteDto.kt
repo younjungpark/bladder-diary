@@ -1,5 +1,6 @@
 package com.bladderdiary.app.data.remote.dto
 
+import com.bladderdiary.app.data.security.MemoEncryptionScheme
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -16,8 +17,10 @@ data class VoidingEventRemoteDto(
     val clientRef: String,
     @SerialName("deleted_at")
     val deletedAt: String? = null,
-    @SerialName("memo")
-    val memo: String? = null
+    @SerialName("memo_ciphertext")
+    val memoCiphertext: String? = null,
+    @SerialName("memo_encryption")
+    val memoEncryption: String = MemoEncryptionScheme.NONE
 )
 
 @Serializable

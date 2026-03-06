@@ -49,6 +49,14 @@ interface VoidingEventDao {
 
     @Query(
         """
+        SELECT * FROM voiding_events
+        WHERE user_id = :userId AND is_deleted = 0
+        """
+    )
+    suspend fun getActiveByUserId(userId: String): List<VoidingEventEntity>
+
+    @Query(
+        """
         SELECT COUNT(*) FROM voiding_events
         WHERE user_id = :userId
           AND sync_state IN ('PENDING_CREATE', 'PENDING_DELETE')
