@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bladderdiary.app.core.AppGraph
 import com.bladderdiary.app.presentation.e2ee.E2eePassphraseScreen
+import com.bladderdiary.app.presentation.e2ee.E2eeEntryMode
 import com.bladderdiary.app.presentation.e2ee.E2eePassphraseViewModel
 import com.bladderdiary.app.presentation.auth.AuthScreen
 import com.bladderdiary.app.presentation.auth.AuthViewModel
@@ -74,14 +75,20 @@ fun AppNavGraph() {
 
     var showCalendar by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
-    var showE2eeSetup by remember { mutableStateOf(false) }
+    var showE2eeSettings by remember { mutableStateOf(false) }
+    var e2eeSettingsOpenedForSetup by remember { mutableStateOf(false) }
+    var mainE2eeNotice by remember { mutableStateOf<String?>(null) }
+    var hasShownInitialE2eeNotice by remember { mutableStateOf(false) }
 
     // 로그인 화면으로 돌아가거나 재로그인 직후에는 PIN 설정 화면 자동 진입 상태를 초기화합니다.
     LaunchedEffect(authState.isLoggedIn) {
         if (!authState.isLoggedIn) {
             showCalendar = false
             showPinSetup = false
-            showE2eeSetup = false
+            showE2eeSettings = false
+            e2eeSettingsOpenedForSetup = false
+            mainE2eeNotice = null
+            hasShownInitialE2eeNotice = false
         }
     }
 
@@ -92,9 +99,32 @@ fun AppNavGraph() {
         }
     }
 
+    LaunchedEffect(e2eeState.isEnabled, showE2eeSettings, e2eeSettingsOpenedForSetup) {
+        if (e2eeState.isEnabled && showE2eeSettings && e2eeSettingsOpenedForSetup) {
+            showE2eeSettings = false
+            e2eeSettingsOpenedForSetup = false
+        }
+    }
+
     LaunchedEffect(e2eeState.isEnabled) {
-        if (e2eeState.isEnabled && showE2eeSetup) {
-            showE2eeSetup = false
+        if (!e2eeState.isEnabled) {
+            mainE2eeNotice = null
+            hasShownInitialE2eeNotice = false
+        }
+    }
+
+    val isShowingMainScreen = authState.isLoggedIn &&
+        !showCalendar &&
+        !showPinSetup &&
+        !showE2eeSettings &&
+        (!pinState.isPinSet || pinState.isUnlocked) &&
+        !e2eeState.isCheckingRemoteState &&
+        (!e2eeState.isEnabled || e2eeState.isUnlocked)
+
+    LaunchedEffect(isShowingMainScreen, e2eeState.isEnabled, e2eeState.isUnlocked, hasShownInitialE2eeNotice) {
+        if (isShowingMainScreen && e2eeState.isEnabled && e2eeState.isUnlocked && !hasShownInitialE2eeNotice) {
+            mainE2eeNotice = "메모 종단간 암호화가 활성화되어 있습니다. 열쇠 버튼에서 비밀문구를 변경할 수 있습니다."
+            hasShownInitialE2eeNotice = true
         }
     }
 
@@ -108,6 +138,7 @@ fun AppNavGraph() {
     } else if (e2eeState.isEnabled && !e2eeState.isUnlocked) {
         E2eePassphraseScreen(
             viewModel = e2eeViewModel,
+            entryMode = E2eeEntryMode.AUTO,
             onSignOut = {
                 pinViewModel.clearRuntimeUnlock()
                 e2eeViewModel.clearRuntimeUnlock()
@@ -120,10 +151,20 @@ fun AppNavGraph() {
             viewModel = pinViewModel,
             onCancel = { showPinSetup = false }
         )
-    } else if (showE2eeSetup) {
+    } else if (showE2eeSettings) {
         E2eePassphraseScreen(
             viewModel = e2eeViewModel,
-            onCancel = { showE2eeSetup = false }
+            entryMode = E2eeEntryMode.MANAGE,
+            onCancel = {
+                showE2eeSettings = false
+                e2eeSettingsOpenedForSetup = false
+            },
+            onPassphraseChanged = { message ->
+                mainE2eeNotice = message
+                hasShownInitialE2eeNotice = true
+                showE2eeSettings = false
+                e2eeSettingsOpenedForSetup = false
+            }
         )
     } else if (showCalendar) {
         CalendarScreen(
@@ -139,6 +180,7 @@ fun AppNavGraph() {
             viewModel = mainViewModel,
             isPinSet = pinState.isPinSet,
             isE2eeEnabled = e2eeState.isEnabled,
+            e2eeNoticeMessage = mainE2eeNotice,
             onShowCalendar = { showCalendar = true },
             onTogglePin = {
                 if (pinState.isPinSet) {
@@ -147,11 +189,11 @@ fun AppNavGraph() {
                     showPinSetup = true
                 }
             },
-            onSetupE2ee = {
-                if (!e2eeState.isEnabled) {
-                    showE2eeSetup = true
-                }
+            onOpenE2eeSettings = {
+                showE2eeSettings = true
+                e2eeSettingsOpenedForSetup = !e2eeState.isEnabled
             },
+            onConsumeE2eeNotice = { mainE2eeNotice = null },
             onSignOut = {
                 pinViewModel.clearRuntimeUnlock()
                 e2eeViewModel.clearRuntimeUnlock()

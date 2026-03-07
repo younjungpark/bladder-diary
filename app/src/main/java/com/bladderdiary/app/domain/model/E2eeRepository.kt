@@ -18,6 +18,7 @@ interface E2eeRepository {
     fun observeState(): Flow<E2eeState>
     suspend fun refreshRemoteState(): Result<Unit>
     suspend fun setupPassphrase(passphrase: String): Result<Unit>
+    suspend fun changePassphrase(passphrase: String): Result<Unit>
     suspend fun unlock(passphrase: String): Result<Unit>
     suspend fun prepareMemoSyncPayload(
         userId: String,

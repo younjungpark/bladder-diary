@@ -127,6 +127,44 @@ class E2eeRepositoryImpl(
         }
     }
 
+    override suspend fun changePassphrase(passphrase: String): Result<Unit> {
+        return runCatching {
+            require(passphrase.length >= MIN_PASSPHRASE_LENGTH) {
+                "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다."
+            }
+            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+            val remoteKey = cachedRemoteKey ?: withFreshAccessToken { token ->
+                api.getUserE2eeKey(token, session.userId)
+            } ?: throw IllegalStateException("설정된 E2EE 키를 찾지 못했습니다.")
+            val dek = ensureRuntimeDek(session.userId)
+                ?: throw IllegalStateException("현재 기기에서는 비밀문구를 재설정할 수 없습니다. 기존 비밀문구로 먼저 잠금 해제해주세요.")
+
+            val derived = MemoCrypto.deriveKek(passphrase.toCharArray())
+            val updatedRemoteKey = remoteKey.copy(
+                kdf = KDF_NAME,
+                kdfSalt = derived.saltBase64,
+                kdfParams = jsonParams(
+                    iterations = derived.iterations,
+                    keyLengthBits = derived.keyLengthBits
+                ),
+                wrappedDek = MemoCrypto.wrapDek(dek, derived.keyBytes)
+            )
+            withFreshAccessToken { token ->
+                api.upsertUserE2eeKey(token, updatedRemoteKey)
+            }
+            localKeyStore.saveDek(session.userId, dek)
+            cachedRemoteKey = updatedRemoteKey
+            unlockedUserId = session.userId
+            runtimeDek = dek
+            state.value = E2eeState(
+                isCheckingRemoteState = false,
+                isEnabled = true,
+                isUnlocked = true,
+                lastErrorMessage = null
+            )
+        }
+    }
+
     override suspend fun unlock(passphrase: String): Result<Unit> {
         return runCatching {
             require(passphrase.isNotBlank()) { "비밀문구를 입력해주세요." }

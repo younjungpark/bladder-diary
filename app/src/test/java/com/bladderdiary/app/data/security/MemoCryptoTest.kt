@@ -66,4 +66,18 @@ class MemoCryptoTest {
 
         assertNotEquals(null, error)
     }
+
+    @Test
+    fun `같은 DEK를 새 비밀문구로 다시 감싸도 복원된다`() {
+        val dek = MemoCrypto.generateDek()
+        val firstDerived = MemoCrypto.deriveKek("old-passphrase".toCharArray())
+        val secondDerived = MemoCrypto.deriveKek("new-passphrase".toCharArray())
+        val firstWrapped = MemoCrypto.wrapDek(dek, firstDerived.keyBytes)
+        val unwrapped = MemoCrypto.unwrapDek(firstWrapped, firstDerived.keyBytes)
+        val secondWrapped = MemoCrypto.wrapDek(unwrapped, secondDerived.keyBytes)
+
+        val restored = MemoCrypto.unwrapDek(secondWrapped, secondDerived.keyBytes)
+
+        assertEquals(dek.toList(), restored.toList())
+    }
 }

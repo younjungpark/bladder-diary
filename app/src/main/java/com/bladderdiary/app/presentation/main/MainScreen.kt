@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.VoidingEvent
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -74,9 +75,11 @@ fun MainScreen(
     viewModel: MainViewModel,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
+    e2eeNoticeMessage: String?,
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
-    onSetupE2ee: () -> Unit,
+    onOpenE2eeSettings: () -> Unit,
+    onConsumeE2eeNotice: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -93,6 +96,12 @@ fun MainScreen(
         val msg = state.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
         viewModel.consumeMessage()
+    }
+
+    LaunchedEffect(e2eeNoticeMessage) {
+        if (e2eeNoticeMessage == null) return@LaunchedEffect
+        delay(3_500)
+        onConsumeE2eeNotice()
     }
 
     val selected = state.selectedDate
@@ -127,13 +136,12 @@ fun MainScreen(
                 ),
                 actions = {
                     IconButton(
-                        onClick = onSetupE2ee,
-                        enabled = !isE2eeEnabled,
+                        onClick = onOpenE2eeSettings,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Default.VpnKey,
-                            contentDescription = if (isE2eeEnabled) "메모 종단간 암호화 설정됨" else "메모 종단간 암호화 설정",
+                            contentDescription = if (isE2eeEnabled) "메모 종단간 암호화 관리" else "메모 종단간 암호화 설정",
                             modifier = Modifier.size(22.dp),
                             tint = if (isE2eeEnabled) {
                                 MaterialTheme.colorScheme.primary
@@ -315,9 +323,9 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                if (isE2eeEnabled) {
+                if (e2eeNoticeMessage != null) {
                     Text(
-                        text = "메모 종단간 암호화가 활성화되어 있습니다.",
+                        text = e2eeNoticeMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
