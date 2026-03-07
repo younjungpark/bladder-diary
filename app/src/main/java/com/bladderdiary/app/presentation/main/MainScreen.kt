@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,6 +28,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -61,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.VoidingEvent
-import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -99,8 +98,8 @@ fun MainScreen(
     }
 
     LaunchedEffect(e2eeNoticeMessage) {
-        if (e2eeNoticeMessage == null) return@LaunchedEffect
-        delay(3_500)
+        val msg = e2eeNoticeMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(msg)
         onConsumeE2eeNotice()
     }
 
@@ -140,7 +139,11 @@ fun MainScreen(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            Icons.Default.VpnKey,
+                            imageVector = if (isE2eeEnabled) {
+                                Icons.Filled.VpnKey
+                            } else {
+                                Icons.Outlined.VpnKey
+                            },
                             contentDescription = if (isE2eeEnabled) "메모 종단간 암호화 관리" else "메모 종단간 암호화 설정",
                             modifier = Modifier.size(22.dp),
                             tint = if (isE2eeEnabled) {
@@ -323,13 +326,6 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                if (e2eeNoticeMessage != null) {
-                    Text(
-                        text = e2eeNoticeMessage,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
                 if (state.pendingSyncCount > 0) {
                     Text(
                         text = "동기화 대기 ${state.pendingSyncCount}건",
@@ -337,11 +333,19 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.tertiary
                     )
                     state.pendingSyncError?.let { rawError ->
-                        Text(
-                            text = "동기화 오류: ${rawError.toUiErrorText()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        if (rawError.isLikelyOfflineSyncError()) {
+                            Text(
+                                text = "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        } else {
+                            Text(
+                                text = "동기화 오류: ${rawError.toUiErrorText()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
 
@@ -535,3 +539,18 @@ private fun String.toUiErrorText(maxLen: Int = 120): String {
     val normalized = replace('\n', ' ').replace('\r', ' ').trim()
     return if (normalized.length <= maxLen) normalized else normalized.take(maxLen) + "..."
 }
+
+private fun String.isLikelyOfflineSyncError(): Boolean {
+    val normalized = lowercase()
+    return OFFLINE_SYNC_ERROR_PATTERNS.any(normalized::contains)
+}
+
+private val OFFLINE_SYNC_ERROR_PATTERNS = listOf(
+    "unable to resolve host",
+    "failed to connect",
+    "network is unreachable",
+    "no address associated with hostname",
+    "no route to host",
+    "software caused connection abort",
+    "connection reset"
+)

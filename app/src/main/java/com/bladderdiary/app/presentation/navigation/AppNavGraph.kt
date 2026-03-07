@@ -78,7 +78,6 @@ fun AppNavGraph() {
     var showE2eeSettings by remember { mutableStateOf(false) }
     var e2eeSettingsOpenedForSetup by remember { mutableStateOf(false) }
     var mainE2eeNotice by remember { mutableStateOf<String?>(null) }
-    var hasShownInitialE2eeNotice by remember { mutableStateOf(false) }
 
     // 로그인 화면으로 돌아가거나 재로그인 직후에는 PIN 설정 화면 자동 진입 상태를 초기화합니다.
     LaunchedEffect(authState.isLoggedIn) {
@@ -88,7 +87,6 @@ fun AppNavGraph() {
             showE2eeSettings = false
             e2eeSettingsOpenedForSetup = false
             mainE2eeNotice = null
-            hasShownInitialE2eeNotice = false
         }
     }
 
@@ -109,22 +107,6 @@ fun AppNavGraph() {
     LaunchedEffect(e2eeState.isEnabled) {
         if (!e2eeState.isEnabled) {
             mainE2eeNotice = null
-            hasShownInitialE2eeNotice = false
-        }
-    }
-
-    val isShowingMainScreen = authState.isLoggedIn &&
-        !showCalendar &&
-        !showPinSetup &&
-        !showE2eeSettings &&
-        (!pinState.isPinSet || pinState.isUnlocked) &&
-        !e2eeState.isCheckingRemoteState &&
-        (!e2eeState.isEnabled || e2eeState.isUnlocked)
-
-    LaunchedEffect(isShowingMainScreen, e2eeState.isEnabled, e2eeState.isUnlocked, hasShownInitialE2eeNotice) {
-        if (isShowingMainScreen && e2eeState.isEnabled && e2eeState.isUnlocked && !hasShownInitialE2eeNotice) {
-            mainE2eeNotice = "메모 종단간 암호화가 활성화되어 있습니다. 열쇠 버튼에서 비밀문구를 변경할 수 있습니다."
-            hasShownInitialE2eeNotice = true
         }
     }
 
@@ -161,7 +143,6 @@ fun AppNavGraph() {
             },
             onPassphraseChanged = { message ->
                 mainE2eeNotice = message
-                hasShownInitialE2eeNotice = true
                 showE2eeSettings = false
                 e2eeSettingsOpenedForSetup = false
             }
