@@ -22,10 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.VpnKey
@@ -407,7 +407,11 @@ fun MainScreen(
                 OutlinedTextField(
                     value = editMemoText,
                     onValueChange = { editMemoText = it },
-                    label = { Text("메모") },
+                    label = if (editMemoText.isNotBlank()) {
+                        { Text("메모") }
+                    } else {
+                        null
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -497,8 +501,8 @@ private fun EventItem(
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            Icons.Default.List,
-                            contentDescription = "메모 보기",
+                            Icons.Default.Description,
+                            contentDescription = "메모 보기 및 수정",
                             tint = if (!event.memo.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
                         )
                     }
