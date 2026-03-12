@@ -3,15 +3,6 @@ package com.bladderdiary.app.presentation.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bladderdiary.app.core.AppGraph
@@ -29,10 +20,6 @@ import com.bladderdiary.app.presentation.pin.PinViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun AppNavGraph() {
@@ -115,9 +102,7 @@ fun AppNavGraph() {
     } else if (pinState.isPinSet && !pinState.isUnlocked) {
         // 이미 PIN이 설정되어 있고 잠긴 상태 (앱 시작/백그라운드 복귀 등)
         PinScreen(viewModel = pinViewModel)
-    } else if (e2eeState.isCheckingRemoteState) {
-        SecurityLoadingScreen(message = "암호화 메모 상태를 확인하고 있습니다.")
-    } else if (e2eeState.isEnabled && !e2eeState.isUnlocked) {
+    } else if (!e2eeState.isCheckingRemoteState && e2eeState.isEnabled && !e2eeState.isUnlocked) {
         E2eePassphraseScreen(
             viewModel = e2eeViewModel,
             entryMode = E2eeEntryMode.AUTO,
@@ -161,6 +146,7 @@ fun AppNavGraph() {
             viewModel = mainViewModel,
             isPinSet = pinState.isPinSet,
             isE2eeEnabled = e2eeState.isEnabled,
+            isE2eeChecking = e2eeState.isCheckingRemoteState,
             e2eeNoticeMessage = mainE2eeNotice,
             onShowCalendar = { showCalendar = true },
             onTogglePin = {
@@ -181,35 +167,5 @@ fun AppNavGraph() {
                 authViewModel.signOut()
             }
         )
-    }
-}
-
-@Composable
-private fun SecurityLoadingScreen(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-            )
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CircularProgressIndicator()
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
     }
 }

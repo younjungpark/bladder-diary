@@ -74,6 +74,7 @@ fun MainScreen(
     viewModel: MainViewModel,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
+    isE2eeChecking: Boolean,
     e2eeNoticeMessage: String?,
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
@@ -136,6 +137,7 @@ fun MainScreen(
                 actions = {
                     IconButton(
                         onClick = onOpenE2eeSettings,
+                        enabled = !isE2eeChecking,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
@@ -248,7 +250,7 @@ fun MainScreen(
                         onClick = {
                             viewModel.addNow(null)
                         },
-                        enabled = !state.isAdding,
+                        enabled = !state.isAdding && !isE2eeChecking,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -288,7 +290,7 @@ fun MainScreen(
                                 DateFormat.is24HourFormat(context)
                             ).show()
                         },
-                        enabled = !state.isAdding,
+                        enabled = !state.isAdding && !isE2eeChecking,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -420,13 +422,16 @@ fun MainScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    val eventToUpdate = viewMemoEvent
-                    if (eventToUpdate != null) {
-                        viewModel.updateMemo(eventToUpdate.localId, editMemoText.trim().takeIf { it.isNotEmpty() })
-                    }
-                    viewMemoEvent = null
-                }) {
+                TextButton(
+                    onClick = {
+                        val eventToUpdate = viewMemoEvent
+                        if (eventToUpdate != null) {
+                            viewModel.updateMemo(eventToUpdate.localId, editMemoText.trim().takeIf { it.isNotEmpty() })
+                        }
+                        viewMemoEvent = null
+                    },
+                    enabled = !isE2eeChecking
+                ) {
                     Text("저장")
                 }
             },
