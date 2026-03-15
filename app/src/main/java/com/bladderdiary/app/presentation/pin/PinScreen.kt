@@ -1,23 +1,32 @@
 package com.bladderdiary.app.presentation.pin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,16 +35,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bladderdiary.app.ui.theme.appExtraColors
 
 @Composable
 fun PinScreen(
@@ -63,131 +73,130 @@ fun PinScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(horizontal = 24.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "BladderDiary 보안 잠금",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (state.mode == PinMode.SETUP) "앱 보호를 위해 PIN을 설정해주세요." else "PIN을 입력해 앱을 잠금 해제해주세요.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(18.dp))
+        SecurityHeader(
+            title = "PIN 보안 잠금",
+            description = if (state.mode == PinMode.SETUP) {
+                "기기에서 빠르게 잠금 해제할 수 있도록 4자리 PIN을 설정합니다."
+            } else {
+                "짧고 빠르게 확인되도록 설계된 보안 잠금입니다."
+            }
+        )
+        Spacer(modifier = Modifier.height(20.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    PinInputField(
-                        value = state.pin,
-                        onValueChange = viewModel::onPinChange,
-                        placeholder = "PIN 4자리",
-                        focusRequester = pinFocusRequester,
+                StatusPill(
+                    text = if (state.mode == PinMode.SETUP) "앱 잠금 설정" else "앱 잠금 해제",
+                    containerColor = MaterialTheme.appExtraColors.securityContainer,
+                    contentColor = MaterialTheme.appExtraColors.onSecurityContainer
+                )
+
+                Text(
+                    text = if (state.mode == PinMode.SETUP) "PIN 입력" else "PIN 확인",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                PinSlotsField(
+                    value = state.pin,
+                    placeholder = "PIN 4자리",
+                    focusRequester = pinFocusRequester,
+                    onValueChange = viewModel::onPinChange,
+                    onDone = viewModel::submit
+                )
+
+                if (state.mode == PinMode.SETUP) {
+                    Text(
+                        text = "PIN 확인",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    PinSlotsField(
+                        value = state.confirmPin,
+                        placeholder = "PIN 확인 4자리",
+                        focusRequester = confirmFocusRequester,
+                        onValueChange = viewModel::onConfirmPinChange,
                         onDone = viewModel::submit
                     )
+                } else {
+                    MessageBanner(
+                        text = "PIN 4자리를 입력하면 자동으로 잠금이 해제됩니다. 남은 시도 ${state.remainingAttempts}회",
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                    if (state.mode == PinMode.SETUP) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        PinInputField(
-                            value = state.confirmPin,
-                            onValueChange = viewModel::onConfirmPinChange,
-                            placeholder = "PIN 확인 4자리",
-                            focusRequester = confirmFocusRequester,
-                            onDone = viewModel::submit
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "PIN 4자리를 입력하면 자동으로 잠금 해제됩니다. (남은 시도 ${state.remainingAttempts}회)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                if (state.isLocked) {
+                    MessageBanner(
+                        text = "오입력 5회로 잠금되었습니다. ${state.lockedRemainingSeconds}초 후 다시 시도해주세요.",
+                        containerColor = MaterialTheme.appExtraColors.warningContainer,
+                        contentColor = MaterialTheme.appExtraColors.onWarningContainer
+                    )
+                }
+
+                state.errorMessage?.let {
+                    MessageBanner(
+                        text = it,
+                        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                state.infoMessage?.let {
+                    MessageBanner(
+                        text = it,
+                        containerColor = MaterialTheme.appExtraColors.successContainer,
+                        contentColor = MaterialTheme.appExtraColors.onSuccessContainer
+                    )
+                }
+
+                if (state.mode == PinMode.SETUP) {
+                    Button(
+                        onClick = viewModel::submit,
+                        enabled = state.submitEnabled,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Text("PIN 설정")
                     }
 
-                    if (state.isLocked) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "오입력 5회로 잠금되었습니다. ${state.lockedRemainingSeconds}초 후 다시 시도해주세요.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    state.errorMessage?.let {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    state.infoMessage?.let {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    if (state.mode == PinMode.SETUP) {
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Button(
-                            onClick = viewModel::submit,
-                            enabled = state.submitEnabled,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = "PIN 설정")
-                        }
-
-                        if (onCancel != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = onCancel,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(text = "설정 취소")
-                            }
-                        }
-                    }
-
-                    if (state.mode == PinMode.UNLOCK) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                    if (onCancel != null) {
                         TextButton(
-                            onClick = viewModel::forgotPin,
-                            enabled = !state.isSubmitting,
+                            onClick = onCancel,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = "PIN 분실")
+                            Text("설정 취소")
                         }
+                    }
+                } else {
+                    TextButton(
+                        onClick = viewModel::forgotPin,
+                        enabled = !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("PIN 분실")
                     }
                 }
             }
@@ -196,25 +205,97 @@ fun PinScreen(
 }
 
 @Composable
-private fun PinInputField(
+private fun SecurityHeader(
+    title: String,
+    description: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Surface(
+            color = MaterialTheme.appExtraColors.securityContainer,
+            shape = CircleShape
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.appExtraColors.onSecurityContainer
+                )
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PinSlotsField(
     value: String,
-    onValueChange: (String) -> Unit,
     placeholder: String,
     focusRequester: FocusRequester,
+    onValueChange: (String) -> Unit,
     onDone: () -> Unit
 ) {
-    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = shape
-            )
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
+            .height(72.dp)
     ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            repeat(4) { index ->
+                val filled = index < value.length
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
+                    color = if (filled) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (filled) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+                    )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (filled) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                        } else {
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -224,18 +305,59 @@ private fun PinInputField(
                 imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(onDone = { onDone() }),
-            visualTransformation = if (value.isEmpty()) VisualTransformation.None else PasswordVisualTransformation(),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+            visualTransformation = PasswordVisualTransformation(),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .alpha(0.02f)
                 .focusRequester(focusRequester)
         )
-        if (value.isEmpty()) {
-            Text(
-                text = placeholder,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
+    }
+
+    if (value.isEmpty()) {
+        Text(
+            text = placeholder,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun StatusPill(
+    text: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun MessageBanner(
+    text: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        )
     }
 }

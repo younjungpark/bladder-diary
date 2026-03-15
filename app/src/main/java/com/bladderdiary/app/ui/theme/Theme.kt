@@ -1,11 +1,11 @@
 package com.bladderdiary.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
     primary = PrimaryLight,
@@ -17,12 +17,18 @@ private val LightColors = lightColorScheme(
     secondaryContainer = SecondaryContainerLight,
     onSecondaryContainer = OnSecondaryContainerLight,
     tertiary = TertiaryLight,
+    onTertiary = OnTertiaryLight,
+    tertiaryContainer = TertiaryContainerLight,
+    onTertiaryContainer = OnTertiaryContainerLight,
     background = BackgroundLight,
     onBackground = OnBackgroundLight,
     surface = SurfaceLight,
     onSurface = OnSurfaceLight,
     surfaceVariant = SurfaceVariantLight,
-    outline = OutlineLight
+    onSurfaceVariant = OnSurfaceVariantLight,
+    outline = OutlineLight,
+    error = ErrorLight,
+    onError = OnErrorLight
 )
 
 private val DarkColors = darkColorScheme(
@@ -35,12 +41,36 @@ private val DarkColors = darkColorScheme(
     secondaryContainer = SecondaryContainerDark,
     onSecondaryContainer = OnSecondaryContainerDark,
     tertiary = TertiaryDark,
+    onTertiary = OnTertiaryDark,
+    tertiaryContainer = TertiaryContainerDark,
+    onTertiaryContainer = OnTertiaryContainerDark,
     background = BackgroundDark,
     onBackground = OnBackgroundDark,
     surface = SurfaceDark,
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
-    outline = OutlineDark
+    onSurfaceVariant = OnSurfaceVariantDark,
+    outline = OutlineDark,
+    error = ErrorDark,
+    onError = OnErrorDark
+)
+
+private val LightExtraColors = AppExtraColors(
+    successContainer = SuccessContainerLight,
+    onSuccessContainer = OnSuccessContainerLight,
+    warningContainer = WarningContainerLight,
+    onWarningContainer = OnWarningContainerLight,
+    securityContainer = SecurityContainerLight,
+    onSecurityContainer = OnSecurityContainerLight
+)
+
+private val DarkExtraColors = AppExtraColors(
+    successContainer = SuccessContainerDark,
+    onSuccessContainer = OnSuccessContainerDark,
+    warningContainer = WarningContainerDark,
+    onWarningContainer = OnWarningContainerDark,
+    securityContainer = SecurityContainerDark,
+    onSecurityContainer = OnSecurityContainerDark
 )
 
 @Composable
@@ -48,10 +78,15 @@ fun BladderDiaryTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = Typography,
-        shapes = AppShapes,
-        content = content
-    )
+    val colorScheme = if (darkTheme) DarkColors else LightColors
+    val extraColors = if (darkTheme) DarkExtraColors else LightExtraColors
+
+    CompositionLocalProvider(LocalAppExtraColors provides extraColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = AppShapes,
+            content = content
+        )
+    }
 }

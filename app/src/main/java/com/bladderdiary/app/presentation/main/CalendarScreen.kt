@@ -1,5 +1,6 @@
 package com.bladderdiary.app.presentation.main
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,39 +11,44 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.Clock
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,15 +59,27 @@ fun CalendarScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
+    val totalCount = state.dailyCounts.values.sum()
+    val activeDays = state.dailyCounts.count { it.value > 0 }
+    val daysInMonth = getDaysInMonth(state.currentYearMonth.year, state.currentYearMonth.monthNumber)
+    val average = if (daysInMonth == 0) 0.0 else totalCount.toDouble() / daysInMonth
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = "${state.currentYearMonth.year}년 ${state.currentYearMonth.monthNumber}월",
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "캘린더",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "${state.currentYearMonth.year}년 ${state.currentYearMonth.monthNumber}월",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -80,97 +98,91 @@ fun CalendarScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Month navigation
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)),
+                shape = MaterialTheme.shapes.medium
             ) {
-                TextButton(onClick = viewModel::goPreviousMonth) {
-                    Text("< 이전 달", style = MaterialTheme.typography.labelLarge)
-                }
-                TextButton(onClick = viewModel::goNextMonth) {
-                    Text("다음 달 >", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CalendarMetric(
+                        modifier = Modifier.weight(1f),
+                        label = "총 기록",
+                        value = "${totalCount}회"
+                    )
+                    CalendarMetric(
+                        modifier = Modifier.weight(1f),
+                        label = "기록한 날",
+                        value = "${activeDays}일"
+                    )
+                    CalendarMetric(
+                        modifier = Modifier.weight(1f),
+                        label = "일평균",
+                        value = String.format(Locale.KOREA, "%.1f회", average)
+                    )
                 }
             }
 
-            // Days of week header
-            val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토")
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MonthNavButton(
+                    label = "이전 달",
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    onClick = viewModel::goPreviousMonth
+                )
+                Text(
+                    text = "${state.currentYearMonth.monthNumber}월",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                MonthNavButton(
+                    label = "다음 달",
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    onClick = viewModel::goNextMonth
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                daysOfWeek.forEach { dayOfWeek ->
+                listOf("일", "월", "화", "수", "목", "금", "토").forEachIndexed { index, dayOfWeek ->
                     Text(
                         text = dayOfWeek,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (dayOfWeek == "일") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (index == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center
                     )
                 }
             }
 
-            // Calendar grid
             val days = generateCalendarDays(state.currentYearMonth)
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(7),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 items(days) { day ->
-                    if (day != null) {
-                        val count = state.dailyCounts[day] ?: 0
-                        val isToday = day == today
-                        
-                        Column(
-                            modifier = Modifier
-                                .aspectRatio(0.8f)
-                                .padding(2.dp)
-                                .clip(MaterialTheme.shapes.small)
-                                .background(
-                                    if (isToday) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                    else MaterialTheme.colorScheme.surface
-                                )
-                                .clickable { onDateSelected(day) }
-                                .padding(4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            Text(
-                                text = day.dayOfMonth.toString(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = if (day.dayOfWeek.value == 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            if (count > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "${count}회",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 10.sp, // 폰트 크기를 고정적으로 줄여 두 자릿수도 잘 보장되게 함
-                                        maxLines = 1,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                }
-                            }
-                        }
+                    if (day == null) {
+                        Box(modifier = Modifier.aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO))
                     } else {
-                        Box(modifier = Modifier.aspectRatio(0.8f))
+                        CalendarDayCell(
+                            day = day,
+                            count = state.dailyCounts[day] ?: 0,
+                            isToday = day == today,
+                            onClick = { onDateSelected(day) }
+                        )
                     }
                 }
             }
@@ -178,31 +190,159 @@ fun CalendarScreen(
     }
 }
 
+@Composable
+private fun CalendarMetric(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun MonthNavButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCell(
+    day: LocalDate,
+    count: Int,
+    isToday: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = when {
+        isToday -> MaterialTheme.colorScheme.primaryContainer
+        count > 0 -> MaterialTheme.colorScheme.primary.copy(alpha = dayCountAlpha(count))
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val borderColor = when {
+        isToday -> MaterialTheme.colorScheme.primary
+        count > 0 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+    }
+
+    Surface(
+        color = backgroundColor,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier
+            .aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO)
+            .padding(3.dp)
+            .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = "${day.monthNumber}월 ${day.dayOfMonth}일, 기록 ${count}회"
+            }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 5.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = day.dayOfMonth.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (day.dayOfWeek.value == 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+            }
+
+            if (count > 0) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                        shape = RoundedCornerShape(9.dp)
+                    ) {
+                        Text(
+                            text = "${count}회",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.72f
+
+private fun dayCountAlpha(count: Int): Float {
+    return when (count) {
+        0 -> 0f
+        1 -> 0.10f
+        2 -> 0.14f
+        3 -> 0.18f
+        4 -> 0.22f
+        else -> 0.28f
+    }
+}
+
 private fun generateCalendarDays(yearMonth: LocalDate): List<LocalDate?> {
     val firstDayOfMonth = LocalDate(yearMonth.year, yearMonth.month, 1)
     val daysInMonth = getDaysInMonth(yearMonth.year, yearMonth.monthNumber)
+    val startDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
 
-    // dayOfWeek in kotlinx.datetime: MONDAY is 1, SUNDAY is 7.
-    val startDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7 // 0 for Sunday
-    
     val days = mutableListOf<LocalDate?>()
-    
-    // Add null padding for previous month's days
-    for (i in 0 until startDayOfWeek) {
-        days.add(null)
-    }
-    
-    // Add current month's days
+    repeat(startDayOfWeek) { days.add(null) }
     for (i in 1..daysInMonth) {
         days.add(LocalDate(yearMonth.year, yearMonth.month, i))
     }
-    
-    // Add null padding to fill up the last row if necessary
-    val remainingCells = (7 - (days.size % 7)) % 7
-    for (i in 0 until remainingCells) {
-        days.add(null)
-    }
-    
+    repeat((7 - (days.size % 7)) % 7) { days.add(null) }
     return days
 }
 
