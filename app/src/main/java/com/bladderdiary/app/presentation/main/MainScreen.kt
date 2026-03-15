@@ -269,6 +269,12 @@ fun MainScreen(
             editVolumeText = next.filter(Char::isDigit).take(4)
         },
         onDismiss = { viewVolumeEvent = null },
+        onDelete = {
+            viewVolumeEvent?.let { eventToUpdate ->
+                viewModel.updateVolume(eventToUpdate.localId, null)
+                viewVolumeEvent = null
+            }
+        },
         onConfirm = {
             viewVolumeEvent?.let { eventToUpdate ->
                 viewModel.updateVolume(
@@ -1078,11 +1084,13 @@ private fun VolumeEditDialog(
     editVolumeText: String,
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
+    onDelete: () -> Unit,
     onConfirm: () -> Unit
 ) {
     if (event == null) return
     val hasInput = editVolumeText.isNotBlank()
     val isValidInput = editVolumeText.isBlank() || editVolumeText.toVolumeMlOrNull() != null
+    val hasSavedVolume = event.volumeMl != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1100,9 +1108,6 @@ private fun VolumeEditDialog(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                supportingText = {
-                    Text("비워두면 입력된 배뇨량이 삭제됩니다.")
-                },
                 isError = !isValidInput
             )
         },
@@ -1115,8 +1120,15 @@ private fun VolumeEditDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("닫기")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (hasSavedVolume) {
+                    TextButton(onClick = onDelete) {
+                        Text("삭제")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("닫기")
+                }
             }
         }
     )
