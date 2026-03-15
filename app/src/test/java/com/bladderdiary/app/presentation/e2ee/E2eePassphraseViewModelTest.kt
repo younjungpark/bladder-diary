@@ -38,7 +38,7 @@ class E2eePassphraseViewModelTest {
 
         advanceUntilIdle()
 
-        assertEquals("비밀문구가 일치하지 않습니다.", viewModel.uiState.value.errorMessage)
+        assertEquals("메모 암호화 비밀문구가 일치하지 않습니다.", viewModel.uiState.value.errorMessage)
     }
 
     @Test
@@ -110,7 +110,7 @@ class E2eePassphraseViewModelTest {
 
         val event = eventDeferred.await()
         assertEquals(
-            E2eePassphraseEvent.PassphraseChanged("비밀문구가 변경되었습니다."),
+            E2eePassphraseEvent.PassphraseChanged("메모 암호화 비밀문구가 변경되었습니다."),
             event
         )
     }

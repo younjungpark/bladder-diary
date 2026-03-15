@@ -131,12 +131,12 @@ class E2eePassphraseViewModel(
         val current = _uiState.value
         if (current.passphrase.length < MIN_PASSPHRASE_LENGTH) {
             _uiState.update {
-                it.copy(errorMessage = "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
+                it.copy(errorMessage = "메모 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
             }
             return
         }
         if (current.passphrase != current.confirmPassphrase) {
-            _uiState.update { it.copy(errorMessage = "비밀문구가 일치하지 않습니다.") }
+            _uiState.update { it.copy(errorMessage = "메모 암호화 비밀문구가 일치하지 않습니다.") }
             return
         }
 
@@ -155,9 +155,9 @@ class E2eePassphraseViewModel(
                 confirmPassphrase = "",
                 errorMessage = requeueResult.exceptionOrNull()?.message,
                 infoMessage = if (requeueResult.isSuccess) {
-                    "E2EE가 활성화되었고 기존 메모 재업로드를 시작했습니다."
+                    "메모 암호화가 활성화되었고 기존 메모 재업로드를 시작했습니다."
                 } else {
-                    "E2EE는 활성화되었지만 기존 메모 재업로드 준비에 실패했습니다."
+                    "메모 암호화는 활성화되었지만 기존 메모 재업로드 준비에 실패했습니다."
                 }
             )
         }
@@ -167,19 +167,19 @@ class E2eePassphraseViewModel(
         val current = _uiState.value
         if (current.passphrase.length < MIN_PASSPHRASE_LENGTH) {
             _uiState.update {
-                it.copy(errorMessage = "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
+                it.copy(errorMessage = "메모 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
             }
             return
         }
         if (current.passphrase != current.confirmPassphrase) {
-            _uiState.update { it.copy(errorMessage = "비밀문구가 일치하지 않습니다.") }
+            _uiState.update { it.copy(errorMessage = "메모 암호화 비밀문구가 일치하지 않습니다.") }
             return
         }
 
         val changeResult = e2eeRepository.changePassphrase(current.passphrase)
         if (changeResult.isFailure) {
             _uiState.update {
-                it.copy(errorMessage = changeResult.exceptionOrNull()?.message ?: "비밀문구 변경에 실패했습니다.")
+                it.copy(errorMessage = changeResult.exceptionOrNull()?.message ?: "메모 암호화 비밀문구 변경에 실패했습니다.")
             }
             return
         }
@@ -192,14 +192,14 @@ class E2eePassphraseViewModel(
                 infoMessage = null
             )
         }
-        _events.tryEmit(E2eePassphraseEvent.PassphraseChanged("비밀문구가 변경되었습니다."))
+        _events.tryEmit(E2eePassphraseEvent.PassphraseChanged("메모 암호화 비밀문구가 변경되었습니다."))
     }
 
     private suspend fun submitUnlock() {
         val unlockResult = e2eeRepository.unlock(_uiState.value.passphrase)
         if (unlockResult.isFailure) {
             _uiState.update {
-                it.copy(errorMessage = unlockResult.exceptionOrNull()?.message ?: "비밀문구 확인에 실패했습니다.")
+                it.copy(errorMessage = unlockResult.exceptionOrNull()?.message ?: "메모 암호화 비밀문구 확인에 실패했습니다.")
             }
             return
         }

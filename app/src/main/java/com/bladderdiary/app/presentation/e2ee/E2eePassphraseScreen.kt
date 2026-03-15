@@ -59,25 +59,25 @@ fun E2eePassphraseScreen(
     }
 
     val title = when (state.mode) {
-        E2eeMode.SETUP -> "메모 종단간 암호화 설정"
-        E2eeMode.UNLOCK -> "암호화 메모 잠금 해제"
-        E2eeMode.CHANGE -> "비밀문구 변경"
+        E2eeMode.SETUP -> "메모 암호화 비밀문구 설정"
+        E2eeMode.UNLOCK -> "메모 암호화 잠금 해제"
+        E2eeMode.CHANGE -> "메모 암호화 비밀문구 변경"
     }
     val descriptionText = when (state.mode) {
-        E2eeMode.SETUP -> "메모 내용을 기기 외부에서 읽을 수 없도록 보호합니다."
-        E2eeMode.UNLOCK -> "이 기기에서 암호화된 메모를 다시 확인하기 위한 단계입니다."
-        E2eeMode.CHANGE -> "복호화 가능한 상태에서 새 비밀문구로 안전하게 교체합니다."
+        E2eeMode.SETUP -> "메모 암호화에 사용할 비밀문구를 설정합니다."
+        E2eeMode.UNLOCK -> "암호화된 메모를 다시 확인하려면 비밀문구가 필요합니다."
+        E2eeMode.CHANGE -> "메모 암호화에 사용하는 비밀문구를 새 값으로 교체합니다."
     }
     val helperText = when (state.mode) {
-        E2eeMode.SETUP -> "비밀문구를 잊어버리면 서버에서도 메모를 복구할 수 없습니다."
-        E2eeMode.UNLOCK -> "재설치나 새 기기에서도 동일한 비밀문구가 필요합니다."
-        E2eeMode.CHANGE -> "변경 후에는 새 비밀문구로만 메모 잠금 해제가 가능합니다."
+        E2eeMode.SETUP -> "비밀문구를 잊어버리면 암호화된 메모를 복구할 수 없습니다."
+        E2eeMode.UNLOCK -> "재설치나 새 기기에서도 같은 비밀문구를 입력해야 메모를 볼 수 있습니다."
+        E2eeMode.CHANGE -> "변경 후에는 새 비밀문구로만 암호화된 메모를 열 수 있습니다."
     }
-    val passphraseLabel = if (state.mode == E2eeMode.CHANGE) "새 비밀문구" else "비밀문구"
+    val passphraseLabel = if (state.mode == E2eeMode.CHANGE) "새 메모 암호화 비밀문구" else "메모 암호화 비밀문구"
     val confirmLabel = if (state.mode == E2eeMode.CHANGE) "새 비밀문구 확인" else "비밀문구 확인"
     val submitText = when (state.mode) {
-        E2eeMode.SETUP -> "E2EE 설정"
-        E2eeMode.UNLOCK -> "잠금 해제"
+        E2eeMode.SETUP -> "메모 암호화 설정"
+        E2eeMode.UNLOCK -> "메모 잠금 해제"
         E2eeMode.CHANGE -> "비밀문구 변경"
     }
 
@@ -134,9 +134,9 @@ fun E2eePassphraseScreen(
             ) {
                 SecurityChip(
                     text = when (state.mode) {
-                        E2eeMode.SETUP -> "새 보호 설정"
-                        E2eeMode.UNLOCK -> "잠금 해제 필요"
-                        E2eeMode.CHANGE -> "보안 정보 변경"
+                        E2eeMode.SETUP -> "메모 암호화 설정"
+                        E2eeMode.UNLOCK -> "메모 확인 필요"
+                        E2eeMode.CHANGE -> "메모 암호화 변경"
                     }
                 )
 
