@@ -54,6 +54,7 @@ fun AppNavGraph() {
             deleteVoidingEventUseCase = AppGraph.deleteVoidingEventUseCase,
             updateVoidingEventMemoUseCase = AppGraph.updateVoidingEventMemoUseCase,
             updateVoidingEventVolumeUseCase = AppGraph.updateVoidingEventVolumeUseCase,
+            voidingPdfExporter = AppGraph.voidingPdfExporter,
             voidingRepository = AppGraph.voidingRepository
         )
     )

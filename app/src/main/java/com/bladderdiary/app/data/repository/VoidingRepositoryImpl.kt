@@ -97,6 +97,23 @@ class VoidingRepositoryImpl(
         }
     }
 
+    override suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>> {
+        val session = authRepository.getSession() ?: return Result.failure(
+            IllegalStateException("로그인이 필요합니다.")
+        )
+        if (startDate > endDate) {
+            return Result.failure(IllegalArgumentException("기간 범위가 올바르지 않습니다."))
+        }
+
+        return runCatching {
+            eventDao.getByDateRange(
+                userId = session.userId,
+                startDate = startDate.toString(),
+                endDate = endDate.toString()
+            ).map { it.toDomain() }
+        }
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> {
         return authRepository.sessionFlow.flatMapLatest { session ->

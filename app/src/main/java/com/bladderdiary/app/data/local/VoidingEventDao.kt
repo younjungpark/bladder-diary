@@ -57,6 +57,17 @@ interface VoidingEventDao {
 
     @Query(
         """
+        SELECT * FROM voiding_events
+        WHERE user_id = :userId
+          AND local_date BETWEEN :startDate AND :endDate
+          AND is_deleted = 0
+        ORDER BY local_date ASC, voided_at_epoch_ms ASC
+        """
+    )
+    suspend fun getByDateRange(userId: String, startDate: String, endDate: String): List<VoidingEventEntity>
+
+    @Query(
+        """
         SELECT COUNT(*) FROM voiding_events
         WHERE user_id = :userId
           AND sync_state IN ('PENDING_CREATE', 'PENDING_DELETE')

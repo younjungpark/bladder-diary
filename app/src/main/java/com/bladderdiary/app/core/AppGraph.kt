@@ -11,6 +11,8 @@ import com.bladderdiary.app.data.repository.E2eeRepositoryImpl
 import com.bladderdiary.app.data.repository.LockRepositoryImpl
 import com.bladderdiary.app.data.repository.VoidingRepositoryImpl
 import com.bladderdiary.app.data.security.E2eeLocalKeyStore
+import com.bladderdiary.app.export.AndroidVoidingPdfExporter
+import com.bladderdiary.app.export.VoidingPdfExporter
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.LockRepository
@@ -41,6 +43,8 @@ object AppGraph {
         private set
     lateinit var e2eeRepository: E2eeRepository
         private set
+    lateinit var voidingPdfExporter: VoidingPdfExporter
+        private set
 
     lateinit var addVoidingEventUseCase: AddVoidingEventUseCase
         private set
@@ -66,6 +70,7 @@ object AppGraph {
         supabaseApi = SupabaseApi()
         supabaseAuthClient = SupabaseAuthClient()
         syncScheduler = SyncScheduler(context)
+        voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
 
         authRepository = AuthRepositoryImpl(
             appContext = context.applicationContext,

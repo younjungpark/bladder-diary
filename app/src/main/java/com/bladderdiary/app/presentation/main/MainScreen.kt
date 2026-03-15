@@ -2,6 +2,9 @@ package com.bladderdiary.app.presentation.main
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.ClipData
+import android.content.Intent
+import android.net.Uri
 import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,12 +39,14 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,6 +112,10 @@ fun MainScreen(
     var editMemoText by remember { mutableStateOf("") }
     var viewVolumeEvent by remember { mutableStateOf<VoidingEvent?>(null) }
     var editVolumeText by remember { mutableStateOf("") }
+    var showPdfExportDialog by remember { mutableStateOf(false) }
+    var pdfStartDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
+    var pdfEndDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
+    var pdfIncludeMemo by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -118,6 +127,26 @@ fun MainScreen(
         val msg = e2eeNoticeMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
         onConsumeE2eeNotice()
+    }
+
+    LaunchedEffect(state.pendingPdfShareFile) {
+        val payload = state.pendingPdfShareFile ?: return@LaunchedEffect
+        val shareUri = Uri.parse(payload.uriString)
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, shareUri)
+            clipData = ClipData.newRawUri(payload.fileName, shareUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooserIntent = Intent.createChooser(sendIntent, "PDF 전송").apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching {
+            context.startActivity(chooserIntent)
+        }.onFailure {
+            snackbarHostState.showSnackbar("PDF 공유 화면을 열 수 없습니다.")
+        }
+        viewModel.consumePendingPdfShareFile()
     }
 
     val selected = state.selectedDate
@@ -153,6 +182,14 @@ fun MainScreen(
                     menuExpanded = false
                     onOpenE2eeSettings()
                 },
+                onOpenPdfExport = {
+                    menuExpanded = false
+                    pdfStartDate = state.selectedDate
+                    pdfEndDate = state.selectedDate
+                    pdfIncludeMemo = false
+                    showPdfExportDialog = true
+                },
+                isExportingPdf = state.isExportingPdf,
                 onSignOut = {
                     menuExpanded = false
                     onSignOut()
@@ -248,6 +285,50 @@ fun MainScreen(
         onDismiss = viewModel::dismissDeleteDialog,
         onConfirm = viewModel::confirmDelete
     )
+
+    PdfExportDialog(
+        isVisible = showPdfExportDialog,
+        startDate = pdfStartDate,
+        endDate = pdfEndDate,
+        includeMemo = pdfIncludeMemo,
+        isExporting = state.isExportingPdf,
+        onToggleIncludeMemo = { pdfIncludeMemo = it },
+        onPickStartDate = {
+            DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    val selectedDate = kotlinx.datetime.LocalDate(year, month + 1, dayOfMonth)
+                    pdfStartDate = selectedDate
+                    if (pdfEndDate < selectedDate) {
+                        pdfEndDate = selectedDate
+                    }
+                },
+                pdfStartDate.year,
+                pdfStartDate.monthNumber - 1,
+                pdfStartDate.dayOfMonth
+            ).show()
+        },
+        onPickEndDate = {
+            DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    pdfEndDate = kotlinx.datetime.LocalDate(year, month + 1, dayOfMonth)
+                },
+                pdfEndDate.year,
+                pdfEndDate.monthNumber - 1,
+                pdfEndDate.dayOfMonth
+            ).show()
+        },
+        onDismiss = { showPdfExportDialog = false },
+        onConfirm = {
+            showPdfExportDialog = false
+            viewModel.exportPdf(
+                startDate = pdfStartDate,
+                endDate = pdfEndDate,
+                includeMemo = pdfIncludeMemo
+            )
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -263,6 +344,8 @@ private fun MainTopBar(
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
+    onOpenPdfExport: () -> Unit,
+    isExportingPdf: Boolean,
     onSignOut: () -> Unit
 ) {
     TopAppBar(
@@ -319,6 +402,17 @@ private fun MainTopBar(
                         enabled = !isE2eeChecking
                     )
                     DropdownMenuItem(
+                        text = { Text(if (isExportingPdf) "PDF 생성 중" else "PDF 내보내기") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PictureAsPdf,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = onOpenPdfExport,
+                        enabled = !isExportingPdf
+                    )
+                    DropdownMenuItem(
                         text = { Text(if (isPinSet) "PIN 해제" else "PIN 설정") },
                         leadingIcon = {
                             Icon(
@@ -339,6 +433,91 @@ private fun MainTopBar(
                         onClick = onSignOut
                     )
                 }
+            }
+        }
+    )
+}
+
+@Composable
+private fun PdfExportDialog(
+    isVisible: Boolean,
+    startDate: kotlinx.datetime.LocalDate,
+    endDate: kotlinx.datetime.LocalDate,
+    includeMemo: Boolean,
+    isExporting: Boolean,
+    onToggleIncludeMemo: (Boolean) -> Unit,
+    onPickStartDate: () -> Unit,
+    onPickEndDate: () -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (!isVisible) return
+    val isValidRange = startDate <= endDate
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("PDF 내보내기") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = onPickStartDate,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("시작일: ${startDate.toKoreanShortDate()}")
+                }
+                OutlinedButton(
+                    onClick = onPickEndDate,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("종료일: ${endDate.toKoreanShortDate()}")
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = includeMemo,
+                        onCheckedChange = onToggleIncludeMemo
+                    )
+                    Column {
+                        Text(
+                            text = "메모 포함",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "기본값은 제외이며, 필요할 때만 메모를 PDF에 포함합니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (!isValidRange) {
+                    Text(
+                        text = "종료일은 시작일보다 빠를 수 없습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = isValidRange && !isExporting
+            ) {
+                Text(if (isExporting) "생성 중" else "내보내기")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isExporting
+            ) {
+                Text("취소")
             }
         }
     )
@@ -1007,6 +1186,10 @@ private fun kotlinx.datetime.LocalDate.toRelativeDateLabel(today: kotlinx.dateti
         this == today.plusDays(1) -> "내일"
         else -> "날짜를 눌러 직접 선택"
     }
+}
+
+private fun kotlinx.datetime.LocalDate.toKoreanShortDate(): String {
+    return "${year}년 ${monthNumber}월 ${dayOfMonth}일"
 }
 
 private fun kotlinx.datetime.LocalDate.plusDays(days: Int): kotlinx.datetime.LocalDate {

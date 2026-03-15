@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.domain.model.VoidingRepository
+import com.bladderdiary.app.export.VoidingPdfExportParams
+import com.bladderdiary.app.export.VoidingPdfExporter
+import com.bladderdiary.app.export.VoidingPdfShareFile
 import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
@@ -33,6 +36,8 @@ data class MainUiState(
     val pendingSyncError: String? = null,
     val isSyncing: Boolean = false,
     val isAdding: Boolean = false,
+    val isExportingPdf: Boolean = false,
+    val pendingPdfShareFile: VoidingPdfShareFile? = null,
     val confirmDeleteEventId: String? = null,
     val message: String? = null
 )
@@ -44,6 +49,7 @@ class MainViewModel(
     private val deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
     private val updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
     private val updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
+    private val voidingPdfExporter: VoidingPdfExporter,
     private val voidingRepository: VoidingRepository
 ) : ViewModel() {
     private val selectedDate = MutableStateFlow(
@@ -77,6 +83,8 @@ class MainViewModel(
                     pendingSyncError = pendingError,
                     isSyncing = isSyncing,
                     isAdding = _uiState.value.isAdding,
+                    isExportingPdf = _uiState.value.isExportingPdf,
+                    pendingPdfShareFile = _uiState.value.pendingPdfShareFile,
                     confirmDeleteEventId = _uiState.value.confirmDeleteEventId,
                     message = _uiState.value.message
                 )
@@ -135,6 +143,63 @@ class MainViewModel(
         }
     }
 
+    fun exportPdf(
+        startDate: kotlinx.datetime.LocalDate,
+        endDate: kotlinx.datetime.LocalDate,
+        includeMemo: Boolean
+    ) {
+        viewModelScope.launch {
+            if (startDate > endDate) {
+                _uiState.update { it.copy(message = "기간 범위를 다시 확인해 주세요.") }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isExportingPdf = true, message = null, pendingPdfShareFile = null) }
+            val eventsResult = voidingRepository.getByDateRange(startDate, endDate)
+            val events = eventsResult.getOrNull()
+
+            if (eventsResult.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        isExportingPdf = false,
+                        message = eventsResult.exceptionOrNull()?.message ?: "PDF 내보내기에 실패했습니다."
+                    )
+                }
+                return@launch
+            }
+
+            if (events.isNullOrEmpty()) {
+                _uiState.update {
+                    it.copy(
+                        isExportingPdf = false,
+                        message = "선택한 기간에 내보낼 기록이 없습니다."
+                    )
+                }
+                return@launch
+            }
+
+            val exportResult = voidingPdfExporter.export(
+                params = VoidingPdfExportParams(
+                    startDate = startDate,
+                    endDate = endDate,
+                    includeMemo = includeMemo
+                ),
+                events = events
+            )
+            _uiState.update {
+                it.copy(
+                    isExportingPdf = false,
+                    pendingPdfShareFile = exportResult.getOrNull(),
+                    message = exportResult.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
+
+    fun consumePendingPdfShareFile() {
+        _uiState.update { it.copy(pendingPdfShareFile = null) }
+    }
+
     fun goPreviousDay() {
         selectedDate.value = selectedDate.value.plus(-1, DateTimeUnit.DAY)
     }
@@ -180,6 +245,7 @@ class MainViewModel(
             deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
             updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
             updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
+            voidingPdfExporter: VoidingPdfExporter,
             voidingRepository: VoidingRepository
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
@@ -192,6 +258,7 @@ class MainViewModel(
                         deleteVoidingEventUseCase = deleteVoidingEventUseCase,
                         updateVoidingEventMemoUseCase = updateVoidingEventMemoUseCase,
                         updateVoidingEventVolumeUseCase = updateVoidingEventVolumeUseCase,
+                        voidingPdfExporter = voidingPdfExporter,
                         voidingRepository = voidingRepository
                     ) as T
                 }

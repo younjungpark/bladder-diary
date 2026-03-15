@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
                 AppGraph.deleteVoidingEventUseCase,
                 AppGraph.updateVoidingEventMemoUseCase,
                 AppGraph.updateVoidingEventVolumeUseCase,
+                AppGraph.voidingPdfExporter,
                 AppGraph.voidingRepository
             )
         }

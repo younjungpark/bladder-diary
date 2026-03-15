@@ -181,6 +181,11 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> = Result.success(Unit)
 
+    override suspend fun getByDateRange(
+        startDate: kotlinx.datetime.LocalDate,
+        endDate: kotlinx.datetime.LocalDate
+    ): Result<List<com.bladderdiary.app.domain.model.VoidingEvent>> = Result.success(emptyList())
+
     override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<com.bladderdiary.app.domain.model.VoidingEvent>> {
         return MutableStateFlow(emptyList())
     }
