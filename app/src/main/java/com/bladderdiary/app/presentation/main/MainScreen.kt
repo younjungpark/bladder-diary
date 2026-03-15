@@ -776,6 +776,7 @@ private fun MemoEditDialog(
     onConfirm: () -> Unit
 ) {
     if (event == null) return
+    val showMemoLabel = editMemoText.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -784,7 +785,11 @@ private fun MemoEditDialog(
             OutlinedTextField(
                 value = editMemoText,
                 onValueChange = onValueChange,
-                label = { Text("메모") },
+                label = if (showMemoLabel) {
+                    { Text("메모") }
+                } else {
+                    null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
