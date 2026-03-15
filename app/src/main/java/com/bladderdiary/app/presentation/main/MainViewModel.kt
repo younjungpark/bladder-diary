@@ -10,6 +10,7 @@ import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
 import com.bladderdiary.app.domain.usecase.UpdateVoidingEventMemoUseCase
+import com.bladderdiary.app.domain.usecase.UpdateVoidingEventVolumeUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +27,7 @@ import kotlinx.datetime.toLocalDateTime
 data class MainUiState(
     val selectedDate: kotlinx.datetime.LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
     val dailyCount: Int = 0,
+    val dailyVolumeMl: Int? = null,
     val events: List<VoidingEvent> = emptyList(),
     val pendingSyncCount: Int = 0,
     val pendingSyncError: String? = null,
@@ -41,6 +43,7 @@ class MainViewModel(
     private val getDailyCountUseCase: GetDailyCountUseCase,
     private val deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
     private val updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
+    private val updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
     private val voidingRepository: VoidingRepository
 ) : ViewModel() {
     private val selectedDate = MutableStateFlow(
@@ -69,6 +72,7 @@ class MainViewModel(
                     selectedDate = date,
                     events = events,
                     dailyCount = count,
+                    dailyVolumeMl = events.mapNotNull { it.volumeMl }.takeIf { it.isNotEmpty() }?.sum(),
                     pendingSyncCount = pending,
                     pendingSyncError = pendingError,
                     isSyncing = isSyncing,
@@ -120,6 +124,17 @@ class MainViewModel(
         }
     }
 
+    fun updateVolume(localId: String, volumeMl: Int?) {
+        viewModelScope.launch {
+            val result = updateVoidingEventVolumeUseCase(localId, volumeMl)
+            _uiState.update {
+                it.copy(
+                    message = if (result.isSuccess) "배뇨량이 업데이트되었습니다." else result.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
+
     fun goPreviousDay() {
         selectedDate.value = selectedDate.value.plus(-1, DateTimeUnit.DAY)
     }
@@ -164,6 +179,7 @@ class MainViewModel(
             getDailyCountUseCase: GetDailyCountUseCase,
             deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
             updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
+            updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
             voidingRepository: VoidingRepository
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
@@ -175,6 +191,7 @@ class MainViewModel(
                         getDailyCountUseCase = getDailyCountUseCase,
                         deleteVoidingEventUseCase = deleteVoidingEventUseCase,
                         updateVoidingEventMemoUseCase = updateVoidingEventMemoUseCase,
+                        updateVoidingEventVolumeUseCase = updateVoidingEventVolumeUseCase,
                         voidingRepository = voidingRepository
                     ) as T
                 }

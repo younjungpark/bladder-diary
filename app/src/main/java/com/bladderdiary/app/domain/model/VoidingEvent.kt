@@ -8,5 +8,6 @@ data class VoidingEvent(
     val isDeleted: Boolean,
     val syncState: SyncState,
     val updatedAtEpochMs: Long,
-    val memo: String? = null
+    val memo: String? = null,
+    val volumeMl: Int? = null
 )

@@ -43,7 +43,7 @@ class VoidingRepositoryImpl(
     private val queueDao = db.syncQueueDao()
     private val activeSyncCount = MutableStateFlow(0)
 
-    override suspend fun addNow(memo: String?): Result<Unit> {
+    override suspend fun addNow(memo: String?, volumeMl: Int?): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -54,13 +54,14 @@ class VoidingRepositoryImpl(
                 userId = session.userId,
                 epochMs = now.toEpochMilliseconds(),
                 localDate = now.toLocalDate(),
-                memo = memo
+                memo = memo,
+                volumeMl = volumeMl
             )
             syncNowOrSchedule()
         }
     }
 
-    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int, memo: String?): Result<Unit> {
+    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int, memo: String?, volumeMl: Int?): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -77,7 +78,8 @@ class VoidingRepositoryImpl(
                 userId = session.userId,
                 epochMs = epochMs,
                 localDate = date.toString(),
-                memo = memo
+                memo = memo,
+                volumeMl = volumeMl
             )
             syncNowOrSchedule()
         }
@@ -178,32 +180,25 @@ class VoidingRepositoryImpl(
         )
 
         return runCatching {
-            val nowEpochMs = Clock.System.now().toEpochMilliseconds()
-            val memoPayload = e2eeRepository.prepareMemoSyncPayload(
-                userId = event.userId,
-                eventId = event.localId,
-                localDate = event.localDate,
-                memo = memo
-            ).getOrThrow()
-            val updatedEvent = event.copy(
+            upsertPendingUpdate(
+                event = event,
                 memo = memo,
-                memoCiphertext = memoPayload.memoCiphertext,
-                memoEncryption = memoPayload.memoEncryption,
-                syncState = SyncState.PENDING_CREATE, // Use CREATE for upsert
-                updatedAtEpochMs = nowEpochMs
+                volumeMl = event.volumeMl
             )
-            val queueItem = SyncQueueEntity(
-                queueId = UUID.randomUUID().toString(),
-                eventLocalId = localId,
-                action = SyncAction.CREATE,
-                retryCount = 0,
-                lastError = null
+        }
+    }
+
+    override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> {
+        val event = eventDao.getById(localId) ?: return Result.failure(
+            IllegalStateException("기록을 찾을 수 없습니다.")
+        )
+
+        return runCatching {
+            upsertPendingUpdate(
+                event = event,
+                memo = event.memo,
+                volumeMl = volumeMl
             )
-            db.withTransaction {
-                eventDao.update(updatedEvent)
-                queueDao.upsert(queueItem)
-            }
-            syncNowOrSchedule()
         }
     }
 
@@ -314,6 +309,7 @@ class VoidingRepositoryImpl(
                         syncState = SyncState.SYNCED,
                         updatedAtEpochMs = updatedEpochMs,
                         memo = memo,
+                        volumeMl = dto.volumeMl.normalizedVolumeMl(),
                         memoCiphertext = dto.memoCiphertext,
                         memoEncryption = memoEncryption
                     )
@@ -340,6 +336,7 @@ class VoidingRepositoryImpl(
             localDate = event.localDate,
             clientRef = event.localId,
             deletedAt = null,
+            volumeMl = event.volumeMl,
             memoCiphertext = event.memoCiphertext,
             memoEncryption = event.memoEncryption
         )
@@ -355,7 +352,13 @@ class VoidingRepositoryImpl(
         )
     }
 
-    private suspend fun addPendingCreate(userId: String, epochMs: Long, localDate: String, memo: String?) {
+    private suspend fun addPendingCreate(
+        userId: String,
+        epochMs: Long,
+        localDate: String,
+        memo: String?,
+        volumeMl: Int?
+    ) {
         val localId = UUID.randomUUID().toString()
         val memoPayload = e2eeRepository.prepareMemoSyncPayload(
             userId = userId,
@@ -372,6 +375,7 @@ class VoidingRepositoryImpl(
             syncState = SyncState.PENDING_CREATE,
             updatedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
             memo = memo,
+            volumeMl = volumeMl.normalizedVolumeMl(),
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption
         )
@@ -413,6 +417,7 @@ class VoidingRepositoryImpl(
                 event.copy(
                     syncState = SyncState.PENDING_CREATE,
                     updatedAtEpochMs = nowEpochMs,
+                    volumeMl = event.volumeMl.normalizedVolumeMl(),
                     memoCiphertext = memoPayload.memoCiphertext,
                     memoEncryption = memoPayload.memoEncryption
                 )
@@ -471,6 +476,40 @@ class VoidingRepositoryImpl(
             Result.failure<Unit>(retry.exceptionOrNull() ?: IllegalStateException("동기화 재시도 실패")) to refreshedAccessToken
         }
     }
+
+    private suspend fun upsertPendingUpdate(
+        event: VoidingEventEntity,
+        memo: String?,
+        volumeMl: Int?
+    ) {
+        val nowEpochMs = Clock.System.now().toEpochMilliseconds()
+        val memoPayload = e2eeRepository.prepareMemoSyncPayload(
+            userId = event.userId,
+            eventId = event.localId,
+            localDate = event.localDate,
+            memo = memo
+        ).getOrThrow()
+        val updatedEvent = event.copy(
+            memo = memo,
+            volumeMl = volumeMl.normalizedVolumeMl(),
+            memoCiphertext = memoPayload.memoCiphertext,
+            memoEncryption = memoPayload.memoEncryption,
+            syncState = SyncState.PENDING_CREATE,
+            updatedAtEpochMs = nowEpochMs
+        )
+        val queueItem = SyncQueueEntity(
+            queueId = UUID.randomUUID().toString(),
+            eventLocalId = event.localId,
+            action = SyncAction.CREATE,
+            retryCount = 0,
+            lastError = null
+        )
+        db.withTransaction {
+            eventDao.update(updatedEvent)
+            queueDao.upsert(queueItem)
+        }
+        syncNowOrSchedule()
+    }
 }
 
 private fun Instant.toLocalDate(): String {
@@ -480,4 +519,8 @@ private fun Instant.toLocalDate(): String {
 private fun Throwable?.isJwtExpired(): Boolean {
     val text = this?.message?.lowercase() ?: return false
     return text.contains("jwt expired") || text.contains("pgrst303")
+}
+
+private fun Int?.normalizedVolumeMl(): Int? {
+    return this?.takeIf { it > 0 }
 }

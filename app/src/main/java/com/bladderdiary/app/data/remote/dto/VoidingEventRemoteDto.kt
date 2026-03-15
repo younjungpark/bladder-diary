@@ -17,6 +17,8 @@ data class VoidingEventRemoteDto(
     val clientRef: String,
     @SerialName("deleted_at")
     val deletedAt: String? = null,
+    @SerialName("volume_ml")
+    val volumeMl: Int? = null,
     @SerialName("memo_ciphertext")
     val memoCiphertext: String? = null,
     @SerialName("memo_encryption")

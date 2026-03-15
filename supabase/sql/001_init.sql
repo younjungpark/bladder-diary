@@ -4,6 +4,7 @@ create table if not exists public.voiding_events (
   voided_at timestamptz not null,
   local_date date not null,
   client_ref text not null unique,
+  volume_ml integer null,
   created_at timestamptz not null default now(),
   deleted_at timestamptz null
 );

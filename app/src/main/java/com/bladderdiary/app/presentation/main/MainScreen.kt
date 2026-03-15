@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.VpnKey
@@ -66,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -102,6 +105,8 @@ fun MainScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var viewMemoEvent by remember { mutableStateOf<VoidingEvent?>(null) }
     var editMemoText by remember { mutableStateOf("") }
+    var viewVolumeEvent by remember { mutableStateOf<VoidingEvent?>(null) }
+    var editVolumeText by remember { mutableStateOf("") }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -189,6 +194,10 @@ fun MainScreen(
                 viewMemoEvent = event
                 editMemoText = event.memo ?: ""
             },
+            onOpenVolume = { event ->
+                viewVolumeEvent = event
+                editVolumeText = event.volumeMl?.toString().orEmpty()
+            },
             onDeleteEvent = { viewModel.askDelete(it) }
         )
     }
@@ -199,6 +208,12 @@ fun MainScreen(
         isE2eeChecking = isE2eeChecking,
         onValueChange = { editMemoText = it },
         onDismiss = { viewMemoEvent = null },
+        onDelete = {
+            viewMemoEvent?.let { eventToUpdate ->
+                viewModel.updateMemo(eventToUpdate.localId, null)
+                viewMemoEvent = null
+            }
+        },
         onConfirm = {
             viewMemoEvent?.let { eventToUpdate ->
                 viewModel.updateMemo(
@@ -206,6 +221,24 @@ fun MainScreen(
                     editMemoText.trim().takeIf { text -> text.isNotEmpty() }
                 )
                 viewMemoEvent = null
+            }
+        }
+    )
+
+    VolumeEditDialog(
+        event = viewVolumeEvent,
+        editVolumeText = editVolumeText,
+        onValueChange = { next ->
+            editVolumeText = next.filter(Char::isDigit).take(4)
+        },
+        onDismiss = { viewVolumeEvent = null },
+        onConfirm = {
+            viewVolumeEvent?.let { eventToUpdate ->
+                viewModel.updateVolume(
+                    eventToUpdate.localId,
+                    editVolumeText.toVolumeMlOrNull()
+                )
+                viewVolumeEvent = null
             }
         }
     )
@@ -382,6 +415,7 @@ private fun MainContent(
     onNextDay: () -> Unit,
     onPickDate: () -> Unit,
     onOpenMemo: (VoidingEvent) -> Unit,
+    onOpenVolume: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
 ) {
     Column(
@@ -399,22 +433,11 @@ private fun MainContent(
             onPickDate = onPickDate
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "기록 내역",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "메모 ${state.events.count { !it.memo.isNullOrBlank() }}건",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = "기록 내역",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         if (state.events.isEmpty()) {
             EmptyStateCard(
@@ -438,6 +461,7 @@ private fun MainContent(
                     EventItem(
                         event = event,
                         intervalText = intervalText,
+                        onEditVolume = { onOpenVolume(event) },
                         onViewMemo = { onOpenMemo(event) },
                         onDelete = { onDeleteEvent(event.localId) }
                     )
@@ -532,20 +556,20 @@ private fun DailyOverviewCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = state.dailyCount.toString(),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    MetricValue(
+                        value = state.dailyCount.toString(),
+                        unit = "회"
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "회",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+                    state.dailyVolumeMl?.let { volumeMl ->
+                        MetricValue(
+                            value = volumeMl.toString(),
+                            unit = "mL"
+                        )
+                    }
                 }
                 Surface(
                     color = syncContainerColor,
@@ -574,6 +598,28 @@ private fun DailyOverviewCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MetricValue(
+    value: String,
+    unit: String
+) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = unit,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
     }
 }
 
@@ -618,10 +664,12 @@ private fun EmptyStateCard(
 private fun EventItem(
     event: VoidingEvent,
     intervalText: String?,
+    onEditVolume: () -> Unit,
     onViewMemo: () -> Unit,
     onDelete: () -> Unit
 ) {
     val hasMemo = !event.memo.isNullOrBlank()
+    val hasVolume = event.volumeMl != null
     val syncLabel = when (event.syncState) {
         SyncState.PENDING_CREATE -> "동기화 대기"
         SyncState.PENDING_DELETE -> "삭제 대기"
@@ -708,6 +756,20 @@ private fun EventItem(
                     horizontalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     IconButton(
+                        onClick = onEditVolume,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalDrink,
+                            contentDescription = "배뇨량 입력",
+                            tint = if (hasVolume) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                    IconButton(
                         onClick = onViewMemo,
                         modifier = Modifier.size(36.dp)
                     ) {
@@ -734,7 +796,7 @@ private fun EventItem(
                 }
             }
 
-            if (hasMemo) {
+            if (hasMemo || hasVolume) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                     shape = RoundedCornerShape(16.dp)
@@ -746,14 +808,23 @@ private fun EventItem(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.Top
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        if (hasMemo) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.LocalDrink,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Text(
-                            text = event.memo.orEmpty(),
+                            text = event.toInlineNoteText(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
@@ -773,10 +844,12 @@ private fun MemoEditDialog(
     isE2eeChecking: Boolean,
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
+    onDelete: () -> Unit,
     onConfirm: () -> Unit
 ) {
     if (event == null) return
     val showMemoLabel = editMemoText.isNotBlank()
+    val hasMemo = !event.memo.isNullOrBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -798,6 +871,66 @@ private fun MemoEditDialog(
             TextButton(
                 onClick = onConfirm,
                 enabled = !isE2eeChecking
+            ) {
+                Text("저장")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (hasMemo) {
+                    TextButton(
+                        onClick = onDelete,
+                        enabled = !isE2eeChecking
+                    ) {
+                        Text("삭제")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("닫기")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun VolumeEditDialog(
+    event: VoidingEvent?,
+    editVolumeText: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (event == null) return
+    val hasInput = editVolumeText.isNotBlank()
+    val isValidInput = editVolumeText.isBlank() || editVolumeText.toVolumeMlOrNull() != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "배뇨량 입력") },
+        text = {
+            OutlinedTextField(
+                value = editVolumeText,
+                onValueChange = onValueChange,
+                label = if (hasInput) {
+                    { Text("배뇨량 (mL)") }
+                } else {
+                    null
+                },
+                placeholder = { Text("예: 250") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                supportingText = {
+                    Text("비워두면 입력된 배뇨량이 삭제됩니다.")
+                },
+                isError = !isValidInput
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = isValidInput
             ) {
                 Text("저장")
             }
@@ -918,3 +1051,18 @@ private val OFFLINE_SYNC_ERROR_PATTERNS = listOf(
     "software caused connection abort",
     "connection reset"
 )
+
+private fun String.toVolumeMlOrNull(): Int? {
+    if (isBlank()) return null
+    return toIntOrNull()?.takeIf { it > 0 }
+}
+
+private fun Int?.toVolumeLabel(): String {
+    return "${this ?: 0} mL"
+}
+
+private fun VoidingEvent.toInlineNoteText(): String {
+    val memoText = memo?.takeIf { it.isNotBlank() }
+    val volumeText = volumeMl?.toVolumeLabel()
+    return listOfNotNull(memoText, volumeText).joinToString(" · ")
+}

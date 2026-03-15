@@ -167,16 +167,19 @@ private class FakeE2eeRepository(
 private class FakeVoidingRepository : VoidingRepository {
     var fetchCalled = false
 
-    override suspend fun addNow(memo: String?): Result<Unit> = Result.success(Unit)
+    override suspend fun addNow(memo: String?, volumeMl: Int?): Result<Unit> = Result.success(Unit)
 
     override suspend fun addAt(
         date: kotlinx.datetime.LocalDate,
         hour: Int,
         minute: Int,
-        memo: String?
+        memo: String?,
+        volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)
 
     override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> = Result.success(Unit)
+
+    override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> = Result.success(Unit)
 
     override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<com.bladderdiary.app.domain.model.VoidingEvent>> {
         return MutableStateFlow(emptyList())
