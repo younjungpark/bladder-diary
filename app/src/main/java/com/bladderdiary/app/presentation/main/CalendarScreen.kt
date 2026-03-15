@@ -38,11 +38,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -252,6 +255,7 @@ private fun CalendarDayCell(
     isToday: Boolean,
     onClick: () -> Unit
 ) {
+    val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.withFixedFontScale()
     val backgroundColor = when {
         isToday -> MaterialTheme.colorScheme.primaryContainer
         count > 0 -> MaterialTheme.colorScheme.primary.copy(alpha = dayCountAlpha(count))
@@ -305,7 +309,7 @@ private fun CalendarDayCell(
                     ) {
                         Text(
                             text = "${count}회",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = fixedBadgeTextStyle,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
@@ -317,6 +321,16 @@ private fun CalendarDayCell(
             }
         }
     }
+}
+
+@Composable
+private fun TextStyle.withFixedFontScale(): TextStyle {
+    val fontScale = LocalDensity.current.fontScale
+    return copy(
+        fontSize = fontSize.value.div(fontScale).sp,
+        lineHeight = lineHeight.value.div(fontScale).sp,
+        letterSpacing = letterSpacing.value.div(fontScale).sp
+    )
 }
 
 private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.72f
