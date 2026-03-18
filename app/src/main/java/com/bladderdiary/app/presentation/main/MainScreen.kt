@@ -64,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,9 +73,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.SyncState
@@ -631,26 +635,14 @@ private fun MainContent(
                 today = today
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 12.dp)
-            ) {
-                itemsIndexed(state.events, key = { _, it -> it.localId }) { index, event ->
-                    val previousEvent = state.events.getOrNull(index + 1)
-                    val intervalText = previousEvent
-                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                        ?.takeIf { it > 0 }
-                        ?.toIntervalText()
-
-                    EventItem(
-                        event = event,
-                        intervalText = intervalText,
-                        onEditVolume = { onOpenVolume(event) },
-                        onViewMemo = { onOpenMemo(event) },
-                        onDelete = { onDeleteEvent(event.localId) }
-                    )
-                }
+            ProvideFixedFontScale {
+                RecordsTable(
+                    events = state.events,
+                    modifier = Modifier.weight(1f),
+                    onOpenMemo = onOpenMemo,
+                    onOpenVolume = onOpenVolume,
+                    onDeleteEvent = onDeleteEvent
+                )
             }
         }
     }
@@ -846,9 +838,86 @@ private fun EmptyStateCard(
 }
 
 @Composable
+private fun RecordsTable(
+    events: List<VoidingEvent>,
+    modifier: Modifier = Modifier,
+    onOpenMemo: (VoidingEvent) -> Unit,
+    onOpenVolume: (VoidingEvent) -> Unit,
+    onDeleteEvent: (String) -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "시간",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1.1f),
+                    textAlign = TextAlign.Start
+                )
+                Text(
+                    text = "간격",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1.45f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "양",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(0.75f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "관리",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1.3f),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 12.dp)
+            ) {
+                itemsIndexed(events, key = { _, it -> it.localId }) { index, event ->
+                    val previousEvent = events.getOrNull(index + 1)
+                    val intervalText = previousEvent
+                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                        ?.takeIf { it > 0 }
+                        ?.toIntervalText()
+                        ?: "-"
+
+                    EventItem(
+                        event = event,
+                        intervalText = intervalText,
+                        onEditVolume = { onOpenVolume(event) },
+                        onViewMemo = { onOpenMemo(event) },
+                        onDelete = { onDeleteEvent(event.localId) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun EventItem(
     event: VoidingEvent,
-    intervalText: String?,
+    intervalText: String,
     onEditVolume: () -> Unit,
     onViewMemo: () -> Unit,
     onDelete: () -> Unit
@@ -862,163 +931,156 @@ private fun EventItem(
         SyncState.SYNCED -> null
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (hasMemo) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-            } else {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
-            }
-        ),
-        shape = MaterialTheme.shapes.medium
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onViewMemo)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onViewMemo)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = event.voidedAtEpochMs.toTimeText(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (intervalText != null) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text(
-                                    text = intervalText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                    }
+            Text(
+                text = event.voidedAtEpochMs.toTimeText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1.1f)
+            )
 
-                    syncLabel?.let {
-                        Surface(
-                            color = if (event.syncState == SyncState.FAILED) {
-                                MaterialTheme.appExtraColors.warningContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (event.syncState == SyncState.FAILED) {
-                                    MaterialTheme.appExtraColors.onWarningContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(0.dp)
+            Text(
+                text = intervalText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1.45f),
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = event.volumeMl?.toVolumeLabel() ?: "-",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (hasVolume) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                fontWeight = if (hasVolume) FontWeight.SemiBold else FontWeight.Normal,
+                modifier = Modifier.weight(0.75f),
+                textAlign = TextAlign.Center
+            )
+
+            Row(
+                modifier = Modifier.weight(1.3f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onEditVolume,
+                    modifier = Modifier.size(32.dp)
                 ) {
-                    IconButton(
-                        onClick = onEditVolume,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalDrink,
-                            contentDescription = "배뇨량 입력",
-                            tint = if (hasVolume) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                    IconButton(
-                        onClick = onViewMemo,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = "메모 보기 및 수정",
-                            tint = if (hasMemo) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "기록 삭제",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.LocalDrink,
+                        contentDescription = "배뇨량 입력",
+                        tint = if (hasVolume) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onViewMemo,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = "메모 보기 및 수정",
+                        tint = if (hasMemo) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "기록 삭제",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
+        }
 
-            if (hasMemo || hasVolume) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        if (hasMemo) {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
+        if (hasMemo || syncLabel != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, bottom = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when {
+                        hasMemo -> "메모: ${event.memo}"
+                        else -> ""
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                syncLabel?.let {
+                    Surface(
+                        color = if (event.syncState == SyncState.FAILED) {
+                            MaterialTheme.appExtraColors.warningContainer
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.LocalDrink,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        shape = RoundedCornerShape(999.dp)
+                    ) {
                         Text(
-                            text = event.toInlineNoteText(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (event.syncState == SyncState.FAILED) {
+                                MaterialTheme.appExtraColors.onWarningContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }
             }
         }
+
+        androidx.compose.material3.HorizontalDivider(
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+            thickness = 1.dp
+        )
+    }
+}
+
+@Composable
+private fun ProvideFixedFontScale(content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    val fixedDensity = remember(density.density) {
+        Density(density = density.density, fontScale = 1f)
+    }
+
+    CompositionLocalProvider(LocalDensity provides fixedDensity) {
+        content()
     }
 }
 
@@ -1221,9 +1283,13 @@ private fun Long.toIntervalText(): String {
     val hours = minutes / 60
     val remainingMinutes = minutes % 60
     return if (hours > 0) {
-        "${hours}시간 ${remainingMinutes}분 간격"
+        if (remainingMinutes == 0L) {
+            "${hours}시간"
+        } else {
+            "${hours}시간 ${remainingMinutes}분"
+        }
     } else {
-        "${remainingMinutes}분 간격"
+        "${remainingMinutes}분"
     }
 }
 
