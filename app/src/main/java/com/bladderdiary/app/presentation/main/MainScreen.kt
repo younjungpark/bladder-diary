@@ -8,13 +8,17 @@ import android.net.Uri
 import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,7 +35,6 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -40,18 +43,14 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -61,8 +60,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +69,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -80,8 +82,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.bladderdiary.app.domain.model.SyncState
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.ui.theme.appExtraColors
 import kotlinx.datetime.Clock
@@ -91,9 +93,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
@@ -110,7 +110,9 @@ fun MainScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val palette = rememberHomePalette()
     val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+
     var menuExpanded by remember { mutableStateOf(false) }
     var viewMemoEvent by remember { mutableStateOf<VoidingEvent?>(null) }
     var editMemoText by remember { mutableStateOf("") }
@@ -153,31 +155,53 @@ fun MainScreen(
         viewModel.consumePendingPdfShareFile()
     }
 
-    val selected = state.selectedDate
-    val picker = remember(selected) {
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                viewModel.setDate(kotlinx.datetime.LocalDate(year, month + 1, dayOfMonth))
-            },
-            selected.year,
-            selected.monthNumber - 1,
-            selected.dayOfMonth
+    Box(modifier = Modifier.fillMaxSize()) {
+        HomeBackground(
+            palette = palette,
+            modifier = Modifier.fillMaxSize()
         )
-    }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            MainTopBar(
-                selectedDateLabel = state.selectedDate.toRelativeDateLabel(today),
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = {
+                QuickActionBar(
+                    palette = palette,
+                    isAdding = state.isAdding,
+                    isE2eeChecking = isE2eeChecking,
+                    onAddNow = { viewModel.addNow(null) },
+                    onAddAtTime = {
+                        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                        val isToday = state.selectedDate == now.date
+                        val initialHour = if (isToday) now.hour else 12
+                        val initialMinute = if (isToday) now.minute else 0
+                        TimePickerDialog(
+                            context,
+                            { _, hourOfDay, minute ->
+                                viewModel.addAtSelectedTime(hourOfDay, minute, null)
+                            },
+                            initialHour,
+                            initialMinute,
+                            DateFormat.is24HourFormat(context)
+                        ).show()
+                    }
+                )
+            }
+        ) { padding ->
+            MainContent(
+                state = state,
+                today = today,
+                palette = palette,
+                modifier = Modifier.padding(padding),
                 isPinSet = isPinSet,
                 isE2eeEnabled = isE2eeEnabled,
                 isE2eeChecking = isE2eeChecking,
                 menuExpanded = menuExpanded,
-                onOpenCalendar = onShowCalendar,
-                onDismissMenu = { menuExpanded = false },
+                onPreviousDay = viewModel::goPreviousDay,
+                onNextDay = viewModel::goNextDay,
+                onPickDate = onShowCalendar,
                 onOpenMenu = { menuExpanded = true },
+                onDismissMenu = { menuExpanded = false },
                 onTogglePin = {
                     menuExpanded = false
                     onTogglePin()
@@ -197,50 +221,18 @@ fun MainScreen(
                 onSignOut = {
                     menuExpanded = false
                     onSignOut()
-                }
+                },
+                onOpenMemo = { event ->
+                    viewMemoEvent = event
+                    editMemoText = event.memo ?: ""
+                },
+                onOpenVolume = { event ->
+                    viewVolumeEvent = event
+                    editVolumeText = event.volumeMl?.toString().orEmpty()
+                },
+                onDeleteEvent = { viewModel.askDelete(it) }
             )
-        },
-        bottomBar = {
-            QuickActionBar(
-                isAdding = state.isAdding,
-                isE2eeChecking = isE2eeChecking,
-                onAddNow = { viewModel.addNow(null) },
-                onAddAtTime = {
-                    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                    val isToday = state.selectedDate == now.date
-                    val initialHour = if (isToday) now.hour else 12
-                    val initialMinute = if (isToday) now.minute else 0
-                    TimePickerDialog(
-                        context,
-                        { _, hourOfDay, minute ->
-                            viewModel.addAtSelectedTime(hourOfDay, minute, null)
-                        },
-                        initialHour,
-                        initialMinute,
-                        DateFormat.is24HourFormat(context)
-                    ).show()
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        MainContent(
-            state = state,
-            today = today,
-            modifier = Modifier.padding(padding),
-            onPreviousDay = viewModel::goPreviousDay,
-            onNextDay = viewModel::goNextDay,
-            onPickDate = { picker.show() },
-            onOpenMemo = { event ->
-                viewMemoEvent = event
-                editMemoText = event.memo ?: ""
-            },
-            onOpenVolume = { event ->
-                viewVolumeEvent = event
-                editVolumeText = event.volumeMl?.toString().orEmpty()
-            },
-            onDeleteEvent = { viewModel.askDelete(it) }
-        )
+        }
     }
 
     MemoEditDialog(
@@ -341,15 +333,107 @@ fun MainScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTopBar(
-    selectedDateLabel: String,
+private fun MainContent(
+    state: MainUiState,
+    today: kotlinx.datetime.LocalDate,
+    palette: HomePalette,
+    modifier: Modifier = Modifier,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
     menuExpanded: Boolean,
-    onOpenCalendar: () -> Unit,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onPickDate: () -> Unit,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onTogglePin: () -> Unit,
+    onOpenE2eeSettings: () -> Unit,
+    onOpenPdfExport: () -> Unit,
+    isExportingPdf: Boolean,
+    onSignOut: () -> Unit,
+    onOpenMemo: (VoidingEvent) -> Unit,
+    onOpenVolume: (VoidingEvent) -> Unit,
+    onDeleteEvent: (String) -> Unit
+) {
+    val sortedEvents = remember(state.events) {
+        state.events.sortedByDescending { it.voidedAtEpochMs }
+    }
+    val averageIntervalMillis = remember(sortedEvents) {
+        sortedEvents.toAverageIntervalMillis()
+    }
+    val syncSummary = remember(state.pendingSyncCount, state.pendingSyncError, state.isSyncing) {
+        state.toSyncSummary()
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        HeroDateCard(
+            palette = palette,
+            selectedDate = state.selectedDate,
+            onPreviousDay = onPreviousDay,
+            onNextDay = onNextDay,
+            onPickDate = onPickDate
+        )
+
+        DailySummaryCard(
+            palette = palette,
+            dailyVolumeMl = state.dailyVolumeMl ?: 0,
+            dailyCount = state.dailyCount,
+            averageIntervalMillis = averageIntervalMillis,
+            syncSummary = syncSummary
+        )
+
+        if (state.pendingSyncCount > 0) {
+            InlineNotice(
+                text = state.pendingSyncError?.let { rawError ->
+                    if (rawError.isLikelyOfflineSyncError()) {
+                        "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
+                    } else {
+                        "동기화 오류: ${rawError.toUiErrorText()}"
+                    }
+                } ?: "기록이 로컬에 보관되어 있으며 연결되면 자동으로 동기화됩니다.",
+                containerColor = MaterialTheme.appExtraColors.warningContainer,
+                contentColor = MaterialTheme.appExtraColors.onWarningContainer
+            )
+        }
+
+        RecordsPanel(
+            palette = palette,
+            events = sortedEvents,
+            modifier = Modifier.weight(1f),
+            selectedDate = state.selectedDate,
+            today = today,
+            isPinSet = isPinSet,
+            isE2eeEnabled = isE2eeEnabled,
+            isE2eeChecking = isE2eeChecking,
+            menuExpanded = menuExpanded,
+            onOpenMenu = onOpenMenu,
+            onDismissMenu = onDismissMenu,
+            onTogglePin = onTogglePin,
+            onOpenE2eeSettings = onOpenE2eeSettings,
+            onOpenPdfExport = onOpenPdfExport,
+            isExportingPdf = isExportingPdf,
+            onSignOut = onSignOut,
+            onOpenMemo = onOpenMemo,
+            onOpenVolume = onOpenVolume,
+            onDeleteEvent = onDeleteEvent
+        )
+    }
+}
+
+@Composable
+private fun MainOverflowMenu(
+    palette: HomePalette,
+    isPinSet: Boolean,
+    isE2eeEnabled: Boolean,
+    isE2eeChecking: Boolean,
+    menuExpanded: Boolean,
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
@@ -358,93 +442,866 @@ private fun MainTopBar(
     isExportingPdf: Boolean,
     onSignOut: () -> Unit
 ) {
-    TopAppBar(
-        title = {
-            Column {
-                Text(
-                    text = "배뇨 기록",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = selectedDateLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground
-        ),
-        actions = {
-            IconButton(onClick = onOpenCalendar) {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "캘린더 보기",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Box {
-                IconButton(onClick = onOpenMenu) {
+    Box {
+        GlassIconButton(
+            palette = palette,
+            icon = Icons.Default.Settings,
+            contentDescription = "전체 설정",
+            buttonSize = 34.dp,
+            iconSize = 16.dp,
+            cornerRadius = 13.dp,
+            onClick = onOpenMenu
+        )
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = onDismissMenu
+        ) {
+            DropdownMenuItem(
+                text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
+                leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "추가 메뉴"
+                        imageVector = if (isE2eeEnabled) Icons.Filled.VpnKey else Icons.Outlined.VpnKey,
+                        contentDescription = null
                     )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = onDismissMenu
+                },
+                onClick = onOpenE2eeSettings,
+                enabled = !isE2eeChecking
+            )
+            DropdownMenuItem(
+                text = { Text(if (isExportingPdf) "PDF 생성 중" else "PDF 내보내기") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.PictureAsPdf,
+                        contentDescription = null
+                    )
+                },
+                onClick = onOpenPdfExport,
+                enabled = !isExportingPdf
+            )
+            DropdownMenuItem(
+                text = { Text(if (isPinSet) "PIN 해제" else "PIN 설정") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isPinSet) Icons.Default.Lock else Icons.Default.LockOpen,
+                        contentDescription = null
+                    )
+                },
+                onClick = onTogglePin
+            )
+            DropdownMenuItem(
+                text = { Text("로그아웃") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = null
+                    )
+                },
+                onClick = onSignOut
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroDateCard(
+    palette: HomePalette,
+    selectedDate: kotlinx.datetime.LocalDate,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onPickDate: () -> Unit
+) {
+    val outerShape = RoundedCornerShape(26.dp)
+    val pillShape = RoundedCornerShape(16.dp)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = palette.glassPanel,
+        contentColor = palette.titleText,
+        shape = outerShape,
+        border = BorderStroke(1.dp, palette.glassBorder),
+        shadowElevation = 14.dp
+    ) {
+        ProvideFixedFontScale {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                GlassIconButton(
+                    palette = palette,
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "이전 날짜",
+                    buttonSize = 38.dp,
+                    iconSize = 16.dp,
+                    cornerRadius = 14.dp,
+                    onClick = onPreviousDay
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(pillShape)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(palette.datePillStart, palette.datePillEnd)
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = palette.datePillBorder,
+                            shape = pillShape
+                        )
+                        .clickable(onClick = onPickDate)
+                        .padding(horizontal = 14.dp, vertical = 9.dp)
                 ) {
-                    DropdownMenuItem(
-                        text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (isE2eeEnabled) {
-                                    Icons.Filled.VpnKey
-                                } else {
-                                    Icons.Outlined.VpnKey
-                                },
-                                contentDescription = null
-                            )
-                        },
-                        onClick = onOpenE2eeSettings,
-                        enabled = !isE2eeChecking
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        Text(
+                            text = "Bladder Diary",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.mutedText,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.9.sp
+                        )
+                        Text(
+                            text = selectedDate.toHeroDateText(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = palette.titleText,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                GlassIconButton(
+                    palette = palette,
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "다음 날짜",
+                    buttonSize = 38.dp,
+                    iconSize = 16.dp,
+                    cornerRadius = 14.dp,
+                    onClick = onNextDay
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailySummaryCard(
+    palette: HomePalette,
+    dailyVolumeMl: Int,
+    dailyCount: Int,
+    averageIntervalMillis: Long?,
+    syncSummary: SyncSummary
+) {
+    val shape = RoundedCornerShape(24.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 16.dp, shape = shape)
+            .clip(shape)
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(palette.summaryStart, palette.summaryEnd)
+                )
+            )
+            .border(1.dp, palette.summaryBorder, shape)
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+    ) {
+        ProvideFixedFontScale {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Daily Summary",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = palette.titleText,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    SummaryMetricCard(
+                        palette = palette,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        label = "총배뇨량",
+                        value = dailyVolumeMl.toString(),
+                        unit = "mL"
                     )
-                    DropdownMenuItem(
-                        text = { Text(if (isExportingPdf) "PDF 생성 중" else "PDF 내보내기") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.PictureAsPdf,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = onOpenPdfExport,
-                        enabled = !isExportingPdf
+                    SummaryMetricCard(
+                        palette = palette,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        label = "배뇨횟수",
+                        value = dailyCount.toString(),
+                        unit = "회"
                     )
-                    DropdownMenuItem(
-                        text = { Text(if (isPinSet) "PIN 해제" else "PIN 설정") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (isPinSet) Icons.Default.Lock else Icons.Default.LockOpen,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = onTogglePin
+                    SummaryMetricCard(
+                        palette = palette,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        label = "평균간격",
+                        value = averageIntervalMillis.toMetricValue(),
+                        unit = averageIntervalMillis?.let { "h" }
                     )
-                    DropdownMenuItem(
-                        text = { Text("로그아웃") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = onSignOut
+                    SummaryMetricCard(
+                        palette = palette,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        label = "동기화",
+                        value = syncSummary.value,
+                        unit = null
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryMetricCard(
+    palette: HomePalette,
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    unit: String?
+) {
+    val shape = RoundedCornerShape(14.dp)
+    val valueFontSize = when {
+        value.length >= 5 -> 16.sp
+        value.length >= 3 -> 18.sp
+        else -> 20.sp
+    }
+
+    Box(
+        modifier = modifier
+            .height(72.dp)
+            .clip(shape)
+            .background(palette.metricPanel)
+            .border(1.dp, palette.metricBorder, shape)
+            .padding(horizontal = 8.dp, vertical = 7.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.metricLabelText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = value,
+                    color = palette.metricValueText,
+                    fontSize = valueFontSize,
+                    lineHeight = valueFontSize,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+                unit?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = palette.metricSubText,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        modifier = Modifier.padding(bottom = 1.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordsPanel(
+    palette: HomePalette,
+    events: List<VoidingEvent>,
+    modifier: Modifier = Modifier,
+    selectedDate: kotlinx.datetime.LocalDate,
+    today: kotlinx.datetime.LocalDate,
+    isPinSet: Boolean,
+    isE2eeEnabled: Boolean,
+    isE2eeChecking: Boolean,
+    menuExpanded: Boolean,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onTogglePin: () -> Unit,
+    onOpenE2eeSettings: () -> Unit,
+    onOpenPdfExport: () -> Unit,
+    isExportingPdf: Boolean,
+    onSignOut: () -> Unit,
+    onOpenMemo: (VoidingEvent) -> Unit,
+    onOpenVolume: (VoidingEvent) -> Unit,
+    onDeleteEvent: (String) -> Unit
+) {
+    val outerShape = RoundedCornerShape(30.dp)
+    val innerShape = RoundedCornerShape(20.dp)
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = palette.glassPanel,
+        contentColor = palette.titleText,
+        shape = outerShape,
+        border = BorderStroke(1.dp, palette.glassBorder),
+        shadowElevation = 16.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = palette.titleText,
+                    fontWeight = FontWeight.Bold
+                )
+
+                MainOverflowMenu(
+                    palette = palette,
+                    isPinSet = isPinSet,
+                    isE2eeEnabled = isE2eeEnabled,
+                    isE2eeChecking = isE2eeChecking,
+                    menuExpanded = menuExpanded,
+                    onOpenMenu = onOpenMenu,
+                    onDismissMenu = onDismissMenu,
+                    onTogglePin = onTogglePin,
+                    onOpenE2eeSettings = onOpenE2eeSettings,
+                    onOpenPdfExport = onOpenPdfExport,
+                    isExportingPdf = isExportingPdf,
+                    onSignOut = onSignOut
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(innerShape)
+                    .background(palette.tableBackground)
+                    .border(1.dp, palette.tableBorder, innerShape)
+            ) {
+                ProvideFixedFontScale {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        RecordsTableHeader(palette = palette)
+
+                        if (events.isEmpty()) {
+                            RecordsEmptyState(
+                                palette = palette,
+                                selectedDate = selectedDate,
+                                today = today
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 10.dp)
+                            ) {
+                                itemsIndexed(events, key = { _, item -> item.localId }) { index, event ->
+                                    val previousEvent = events.getOrNull(index + 1)
+                                    val intervalText = previousEvent
+                                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                                        ?.takeIf { it > 0 }
+                                        ?.toIntervalText()
+                                        ?: "-"
+
+                                    EventRow(
+                                        palette = palette,
+                                        event = event,
+                                        intervalText = intervalText,
+                                        onOpenMemo = { onOpenMemo(event) },
+                                        onEditVolume = { onOpenVolume(event) },
+                                        onDelete = { onDeleteEvent(event.localId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordsTableHeader(palette: HomePalette) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(palette.tableHeaderBackground)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "시간",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.tableHeaderText,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1.35f)
+        )
+        Text(
+            text = "간격",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.tableHeaderText,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1.05f)
+        )
+        Text(
+            text = "배뇨량",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.tableHeaderText,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(0.72f)
+        )
+        Text(
+            text = "관리",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.tableHeaderText,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.48f)
+        )
+    }
+}
+
+@Composable
+private fun RecordsEmptyState(
+    palette: HomePalette,
+    selectedDate: kotlinx.datetime.LocalDate,
+    today: kotlinx.datetime.LocalDate
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = if (selectedDate == today) {
+                "아직 오늘 기록이 없습니다."
+            } else {
+                "선택한 날짜의 기록이 없습니다."
+            },
+            style = MaterialTheme.typography.titleSmall,
+            color = palette.titleText,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "하단의 '지금 기록' 또는 '시간 지정'으로 빠르게 입력하실 수 있습니다.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = palette.mutedText,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun EventRow(
+    palette: HomePalette,
+    event: VoidingEvent,
+    intervalText: String,
+    onOpenMemo: () -> Unit,
+    onEditVolume: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
+    val hasVolume = event.volumeMl != null
+    val hasMemo = !event.memo.isNullOrBlank()
+    val timeLabel = "$periodText $timeText"
+    var actionsExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1.35f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = timeLabel,
+                    color = palette.titleText,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (hasMemo) {
+                    MemoIndicatorButton(
+                        tint = palette.actionIconTint,
+                        onClick = onOpenMemo
+                    )
+                }
+            }
+
+            Text(
+                text = intervalText,
+                color = if (intervalText == "-") palette.mutedText else palette.bodyText,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1.05f)
+            )
+
+            Text(
+                text = event.volumeMl?.toVolumeLabel() ?: "-",
+                color = if (hasVolume) palette.volumeText else palette.mutedText,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = if (hasVolume) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(0.72f)
+            )
+
+            Box(
+                modifier = Modifier.weight(0.48f),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                TinyActionButton(
+                    palette = palette,
+                    icon = Icons.Default.MoreVert,
+                    contentDescription = "기록 관리",
+                    buttonSize = 28.dp,
+                    iconSize = 16.dp,
+                    onClick = { actionsExpanded = true }
+                )
+
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (hasMemo) "메모 편집" else "메모 입력") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onOpenMemo()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("배뇨량 입력") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.LocalDrink,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onEditVolume()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("기록 삭제") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
+        }
+
+        androidx.compose.material3.HorizontalDivider(
+            color = palette.rowDivider,
+            thickness = 1.dp
+        )
+    }
+}
+
+@Composable
+private fun ProvideFixedFontScale(content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    val fixedDensity = remember(density.density) {
+        Density(density = density.density, fontScale = 1f)
+    }
+
+    CompositionLocalProvider(LocalDensity provides fixedDensity) {
+        content()
+    }
+}
+
+@Composable
+private fun MemoIndicatorButton(
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Description,
+            contentDescription = "메모 보기",
+            tint = tint,
+            modifier = Modifier.size(15.dp)
+        )
+    }
+}
+
+@Composable
+private fun QuickActionBar(
+    palette: HomePalette,
+    isAdding: Boolean,
+    isE2eeChecking: Boolean,
+    onAddNow: () -> Unit,
+    onAddAtTime: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = palette.bottomBarBackground,
+        contentColor = palette.titleText,
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, palette.bottomBarBorder),
+        shadowElevation = 14.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            GradientActionButton(
+                modifier = Modifier.weight(1.05f),
+                text = if (isAdding) "저장 중" else "지금 기록",
+                icon = Icons.Default.Add,
+                background = Brush.verticalGradient(
+                    listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
+                ),
+                topGlow = palette.primaryButtonGlow,
+                contentColor = palette.primaryButtonText,
+                enabled = !isAdding && !isE2eeChecking,
+                onClick = onAddNow
+            )
+            GradientActionButton(
+                modifier = Modifier.weight(1f),
+                text = "시간 지정",
+                icon = Icons.Default.Edit,
+                background = Brush.verticalGradient(
+                    listOf(palette.secondaryButtonStart, palette.secondaryButtonEnd)
+                ),
+                topGlow = palette.secondaryButtonGlow,
+                contentColor = palette.secondaryButtonText,
+                borderColor = palette.secondaryButtonBorder,
+                enabled = !isAdding && !isE2eeChecking,
+                onClick = onAddAtTime
+            )
+        }
+    }
+}
+
+@Composable
+private fun GradientActionButton(
+    modifier: Modifier = Modifier,
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    background: Brush,
+    topGlow: Color,
+    contentColor: Color,
+    borderColor: Color = Color.Transparent,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(22.dp)
+
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .shadow(elevation = 10.dp, shape = shape)
+            .clip(shape)
+            .background(background)
+            .drawBehind {
+                drawCircle(
+                    color = topGlow,
+                    radius = size.width * 0.45f,
+                    center = androidx.compose.ui.geometry.Offset(
+                        x = size.width * 0.5f,
+                        y = 0f
+                    )
+                )
+            }
+            .border(1.dp, borderColor, shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = text,
+                color = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun GlassIconButton(
+    palette: HomePalette,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    buttonSize: androidx.compose.ui.unit.Dp = 44.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 18.dp,
+    cornerRadius: androidx.compose.ui.unit.Dp = 16.dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(buttonSize)
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(palette.iconButtonBackground)
+            .border(1.dp, palette.iconButtonBorder, RoundedCornerShape(cornerRadius))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = palette.iconTint,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
+private fun TinyActionButton(
+    palette: HomePalette,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    buttonSize: androidx.compose.ui.unit.Dp = 24.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 12.dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(buttonSize)
+            .clip(RoundedCornerShape(9.dp))
+            .background(palette.miniButtonBackground)
+            .border(1.dp, palette.miniButtonBorder, RoundedCornerShape(9.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = palette.actionIconTint,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
+private fun HomeBackground(
+    palette: HomePalette,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(palette.backgroundTop, palette.backgroundBottom)
+                )
+            )
+            .drawBehind {
+                drawCircle(
+                    color = palette.backgroundGlowPrimary,
+                    radius = size.minDimension * 0.26f,
+                    center = androidx.compose.ui.geometry.Offset(
+                        x = size.width * 0.15f,
+                        y = size.height * 0.18f
+                    )
+                )
+                drawCircle(
+                    color = palette.backgroundGlowSecondary,
+                    radius = size.minDimension * 0.2f,
+                    center = androidx.compose.ui.geometry.Offset(
+                        x = size.width * 0.82f,
+                        y = size.height * 0.12f
+                    )
+                )
+                drawCircle(
+                    color = palette.backgroundGlowTertiary,
+                    radius = size.minDimension * 0.28f,
+                    center = androidx.compose.ui.geometry.Offset(
+                        x = size.width * 0.5f,
+                        y = size.height
+                    )
+                )
+            }
     )
 }
 
@@ -534,557 +1391,6 @@ private fun PdfExportDialog(
 }
 
 @Composable
-private fun QuickActionBar(
-    isAdding: Boolean,
-    isE2eeChecking: Boolean,
-    onAddNow: () -> Unit,
-    onAddAtTime: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.navigationBarsPadding(),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = onAddNow,
-                enabled = !isAdding && !isE2eeChecking,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "지금 기록",
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1
-                )
-            }
-            OutlinedButton(
-                onClick = onAddAtTime,
-                enabled = !isAdding && !isE2eeChecking,
-                modifier = Modifier
-                    .weight(1.1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "시간 지정",
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MainContent(
-    state: MainUiState,
-    today: kotlinx.datetime.LocalDate,
-    modifier: Modifier = Modifier,
-    onPreviousDay: () -> Unit,
-    onNextDay: () -> Unit,
-    onPickDate: () -> Unit,
-    onOpenMemo: (VoidingEvent) -> Unit,
-    onOpenVolume: (VoidingEvent) -> Unit,
-    onDeleteEvent: (String) -> Unit
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        DailyOverviewCard(
-            state = state,
-            today = today,
-            onPreviousDay = onPreviousDay,
-            onNextDay = onNextDay,
-            onPickDate = onPickDate
-        )
-
-        Text(
-            text = "기록 내역",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        if (state.events.isEmpty()) {
-            EmptyStateCard(
-                modifier = Modifier.weight(1f),
-                selectedDate = state.selectedDate,
-                today = today
-            )
-        } else {
-            ProvideFixedFontScale {
-                RecordsTable(
-                    events = state.events,
-                    modifier = Modifier.weight(1f),
-                    onOpenMemo = onOpenMemo,
-                    onOpenVolume = onOpenVolume,
-                    onDeleteEvent = onDeleteEvent
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyOverviewCard(
-    state: MainUiState,
-    today: kotlinx.datetime.LocalDate,
-    onPreviousDay: () -> Unit,
-    onNextDay: () -> Unit,
-    onPickDate: () -> Unit
-) {
-    val syncLabel = when {
-        state.isSyncing -> "동기화 중"
-        state.pendingSyncCount > 0 -> "동기화 대기 ${state.pendingSyncCount}건"
-        else -> "동기화 정상"
-    }
-    val syncContainerColor = when {
-        state.isSyncing -> MaterialTheme.colorScheme.secondaryContainer
-        state.pendingSyncCount > 0 -> MaterialTheme.appExtraColors.warningContainer
-        else -> MaterialTheme.appExtraColors.successContainer
-    }
-    val syncContentColor = when {
-        state.isSyncing -> MaterialTheme.colorScheme.onSecondaryContainer
-        state.pendingSyncCount > 0 -> MaterialTheme.appExtraColors.onWarningContainer
-        else -> MaterialTheme.appExtraColors.onSuccessContainer
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)),
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onPreviousDay,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "이전 날짜"
-                    )
-                }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onPickDate)
-                        .padding(horizontal = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = state.selectedDate.toKoreanFullDate(),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = state.selectedDate.toRelativeDateLabel(today),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                IconButton(
-                    onClick = onNextDay,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "다음 날짜"
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(18.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    MetricValue(
-                        value = state.dailyCount.toString(),
-                        unit = "회"
-                    )
-                    state.dailyVolumeMl?.let { volumeMl ->
-                        MetricValue(
-                            value = volumeMl.toString(),
-                            unit = "mL"
-                        )
-                    }
-                }
-                Surface(
-                    color = syncContainerColor,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = syncLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = syncContentColor,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-            }
-
-            if (state.pendingSyncCount > 0) {
-                InlineNotice(
-                    text = state.pendingSyncError?.let { rawError ->
-                        if (rawError.isLikelyOfflineSyncError()) {
-                            "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
-                        } else {
-                            "동기화 오류: ${rawError.toUiErrorText()}"
-                        }
-                    } ?: "기록이 로컬에 보관되어 있으며 연결되면 자동으로 동기화됩니다.",
-                    containerColor = MaterialTheme.appExtraColors.warningContainer,
-                    contentColor = MaterialTheme.appExtraColors.onWarningContainer
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetricValue(
-    value: String,
-    unit: String
-) {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = unit,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-    }
-}
-
-@Composable
-private fun EmptyStateCard(
-    modifier: Modifier = Modifier,
-    selectedDate: kotlinx.datetime.LocalDate,
-    today: kotlinx.datetime.LocalDate
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = if (selectedDate == today) {
-                    "아직 오늘 기록이 없습니다."
-                } else {
-                    "선택한 날짜의 기록이 없습니다."
-                },
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "하단의 '지금 기록' 또는 '시간 지정'으로 빠르게 입력하실 수 있습니다.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecordsTable(
-    events: List<VoidingEvent>,
-    modifier: Modifier = Modifier,
-    onOpenMemo: (VoidingEvent) -> Unit,
-    onOpenVolume: (VoidingEvent) -> Unit,
-    onDeleteEvent: (String) -> Unit
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "시간",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1.1f),
-                    textAlign = TextAlign.Start
-                )
-                Text(
-                    text = "간격",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1.45f),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "양",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(0.75f),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "관리",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1.3f),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 12.dp)
-            ) {
-                itemsIndexed(events, key = { _, it -> it.localId }) { index, event ->
-                    val previousEvent = events.getOrNull(index + 1)
-                    val intervalText = previousEvent
-                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                        ?.takeIf { it > 0 }
-                        ?.toIntervalText()
-                        ?: "-"
-
-                    EventItem(
-                        event = event,
-                        intervalText = intervalText,
-                        onEditVolume = { onOpenVolume(event) },
-                        onViewMemo = { onOpenMemo(event) },
-                        onDelete = { onDeleteEvent(event.localId) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EventItem(
-    event: VoidingEvent,
-    intervalText: String,
-    onEditVolume: () -> Unit,
-    onViewMemo: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val hasMemo = !event.memo.isNullOrBlank()
-    val hasVolume = event.volumeMl != null
-    val syncLabel = when (event.syncState) {
-        SyncState.PENDING_CREATE -> "동기화 대기"
-        SyncState.PENDING_DELETE -> "삭제 대기"
-        SyncState.FAILED -> "동기화 실패"
-        SyncState.SYNCED -> null
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onViewMemo)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = event.voidedAtEpochMs.toTimeText(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1.1f)
-            )
-
-            Text(
-                text = intervalText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1.45f),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = event.volumeMl?.toVolumeLabel() ?: "-",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (hasVolume) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                fontWeight = if (hasVolume) FontWeight.SemiBold else FontWeight.Normal,
-                modifier = Modifier.weight(0.75f),
-                textAlign = TextAlign.Center
-            )
-
-            Row(
-                modifier = Modifier.weight(1.3f),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onEditVolume,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalDrink,
-                        contentDescription = "배뇨량 입력",
-                        tint = if (hasVolume) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        },
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onViewMemo,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = "메모 보기 및 수정",
-                        tint = if (hasMemo) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        },
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "기록 삭제",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        if (hasMemo || syncLabel != null) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, bottom = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when {
-                        hasMemo -> "메모: ${event.memo}"
-                        else -> ""
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                syncLabel?.let {
-                    Surface(
-                        color = if (event.syncState == SyncState.FAILED) {
-                            MaterialTheme.appExtraColors.warningContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        shape = RoundedCornerShape(999.dp)
-                    ) {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (event.syncState == SyncState.FAILED) {
-                                MaterialTheme.appExtraColors.onWarningContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        androidx.compose.material3.HorizontalDivider(
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-            thickness = 1.dp
-        )
-    }
-}
-
-@Composable
-private fun ProvideFixedFontScale(content: @Composable () -> Unit) {
-    val density = LocalDensity.current
-    val fixedDensity = remember(density.density) {
-        Density(density = density.density, fontScale = 1f)
-    }
-
-    CompositionLocalProvider(LocalDensity provides fixedDensity) {
-        content()
-    }
-}
-
-@Composable
 private fun MemoEditDialog(
     event: VoidingEvent?,
     editMemoText: String,
@@ -1100,7 +1406,7 @@ private fun MemoEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "메모 조회 및 수정") },
+        title = { Text("메모 조회 및 수정") },
         text = {
             OutlinedTextField(
                 value = editMemoText,
@@ -1156,7 +1462,7 @@ private fun VolumeEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "배뇨량 입력") },
+        title = { Text("배뇨량 입력") },
         text = {
             OutlinedTextField(
                 value = editVolumeText,
@@ -1224,8 +1530,8 @@ private fun DeleteDialog(
 @Composable
 private fun InlineNotice(
     text: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color
+    containerColor: Color,
+    contentColor: Color
 ) {
     Surface(
         color = containerColor,
@@ -1240,8 +1546,46 @@ private fun InlineNotice(
     }
 }
 
-private fun kotlinx.datetime.LocalDate.toKoreanFullDate(): String {
-    val dayOfWeekLabel = when (dayOfWeek.value) {
+private data class SyncSummary(
+    val value: String,
+    val sub: String
+)
+
+private fun MainUiState.toSyncSummary(): SyncSummary {
+    return when {
+        isSyncing -> SyncSummary(value = "동기화", sub = "진행")
+        pendingSyncError != null && pendingSyncCount > 0 -> SyncSummary(value = "주의", sub = "${pendingSyncCount}건")
+        pendingSyncCount > 0 -> SyncSummary(value = "대기", sub = "${pendingSyncCount}건")
+        else -> SyncSummary(value = "정상", sub = "완료")
+    }
+}
+
+private fun List<VoidingEvent>.toAverageIntervalMillis(): Long? {
+    val intervals = zipWithNext { current, next ->
+        current.voidedAtEpochMs - next.voidedAtEpochMs
+    }.filter { it > 0 }
+
+    return if (intervals.isEmpty()) {
+        null
+    } else {
+        intervals.sum() / intervals.size
+    }
+}
+
+private fun Long?.toMetricValue(): String {
+    if (this == null) return "-"
+    val totalMinutes = this / (1000 * 60)
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return "${hours}:${minutes.toString().padStart(2, '0')}"
+}
+
+private fun kotlinx.datetime.LocalDate.toHeroDateText(): String {
+    return "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanLabel()}"
+}
+
+private fun kotlinx.datetime.DayOfWeek.toKoreanLabel(): String {
+    return when (value) {
         1 -> "월요일"
         2 -> "화요일"
         3 -> "수요일"
@@ -1250,16 +1594,6 @@ private fun kotlinx.datetime.LocalDate.toKoreanFullDate(): String {
         6 -> "토요일"
         else -> "일요일"
     }
-    return "${year}년 ${monthNumber}월 ${dayOfMonth}일 $dayOfWeekLabel"
-}
-
-private fun kotlinx.datetime.LocalDate.toRelativeDateLabel(today: kotlinx.datetime.LocalDate): String {
-    return when {
-        this == today -> "오늘"
-        this == today.plusDays(-1) -> "어제"
-        this == today.plusDays(1) -> "내일"
-        else -> "날짜를 눌러 직접 선택"
-    }
 }
 
 private fun kotlinx.datetime.LocalDate.toKoreanShortDate(): String {
@@ -1267,15 +1601,23 @@ private fun kotlinx.datetime.LocalDate.toKoreanShortDate(): String {
 }
 
 private fun kotlinx.datetime.LocalDate.plusDays(days: Int): kotlinx.datetime.LocalDate {
-    return this.plus(DatePeriod(days = days))
+    return plus(DatePeriod(days = days))
 }
 
-private fun Long.toTimeText(): String {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm")
-    return Instant.ofEpochMilli(this)
+private fun Long.toTimeDisplay(): Pair<String, String> {
+    val localTime = Instant.ofEpochMilli(this)
         .atZone(ZoneId.systemDefault())
         .toLocalTime()
-        .format(formatter)
+
+    val hour = localTime.hour
+    val minute = localTime.minute
+    val meridiem = if (hour < 12) "오전" else "오후"
+    val displayHour = when (val normalized = hour % 12) {
+        0 -> 12
+        else -> normalized
+    }
+
+    return displayHour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0') to meridiem
 }
 
 private fun Long.toIntervalText(): String {
@@ -1318,12 +1660,168 @@ private fun String.toVolumeMlOrNull(): Int? {
     return toIntOrNull()?.takeIf { it > 0 }
 }
 
-private fun Int?.toVolumeLabel(): String {
-    return "${this ?: 0} mL"
+private fun Int.toVolumeLabel(): String {
+    return "$this mL"
 }
 
-private fun VoidingEvent.toInlineNoteText(): String {
-    val memoText = memo?.takeIf { it.isNotBlank() }
-    val volumeText = volumeMl?.toVolumeLabel()
-    return listOfNotNull(memoText, volumeText).joinToString(" · ")
+@Composable
+private fun rememberHomePalette(): HomePalette {
+    return if (isSystemInDarkTheme()) {
+        DarkHomePalette
+    } else {
+        LightHomePalette
+    }
 }
+
+private data class HomePalette(
+    val backgroundTop: Color,
+    val backgroundBottom: Color,
+    val backgroundGlowPrimary: Color,
+    val backgroundGlowSecondary: Color,
+    val backgroundGlowTertiary: Color,
+    val glassPanel: Color,
+    val glassBorder: Color,
+    val titleText: Color,
+    val bodyText: Color,
+    val mutedText: Color,
+    val accentText: Color,
+    val badgeText: Color,
+    val volumeText: Color,
+    val rowDivider: Color,
+    val iconButtonBackground: Color,
+    val iconButtonBorder: Color,
+    val iconTint: Color,
+    val datePillStart: Color,
+    val datePillEnd: Color,
+    val datePillBorder: Color,
+    val summaryStart: Color,
+    val summaryEnd: Color,
+    val summaryBorder: Color,
+    val metricPanel: Color,
+    val metricBorder: Color,
+    val metricLabelText: Color,
+    val metricValueText: Color,
+    val metricSubText: Color,
+    val recordsBadgeBackground: Color,
+    val recordsBadgeBorder: Color,
+    val tableBackground: Color,
+    val tableBorder: Color,
+    val tableHeaderBackground: Color,
+    val tableHeaderText: Color,
+    val miniButtonBackground: Color,
+    val miniButtonBorder: Color,
+    val actionIconTint: Color,
+    val bottomBarBackground: Color,
+    val bottomBarBorder: Color,
+    val primaryButtonStart: Color,
+    val primaryButtonEnd: Color,
+    val primaryButtonGlow: Color,
+    val primaryButtonText: Color,
+    val secondaryButtonStart: Color,
+    val secondaryButtonEnd: Color,
+    val secondaryButtonGlow: Color,
+    val secondaryButtonBorder: Color,
+    val secondaryButtonText: Color
+)
+
+private val DarkHomePalette = HomePalette(
+    backgroundTop = Color(0xFF0C1719),
+    backgroundBottom = Color(0xFF061012),
+    backgroundGlowPrimary = Color(0x3854E3C0),
+    backgroundGlowSecondary = Color(0x423E98C4),
+    backgroundGlowTertiary = Color(0x33175D56),
+    glassPanel = Color(0xD6121E22),
+    glassBorder = Color(0x1FA7D0CB),
+    titleText = Color(0xFFEEF9F7),
+    bodyText = Color(0xFFE7F4F2),
+    mutedText = Color(0xFF9AB7B2),
+    accentText = Color(0xFFBCE6DF),
+    badgeText = Color(0xFFD9FFF1),
+    volumeText = Color(0xFFD7FFF3),
+    rowDivider = Color(0x0DFFFFFF),
+    iconButtonBackground = Color(0x0DFFFFFF),
+    iconButtonBorder = Color(0x1FA7D0CB),
+    iconTint = Color(0xFFD6F9F1),
+    datePillStart = Color(0x24B5F2E8),
+    datePillEnd = Color(0x1091D0C5),
+    datePillBorder = Color(0x26C6FBF2),
+    summaryStart = Color(0xFF07797C),
+    summaryEnd = Color(0xFF07535A),
+    summaryBorder = Color(0x2E9EFFE8),
+    metricPanel = Color(0x6B03151B),
+    metricBorder = Color(0x14FFFFFF),
+    metricLabelText = Color(0xC2CCF0EC),
+    metricValueText = Color(0xFFEEF9F7),
+    metricSubText = Color(0xADDEF4F0),
+    recordsBadgeBackground = Color(0x1F53E3C0),
+    recordsBadgeBorder = Color(0x3853E3C0),
+    tableBackground = Color(0x08FFFFFF),
+    tableBorder = Color(0x0FFFFFFF),
+    tableHeaderBackground = Color(0x12C9F5EC),
+    tableHeaderText = Color(0xFFB1D7D0),
+    miniButtonBackground = Color(0xDB182D31),
+    miniButtonBorder = Color(0x2971B7AA),
+    actionIconTint = Color(0xFF79F1CB),
+    bottomBarBackground = Color(0xC21D2B2F),
+    bottomBarBorder = Color(0x19C0ECE7),
+    primaryButtonStart = Color(0xFF8AF7CB),
+    primaryButtonEnd = Color(0xFF4CE1BB),
+    primaryButtonGlow = Color(0x33E3FFF1),
+    primaryButtonText = Color(0xFF07352E),
+    secondaryButtonStart = Color(0xFF0CA4A3),
+    secondaryButtonEnd = Color(0xFF076F7D),
+    secondaryButtonGlow = Color(0x1FB6FFF1),
+    secondaryButtonBorder = Color(0x24B6FFF1),
+    secondaryButtonText = Color(0xFFECFFFB)
+)
+
+private val LightHomePalette = HomePalette(
+    backgroundTop = Color(0xFFF4FBFB),
+    backgroundBottom = Color(0xFFE8F5F4),
+    backgroundGlowPrimary = Color(0x426CE0C3),
+    backgroundGlowSecondary = Color(0x2E4DAED7),
+    backgroundGlowTertiary = Color(0x3D8DDFCB),
+    glassPanel = Color(0xB8FFFFFF),
+    glassBorder = Color(0x1A185A62),
+    titleText = Color(0xFF18363D),
+    bodyText = Color(0xFF32575D),
+    mutedText = Color(0xFF6D8B90),
+    accentText = Color(0xFF3F7F84),
+    badgeText = Color(0xFF28656D),
+    volumeText = Color(0xFF114E5B),
+    rowDivider = Color(0x0F1F5F65),
+    iconButtonBackground = Color(0xDBFFFFFF),
+    iconButtonBorder = Color(0x1A185A62),
+    iconTint = Color(0xFF2A6F78),
+    datePillStart = Color(0xFAE4F7F3),
+    datePillEnd = Color(0xF4D0EEEA),
+    datePillBorder = Color(0x1F26767A),
+    summaryStart = Color(0xF0AFEBE4),
+    summaryEnd = Color(0xF07FD6CE),
+    summaryBorder = Color(0x2933878B),
+    metricPanel = Color(0xD1FFFFFF),
+    metricBorder = Color(0x1423696D),
+    metricLabelText = Color(0xFF4E7F84),
+    metricValueText = Color(0xFF153B42),
+    metricSubText = Color(0xFF5C8589),
+    recordsBadgeBackground = Color(0x244AB9AC),
+    recordsBadgeBorder = Color(0x384AB9AC),
+    tableBackground = Color(0xC2FFFFFF),
+    tableBorder = Color(0x141F5F65),
+    tableHeaderBackground = Color(0xB2C4EBE5),
+    tableHeaderText = Color(0xFF5A8085),
+    miniButtonBackground = Color(0xFFF1FCFA),
+    miniButtonBorder = Color(0x2948A49A),
+    actionIconTint = Color(0xFF1C8D89),
+    bottomBarBackground = Color(0xC7FFFFFF),
+    bottomBarBorder = Color(0x17185A62),
+    primaryButtonStart = Color(0xFF86EDC6),
+    primaryButtonEnd = Color(0xFF57D9B8),
+    primaryButtonGlow = Color(0x6BFFFFFF),
+    primaryButtonText = Color(0xFF0D4D45),
+    secondaryButtonStart = Color(0xFF22C0B7),
+    secondaryButtonEnd = Color(0xFF118F9D),
+    secondaryButtonGlow = Color(0x26E8FFFB),
+    secondaryButtonBorder = Color(0x29229398),
+    secondaryButtonText = Color(0xFFF5FFFD)
+)
