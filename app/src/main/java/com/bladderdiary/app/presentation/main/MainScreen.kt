@@ -101,6 +101,38 @@ fun MainScreen(
         Scaffold(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                MainTopBar(
+                    palette = palette,
+                    syncStatus = state.toHomeSyncStatus(palette),
+                    isPinSet = isPinSet,
+                    isE2eeEnabled = isE2eeEnabled,
+                    isE2eeChecking = isE2eeChecking,
+                    menuExpanded = menuExpanded,
+                    onOpenMenu = { menuExpanded = true },
+                    onDismissMenu = { menuExpanded = false },
+                    onTogglePin = {
+                        menuExpanded = false
+                        onTogglePin()
+                    },
+                    onOpenE2eeSettings = {
+                        menuExpanded = false
+                        onOpenE2eeSettings()
+                    },
+                    onOpenPdfExport = {
+                        menuExpanded = false
+                        pdfStartDate = state.selectedDate
+                        pdfEndDate = state.selectedDate
+                        pdfIncludeMemo = false
+                        showPdfExportDialog = true
+                    },
+                    isExportingPdf = state.isExportingPdf,
+                    onSignOut = {
+                        menuExpanded = false
+                        onSignOut()
+                    }
+                )
+            },
             bottomBar = {
                 QuickActionBar(
                     palette = palette,
@@ -136,35 +168,9 @@ fun MainScreen(
                 today = today,
                 palette = palette,
                 modifier = Modifier.padding(padding),
-                isPinSet = isPinSet,
-                isE2eeEnabled = isE2eeEnabled,
-                isE2eeChecking = isE2eeChecking,
-                menuExpanded = menuExpanded,
                 onPreviousDay = viewModel::goPreviousDay,
                 onNextDay = viewModel::goNextDay,
                 onPickDate = onShowCalendar,
-                onOpenMenu = { menuExpanded = true },
-                onDismissMenu = { menuExpanded = false },
-                onTogglePin = {
-                    menuExpanded = false
-                    onTogglePin()
-                },
-                onOpenE2eeSettings = {
-                    menuExpanded = false
-                    onOpenE2eeSettings()
-                },
-                onOpenPdfExport = {
-                    menuExpanded = false
-                    pdfStartDate = state.selectedDate
-                    pdfEndDate = state.selectedDate
-                    pdfIncludeMemo = false
-                    showPdfExportDialog = true
-                },
-                isExportingPdf = state.isExportingPdf,
-                onSignOut = {
-                    menuExpanded = false
-                    onSignOut()
-                },
                 onOpenMemo = { event ->
                     viewMemoEvent = event
                     editMemoText = event.memo ?: ""

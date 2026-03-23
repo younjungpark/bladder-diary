@@ -1,8 +1,7 @@
 package com.bladderdiary.app.presentation.main
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,50 +14,40 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalDrink
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VpnKey
-import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bladderdiary.app.domain.model.VoidingEvent
-import com.bladderdiary.app.ui.theme.appExtraColors
 import kotlinx.datetime.LocalDate
 
 @Composable
@@ -67,20 +56,9 @@ internal fun MainContent(
     today: LocalDate,
     palette: HomePalette,
     modifier: Modifier = Modifier,
-    isPinSet: Boolean,
-    isE2eeEnabled: Boolean,
-    isE2eeChecking: Boolean,
-    menuExpanded: Boolean,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onPickDate: () -> Unit,
-    onOpenMenu: () -> Unit,
-    onDismissMenu: () -> Unit,
-    onTogglePin: () -> Unit,
-    onOpenE2eeSettings: () -> Unit,
-    onOpenPdfExport: () -> Unit,
-    isExportingPdf: Boolean,
-    onSignOut: () -> Unit,
     onOpenMemo: (VoidingEvent) -> Unit,
     onOpenVolume: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
@@ -95,138 +73,80 @@ internal fun MainContent(
         state.toSyncSummary()
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, top = 14.dp, end = 20.dp, bottom = 124.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        HeroDateCard(
-            palette = palette,
-            selectedDate = state.selectedDate,
-            onPreviousDay = onPreviousDay,
-            onNextDay = onNextDay,
-            onPickDate = onPickDate
-        )
-
-        DailySummaryCard(
-            palette = palette,
-            dailyVolumeMl = state.dailyVolumeMl ?: 0,
-            dailyCount = state.dailyCount,
-            averageIntervalMillis = averageIntervalMillis,
-            syncSummary = syncSummary
-        )
-
-        if (state.pendingSyncCount > 0) {
-            InlineNotice(
-                text = state.pendingSyncError?.let { rawError ->
-                    if (rawError.isLikelyOfflineSyncError()) {
-                        "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
-                    } else {
-                        "동기화 오류: ${rawError.toUiErrorText()}"
-                    }
-                } ?: "기록이 로컬에 보관되어 있으며 연결되면 자동으로 동기화됩니다.",
-                containerColor = MaterialTheme.appExtraColors.warningContainer,
-                contentColor = MaterialTheme.appExtraColors.onWarningContainer
+        item {
+            HeroDateCard(
+                palette = palette,
+                selectedDate = state.selectedDate,
+                today = today,
+                onPreviousDay = onPreviousDay,
+                onNextDay = onNextDay,
+                onPickDate = onPickDate
             )
         }
 
-        RecordsPanel(
-            palette = palette,
-            events = sortedEvents,
-            modifier = Modifier.weight(1f),
-            selectedDate = state.selectedDate,
-            today = today,
-            isPinSet = isPinSet,
-            isE2eeEnabled = isE2eeEnabled,
-            isE2eeChecking = isE2eeChecking,
-            menuExpanded = menuExpanded,
-            onOpenMenu = onOpenMenu,
-            onDismissMenu = onDismissMenu,
-            onTogglePin = onTogglePin,
-            onOpenE2eeSettings = onOpenE2eeSettings,
-            onOpenPdfExport = onOpenPdfExport,
-            isExportingPdf = isExportingPdf,
-            onSignOut = onSignOut,
-            onOpenMemo = onOpenMemo,
-            onOpenVolume = onOpenVolume,
-            onDeleteEvent = onDeleteEvent
-        )
-    }
-}
+        item {
+            SummarySection(
+                palette = palette,
+                dailyVolumeMl = state.dailyVolumeMl ?: 0,
+                dailyCount = state.dailyCount,
+                averageIntervalMillis = averageIntervalMillis,
+                syncSummary = syncSummary
+            )
+        }
 
-@Composable
-private fun MainOverflowMenu(
-    palette: HomePalette,
-    isPinSet: Boolean,
-    isE2eeEnabled: Boolean,
-    isE2eeChecking: Boolean,
-    menuExpanded: Boolean,
-    onOpenMenu: () -> Unit,
-    onDismissMenu: () -> Unit,
-    onTogglePin: () -> Unit,
-    onOpenE2eeSettings: () -> Unit,
-    onOpenPdfExport: () -> Unit,
-    isExportingPdf: Boolean,
-    onSignOut: () -> Unit
-) {
-    Box {
-        GlassIconButton(
-            palette = palette,
-            icon = Icons.Default.Settings,
-            contentDescription = "전체 설정",
-            buttonSize = 34.dp,
-            iconSize = 16.dp,
-            cornerRadius = 13.dp,
-            onClick = onOpenMenu
-        )
+        if (state.pendingSyncCount > 0) {
+            item {
+                InlineNotice(
+                    palette = palette,
+                    text = state.pendingSyncError?.let { rawError ->
+                        if (rawError.isLikelyOfflineSyncError()) {
+                            "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
+                        } else {
+                            "동기화 오류: ${rawError.toUiErrorText()}"
+                        }
+                    } ?: "기록은 안전하게 로컬에 보관되며 연결되면 자동으로 동기화됩니다."
+                )
+            }
+        }
 
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = onDismissMenu
-        ) {
-            DropdownMenuItem(
-                text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (isE2eeEnabled) Icons.Filled.VpnKey else Icons.Outlined.VpnKey,
-                        contentDescription = null
-                    )
-                },
-                onClick = onOpenE2eeSettings,
-                enabled = !isE2eeChecking
+        item {
+            SectionHeader(
+                title = if (state.selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
+                supporting = "${sortedEvents.size}개의 기록",
+                palette = palette
             )
-            DropdownMenuItem(
-                text = { Text(if (isExportingPdf) "PDF 생성 중" else "PDF 내보내기") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.PictureAsPdf,
-                        contentDescription = null
-                    )
-                },
-                onClick = onOpenPdfExport,
-                enabled = !isExportingPdf
-            )
-            DropdownMenuItem(
-                text = { Text(if (isPinSet) "PIN 해제" else "PIN 설정") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (isPinSet) Icons.Default.Lock else Icons.Default.LockOpen,
-                        contentDescription = null
-                    )
-                },
-                onClick = onTogglePin
-            )
-            DropdownMenuItem(
-                text = { Text("로그아웃") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = null
-                    )
-                },
-                onClick = onSignOut
-            )
+        }
+
+        if (sortedEvents.isEmpty()) {
+            item {
+                RecordsEmptyState(
+                    palette = palette,
+                    selectedDate = state.selectedDate,
+                    today = today
+                )
+            }
+        } else {
+            itemsIndexed(sortedEvents, key = { _, item -> item.localId }) { index, event ->
+                val previousEvent = sortedEvents.getOrNull(index + 1)
+                DiaryTimelineItem(
+                    palette = palette,
+                    event = event,
+                    intervalText = previousEvent
+                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                        ?.takeIf { it > 0 }
+                        ?.toIntervalText(),
+                    isFirst = index == 0,
+                    isLast = index == sortedEvents.lastIndex,
+                    onOpenMemo = { onOpenMemo(event) },
+                    onOpenVolume = { onOpenVolume(event) },
+                    onDelete = { onDeleteEvent(event.localId) }
+                )
+            }
         }
     }
 }
@@ -235,230 +155,234 @@ private fun MainOverflowMenu(
 private fun HeroDateCard(
     palette: HomePalette,
     selectedDate: LocalDate,
+    today: LocalDate,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onPickDate: () -> Unit
 ) {
-    val outerShape = RoundedCornerShape(26.dp)
-    val pillShape = RoundedCornerShape(16.dp)
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = palette.glassPanel,
-        contentColor = palette.titleText,
-        shape = outerShape,
-        border = BorderStroke(1.dp, palette.glassBorder),
-        shadowElevation = 14.dp
+        color = palette.surfaceStrong,
+        shape = RoundedCornerShape(26.dp),
+        shadowElevation = 10.dp
     ) {
-        ProvideFixedFontScale {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GlassIconButton(
+                palette = palette,
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "이전 날짜",
+                buttonSize = 38.dp,
+                iconSize = 18.dp,
+                cornerRadius = 14.dp,
+                onClick = onPreviousDay
+            )
+
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable(onClick = onPickDate)
+                    .background(palette.surfaceMuted)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                GlassIconButton(
-                    palette = palette,
-                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "이전 날짜",
-                    buttonSize = 38.dp,
-                    iconSize = 16.dp,
-                    cornerRadius = 14.dp,
-                    onClick = onPreviousDay
+                Text(
+                    text = selectedDate.toHeroDateText(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = palette.titleText,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(pillShape)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(palette.datePillStart, palette.datePillEnd)
-                            )
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = palette.datePillBorder,
-                            shape = pillShape
-                        )
-                        .clickable(onClick = onPickDate)
-                        .padding(horizontal = 14.dp, vertical = 9.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
-                    ) {
-                        Text(
-                            text = "Bladder Diary",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = palette.mutedText,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.9.sp
-                        )
-                        Text(
-                            text = selectedDate.toHeroDateText(),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = palette.titleText,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                GlassIconButton(
-                    palette = palette,
-                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "다음 날짜",
-                    buttonSize = 38.dp,
-                    iconSize = 16.dp,
-                    cornerRadius = 14.dp,
-                    onClick = onNextDay
+                Text(
+                    text = selectedDate.toHeroCaption(today),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.primary,
+                    fontWeight = FontWeight.Bold
                 )
             }
+
+            GlassIconButton(
+                palette = palette,
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "다음 날짜",
+                buttonSize = 38.dp,
+                iconSize = 18.dp,
+                cornerRadius = 14.dp,
+                onClick = onNextDay
+            )
         }
     }
 }
 
 @Composable
-private fun DailySummaryCard(
+private fun SummarySection(
     palette: HomePalette,
     dailyVolumeMl: Int,
     dailyCount: Int,
     averageIntervalMillis: Long?,
     syncSummary: SyncSummary
 ) {
-    val shape = RoundedCornerShape(24.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader(
+            title = "오늘의 요약",
+            supporting = syncSummary.supporting,
+            palette = palette
+        )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(elevation = 16.dp, shape = shape)
-            .clip(shape)
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(palette.summaryStart, palette.summaryEnd)
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SummaryMetricCard(
+                modifier = Modifier.weight(1f),
+                palette = palette,
+                icon = Icons.Default.WaterDrop,
+                label = "배뇨량",
+                value = dailyVolumeMl.toString(),
+                unit = "mL"
             )
-            .border(1.dp, palette.summaryBorder, shape)
-            .padding(horizontal = 10.dp, vertical = 9.dp)
-    ) {
-        ProvideFixedFontScale {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "Daily Summary",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = palette.titleText,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    SummaryMetricCard(
-                        palette = palette,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        label = "총배뇨량",
-                        value = dailyVolumeMl.toString(),
-                        unit = "mL"
-                    )
-                    SummaryMetricCard(
-                        palette = palette,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        label = "배뇨횟수",
-                        value = dailyCount.toString(),
-                        unit = "회"
-                    )
-                    SummaryMetricCard(
-                        palette = palette,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        label = "평균간격",
-                        value = averageIntervalMillis.toMetricValue(),
-                        unit = averageIntervalMillis?.let { "h" }
-                    )
-                    SummaryMetricCard(
-                        palette = palette,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        label = "동기화",
-                        value = syncSummary.value,
-                        unit = null
-                    )
-                }
-            }
+            SummaryMetricCard(
+                modifier = Modifier.weight(1f),
+                palette = palette,
+                icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                label = "횟수",
+                value = dailyCount.toString(),
+                unit = "회"
+            )
+            SummaryMetricCard(
+                modifier = Modifier.weight(1f),
+                palette = palette,
+                icon = Icons.Default.Schedule,
+                label = "평균 간격",
+                value = averageIntervalMillis.toMetricValue(),
+                unit = averageIntervalMillis?.let { "h" }
+            )
         }
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    supporting: String,
+    palette: HomePalette
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = palette.titleText,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = supporting,
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.subtleText,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
 @Composable
 private fun SummaryMetricCard(
-    palette: HomePalette,
     modifier: Modifier = Modifier,
+    palette: HomePalette,
+    icon: ImageVector,
     label: String,
     value: String,
     unit: String?
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val labelFontSize = if (label.length >= 5) 9.sp else 10.sp
+    val labelLineHeight = if (label.length >= 5) 11.sp else 12.sp
     val valueFontSize = when {
-        value.length >= 5 -> 16.sp
-        value.length >= 3 -> 18.sp
-        else -> 20.sp
+        value.length >= 5 -> 18.sp
+        value.length >= 3 -> 20.sp
+        else -> 22.sp
+    }
+    val valueLineHeight = when {
+        value.length >= 5 -> 20.sp
+        value.length >= 3 -> 22.sp
+        else -> 24.sp
     }
 
-    Box(
-        modifier = modifier
-            .height(72.dp)
-            .clip(shape)
-            .background(palette.metricPanel)
-            .border(1.dp, palette.metricBorder, shape)
-            .padding(horizontal = 8.dp, vertical = 7.dp)
+    Surface(
+        modifier = modifier,
+        color = palette.surfaceStrong,
+        shape = RoundedCornerShape(22.dp),
+        shadowElevation = 8.dp
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.metricLabelText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(palette.surfaceTint),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = palette.primaryStrong,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = labelFontSize,
+                        lineHeight = labelLineHeight
+                    ),
+                    color = palette.bodyText,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
             Row(
                 verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Text(
                     text = value,
-                    color = palette.metricValueText,
-                    fontSize = valueFontSize,
-                    lineHeight = valueFontSize,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontSize = valueFontSize,
+                        lineHeight = valueLineHeight
+                    ),
+                    color = palette.titleText,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    softWrap = false,
                     overflow = TextOverflow.Ellipsis
                 )
                 unit?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.metricSubText,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Clip,
-                        modifier = Modifier.padding(bottom = 1.dp)
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            lineHeight = 12.sp
+                        ),
+                        color = palette.mutedText,
+                        modifier = Modifier.padding(bottom = 3.dp)
                     )
                 }
             }
@@ -467,168 +391,318 @@ private fun SummaryMetricCard(
 }
 
 @Composable
-private fun RecordsPanel(
+private fun DiaryTimelineItem(
     palette: HomePalette,
-    events: List<VoidingEvent>,
-    modifier: Modifier = Modifier,
-    selectedDate: LocalDate,
-    today: LocalDate,
-    isPinSet: Boolean,
-    isE2eeEnabled: Boolean,
-    isE2eeChecking: Boolean,
-    menuExpanded: Boolean,
-    onOpenMenu: () -> Unit,
-    onDismissMenu: () -> Unit,
-    onTogglePin: () -> Unit,
-    onOpenE2eeSettings: () -> Unit,
-    onOpenPdfExport: () -> Unit,
-    isExportingPdf: Boolean,
-    onSignOut: () -> Unit,
-    onOpenMemo: (VoidingEvent) -> Unit,
-    onOpenVolume: (VoidingEvent) -> Unit,
-    onDeleteEvent: (String) -> Unit
+    event: VoidingEvent,
+    intervalText: String?,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onOpenMemo: () -> Unit,
+    onOpenVolume: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    val outerShape = RoundedCornerShape(30.dp)
-    val innerShape = RoundedCornerShape(20.dp)
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = palette.glassPanel,
-        contentColor = palette.titleText,
-        shape = outerShape,
-        border = BorderStroke(1.dp, palette.glassBorder),
-        shadowElevation = 16.dp
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = palette.titleText,
-                    fontWeight = FontWeight.Bold
-                )
+        TimelineRail(
+            palette = palette,
+            isFirst = isFirst,
+            isLast = isLast,
+            isHighlighted = isFirst
+        )
 
-                MainOverflowMenu(
-                    palette = palette,
-                    isPinSet = isPinSet,
-                    isE2eeEnabled = isE2eeEnabled,
-                    isE2eeChecking = isE2eeChecking,
-                    menuExpanded = menuExpanded,
-                    onOpenMenu = onOpenMenu,
-                    onDismissMenu = onDismissMenu,
-                    onTogglePin = onTogglePin,
-                    onOpenE2eeSettings = onOpenE2eeSettings,
-                    onOpenPdfExport = onOpenPdfExport,
-                    isExportingPdf = isExportingPdf,
-                    onSignOut = onSignOut
+        DiaryEventCard(
+            palette = palette,
+            event = event,
+            intervalText = intervalText,
+            onOpenMemo = onOpenMemo,
+            onOpenVolume = onOpenVolume,
+            onDelete = onDelete
+        )
+    }
+}
+
+@Composable
+private fun TimelineRail(
+    palette: HomePalette,
+    isFirst: Boolean,
+    isLast: Boolean,
+    isHighlighted: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .width(22.dp)
+            .fillMaxHeight()
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val centerX = size.width / 2f
+            val dotCenterY = 26.dp.toPx()
+            val gap = 7.dp.toPx()
+
+            if (!isFirst) {
+                drawLine(
+                    color = palette.lineColor,
+                    start = androidx.compose.ui.geometry.Offset(centerX, 0f),
+                    end = androidx.compose.ui.geometry.Offset(centerX, dotCenterY - gap),
+                    strokeWidth = 2.dp.toPx()
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(innerShape)
-                    .background(palette.tableBackground)
-                    .border(1.dp, palette.tableBorder, innerShape)
+            if (!isLast) {
+                drawLine(
+                    color = palette.lineColor,
+                    start = androidx.compose.ui.geometry.Offset(centerX, dotCenterY + gap),
+                    end = androidx.compose.ui.geometry.Offset(centerX, size.height),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 20.dp)
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(if (isHighlighted) palette.primaryStrong else palette.trackMuted)
+        )
+    }
+}
+
+@Composable
+private fun DiaryEventCard(
+    palette: HomePalette,
+    event: VoidingEvent,
+    intervalText: String?,
+    onOpenMemo: () -> Unit,
+    onOpenVolume: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
+    val hasMemo = !event.memo.isNullOrBlank()
+    val hasVolume = event.volumeMl != null
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = palette.surfaceStrong,
+        shape = RoundedCornerShape(28.dp),
+        shadowElevation = 10.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                ProvideFixedFontScale {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        RecordsTableHeader(palette = palette)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "$periodText $timeText",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = 16.sp,
+                            lineHeight = 20.sp
+                        ),
+                        color = palette.titleText,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                        if (events.isEmpty()) {
-                            RecordsEmptyState(
-                                palette = palette,
-                                selectedDate = selectedDate,
-                                today = today
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (hasMemo) {
+                            SmallBadge(
+                                text = "메모",
+                                containerColor = palette.surfaceTint,
+                                contentColor = palette.primaryStrong
                             )
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 10.dp)
-                            ) {
-                                itemsIndexed(events, key = { _, item -> item.localId }) { index, event ->
-                                    val previousEvent = events.getOrNull(index + 1)
-                                    val intervalText = previousEvent
-                                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                                        ?.takeIf { it > 0 }
-                                        ?.toIntervalText()
-                                        ?: "-"
-
-                                    EventRow(
-                                        palette = palette,
-                                        event = event,
-                                        intervalText = intervalText,
-                                        onOpenMemo = { onOpenMemo(event) },
-                                        onEditVolume = { onOpenVolume(event) },
-                                        onDelete = { onDeleteEvent(event.localId) }
-                                    )
-                                }
-                            }
+                        }
+                        event.urgency?.let { urgency ->
+                            val badgeColors = urgencyBadgeColors(urgency)
+                            SmallBadge(
+                                text = "절박감 ${urgency.toUrgencyLabel()}",
+                                containerColor = badgeColors.first,
+                                contentColor = badgeColors.second
+                            )
                         }
                     }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = palette.subtleText,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = intervalText?.let { "$it 간격" } ?: "이전 기록 없음",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp
+                            ),
+                            color = palette.mutedText
+                        )
+                    }
                 }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    if (hasVolume) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(
+                                text = event.volumeMl.toString(),
+                                style = MaterialTheme.typography.displaySmall,
+                                color = palette.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "mL",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = palette.primary,
+                                modifier = Modifier.padding(bottom = 5.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "-",
+                            style = MaterialTheme.typography.displaySmall,
+                            color = palette.subtleText,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            if (hasMemo) {
+                Surface(
+                    color = palette.noteSurface,
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(
+                        text = event.memo.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        ),
+                        color = palette.bodyText,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                EventActionButton(
+                    palette = palette,
+                    icon = Icons.Default.Description,
+                    contentDescription = if (hasMemo) "메모 수정" else "메모 입력",
+                    active = hasMemo,
+                    onClick = onOpenMemo
+                )
+                EventActionButton(
+                    palette = palette,
+                    icon = Icons.Default.LocalDrink,
+                    contentDescription = if (hasVolume) "배뇨량 수정" else "배뇨량 입력",
+                    active = hasVolume,
+                    onClick = onOpenVolume
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                EventActionButton(
+                    palette = palette,
+                    icon = Icons.Default.Delete,
+                    contentDescription = "기록 삭제",
+                    active = false,
+                    onClick = onDelete
+                )
             }
         }
     }
 }
 
 @Composable
-private fun RecordsTableHeader(palette: HomePalette) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(palette.tableHeaderBackground)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun SmallBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(9.dp)
     ) {
         Text(
-            text = "시간",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.tableHeaderText,
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                lineHeight = 12.sp
+            ),
+            color = contentColor,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1.35f)
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
         )
-        Text(
-            text = "간격",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.tableHeaderText,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(0.95f)
+    }
+}
+
+@Composable
+private fun EventActionButton(
+    palette: HomePalette,
+    icon: ImageVector,
+    contentDescription: String,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    val background = if (active) palette.surfaceTint else palette.surfaceMuted
+    val tint = if (active) palette.primaryStrong else palette.iconTint
+
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(background)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
         )
+    }
+}
+
+@Composable
+private fun InlineNotice(
+    palette: HomePalette,
+    text: String
+) {
+    Surface(
+        color = palette.warningBackground,
+        shape = RoundedCornerShape(20.dp)
+    ) {
         Text(
-            text = "절박감",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.tableHeaderText,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(0.72f)
-        )
-        Text(
-            text = "배뇨량",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.tableHeaderText,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(0.72f)
-        )
-        Text(
-            text = "관리",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.tableHeaderText,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(0.48f)
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.warningText,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
         )
     }
 }
@@ -639,211 +713,45 @@ private fun RecordsEmptyState(
     selectedDate: LocalDate,
     today: LocalDate
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = palette.surfaceStrong,
+        shape = RoundedCornerShape(28.dp),
+        shadowElevation = 8.dp
     ) {
-        Text(
-            text = if (selectedDate == today) {
-                "아직 오늘 기록이 없습니다."
-            } else {
-                "선택한 날짜의 기록이 없습니다."
-            },
-            style = MaterialTheme.typography.titleSmall,
-            color = palette.titleText,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "하단의 '지금 기록' 또는 '시간 지정'으로 빠르게 입력하실 수 있습니다.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = palette.mutedText,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun EventRow(
-    palette: HomePalette,
-    event: VoidingEvent,
-    intervalText: String,
-    onOpenMemo: () -> Unit,
-    onEditVolume: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
-    val hasVolume = event.volumeMl != null
-    val hasUrgency = event.urgency != null
-    val hasMemo = !event.memo.isNullOrBlank()
-    val timeLabel = "$periodText $timeText"
-    var actionsExpanded by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier.weight(1.35f),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = timeLabel,
-                    color = palette.titleText,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                if (hasMemo) {
-                    MemoIndicatorButton(
-                        tint = palette.actionIconTint,
-                        onClick = onOpenMemo
-                    )
-                }
-            }
-
             Text(
-                text = intervalText,
-                color = if (intervalText == "-") palette.mutedText else palette.bodyText,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(0.95f)
+                text = if (selectedDate == today) "아직 오늘 기록이 없습니다." else "선택한 날짜의 기록이 없습니다.",
+                style = MaterialTheme.typography.titleLarge,
+                color = palette.titleText,
+                textAlign = TextAlign.Center
             )
-
             Text(
-                text = event.urgency?.toUrgencyLabel() ?: "-",
-                color = if (hasUrgency) palette.badgeText else palette.mutedText,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = if (hasUrgency) FontWeight.Bold else FontWeight.Normal,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(0.72f)
+                text = "하단의 빠른 액션 버튼으로 지금 바로 기록을 추가해보세요.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.mutedText,
+                textAlign = TextAlign.Center
             )
-
-            Text(
-                text = event.volumeMl?.toVolumeLabel() ?: "-",
-                color = if (hasVolume) palette.volumeText else palette.mutedText,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = if (hasVolume) FontWeight.Bold else FontWeight.Normal,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(0.72f)
-            )
-
-            Box(
-                modifier = Modifier.weight(0.48f),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                TinyActionButton(
-                    palette = palette,
-                    icon = Icons.Default.MoreVert,
-                    contentDescription = "기록 관리",
-                    buttonSize = 28.dp,
-                    iconSize = 16.dp,
-                    onClick = { actionsExpanded = true }
-                )
-
-                DropdownMenu(
-                    expanded = actionsExpanded,
-                    onDismissRequest = { actionsExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (hasMemo) "메모 편집" else "메모 입력") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = {
-                            actionsExpanded = false
-                            onOpenMemo()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("배뇨량 입력") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.LocalDrink,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = {
-                            actionsExpanded = false
-                            onEditVolume()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("기록 삭제") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null
-                            )
-                        },
-                        onClick = {
-                            actionsExpanded = false
-                            onDelete()
-                        }
-                    )
-                }
-            }
         }
-
-        androidx.compose.material3.HorizontalDivider(
-            color = palette.rowDivider,
-            thickness = 1.dp
-        )
-    }
-}
-
-@Composable
-private fun InlineNotice(
-    text: String,
-    containerColor: Color,
-    contentColor: Color
-) {
-    Surface(
-        color = containerColor,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = contentColor,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-        )
     }
 }
 
 private data class SyncSummary(
-    val value: String,
-    val sub: String
+    val supporting: String
 )
 
 private fun MainUiState.toSyncSummary(): SyncSummary {
     return when {
-        isSyncing -> SyncSummary(value = "동기화", sub = "진행")
-        pendingSyncError != null && pendingSyncCount > 0 -> SyncSummary(value = "주의", sub = "${pendingSyncCount}건")
-        pendingSyncCount > 0 -> SyncSummary(value = "대기", sub = "${pendingSyncCount}건")
-        else -> SyncSummary(value = "정상", sub = "완료")
+        isSyncing -> SyncSummary(supporting = "동기화 중")
+        pendingSyncError != null && pendingSyncCount > 0 -> SyncSummary(supporting = "${pendingSyncCount}건 보관")
+        pendingSyncCount > 0 -> SyncSummary(supporting = "${pendingSyncCount}건 대기")
+        else -> SyncSummary(supporting = "실시간 반영")
     }
 }
 
@@ -856,5 +764,15 @@ private fun List<VoidingEvent>.toAverageIntervalMillis(): Long? {
         null
     } else {
         intervals.sum() / intervals.size
+    }
+}
+
+private fun urgencyBadgeColors(level: Int): Pair<Color, Color> {
+    return when (level) {
+        1 -> Color(0xFFE7F4F0) to Color(0xFF2D6B5B)
+        2 -> Color(0xFFE8F1F1) to Color(0xFF416464)
+        3 -> Color(0xFFDDEDED) to Color(0xFF006767)
+        4 -> Color(0xFFFFE6D6) to Color(0xFFB46800)
+        else -> Color(0xFFFFDED6) to Color(0xFFB2453B)
     }
 }
