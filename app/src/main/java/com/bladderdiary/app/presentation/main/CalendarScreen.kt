@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -40,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,166 +67,184 @@ fun CalendarScreen(
     val daysInMonth = getDaysInMonth(state.currentYearMonth.year, state.currentYearMonth.monthNumber)
     val average = if (daysInMonth == 0) 0.0 else totalCount.toDouble() / daysInMonth
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .drawBehind {
-                drawCircle(
-                    color = primaryGlow,
-                    radius = size.minDimension * 0.3f,
-                    center = Offset(size.width * 0.08f, size.height * 0.1f)
-                )
-                drawCircle(
-                    color = secondaryGlow,
-                    radius = size.minDimension * 0.24f,
-                    center = Offset(size.width * 0.9f, size.height * 0.14f)
-                )
-            }
-    ) {
-        Column(
+    ProvideFixedFontScale {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .background(MaterialTheme.colorScheme.background)
+                .drawBehind {
+                    drawCircle(
+                        color = primaryGlow,
+                        radius = size.minDimension * 0.3f,
+                        center = Offset(size.width * 0.08f, size.height * 0.1f)
+                    )
+                    drawCircle(
+                        color = secondaryGlow,
+                        radius = size.minDimension * 0.24f,
+                        center = Offset(size.width * 0.9f, size.height * 0.14f)
+                    )
+                }
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.clickable(onClick = onBack),
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = CircleShape,
-                    shadowElevation = 8.dp
-                ) {
-                    Box(
-                        modifier = Modifier.size(42.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "기록 캘린더",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${state.currentYearMonth.year}년 ${state.currentYearMonth.monthNumber}월",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(30.dp),
-                shadowElevation = 10.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CalendarMetric(
-                        modifier = Modifier.weight(1f),
-                        label = "총 기록",
-                        value = "${totalCount}회"
-                    )
-                    CalendarMetric(
-                        modifier = Modifier.weight(1f),
-                        label = "기록한 날",
-                        value = "${activeDays}일"
-                    )
-                    CalendarMetric(
-                        modifier = Modifier.weight(1f),
-                        label = "일평균",
-                        value = String.format(Locale.KOREA, "%.1f회", average)
-                    )
-                }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(30.dp),
-                shadowElevation = 8.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        modifier = Modifier.clickable(onClick = onBack),
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = CircleShape,
+                        shadowElevation = 8.dp
                     ) {
-                        MonthNavButton(
-                            label = "이전 달",
-                            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            onClick = viewModel::goPreviousMonth
-                        )
-                        Text(
-                            text = "${state.currentYearMonth.monthNumber}월",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                        MonthNavButton(
-                            label = "다음 달",
-                            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            onClick = viewModel::goNextMonth
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        listOf("일", "월", "화", "수", "목", "금", "토").forEachIndexed { index, dayOfWeek ->
-                            Text(
-                                text = dayOfWeek,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (index == 0) {
-                                    MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
+                        Box(
+                            modifier = Modifier.size(42.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "뒤로가기",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
-                    val days = generateCalendarDays(state.currentYearMonth)
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(7),
-                        modifier = Modifier.fillMaxSize()
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        items(days) { day ->
-                            if (day == null) {
-                                Box(modifier = Modifier.aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO))
-                            } else {
-                                CalendarDayCell(
-                                    day = day,
-                                    count = state.dailyCounts[day] ?: 0,
-                                    isToday = day == today,
-                                    onClick = { onDateSelected(day) }
+                        Text(
+                            text = "기록 캘린더",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${state.currentYearMonth.year}년 ${state.currentYearMonth.monthNumber}월",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(30.dp),
+                    shadowElevation = 10.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CalendarMetric(
+                            modifier = Modifier.weight(1f),
+                            label = "총 기록",
+                            value = "${totalCount}회"
+                        )
+                        CalendarMetric(
+                            modifier = Modifier.weight(1f),
+                            label = "기록한 날",
+                            value = "${activeDays}일"
+                        )
+                        CalendarMetric(
+                            modifier = Modifier.weight(1f),
+                            label = "일평균",
+                            value = String.format(Locale.KOREA, "%.1f회", average)
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(30.dp),
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            MonthNavButton(
+                                label = "이전 달",
+                                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                onClick = viewModel::goPreviousMonth
+                            )
+                            Text(
+                                text = "${state.currentYearMonth.monthNumber}월",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold
+                            )
+                            MonthNavButton(
+                                label = "다음 달",
+                                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                onClick = viewModel::goNextMonth
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            listOf("일", "월", "화", "수", "목", "금", "토").forEachIndexed { index, dayOfWeek ->
+                                Text(
+                                    text = dayOfWeek,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (index == 0) {
+                                        MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.Center
                                 )
+                            }
+                        }
+
+                        val days = generateCalendarDays(state.currentYearMonth)
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(7),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 2.dp)
+                        ) {
+                            items(days) { day ->
+                                if (day == null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO)
+                                            .heightIn(min = CALENDAR_DAY_CELL_MIN_HEIGHT)
+                                    )
+                                } else {
+                                    CalendarDayCell(
+                                        day = day,
+                                        count = state.dailyCounts[day] ?: 0,
+                                        isToday = day == today,
+                                        onClick = { onDateSelected(day) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -295,7 +316,11 @@ private fun CalendarDayCell(
     isToday: Boolean,
     onClick: () -> Unit
 ) {
-    val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.withFixedFontScale()
+    val fixedDayTextStyle = MaterialTheme.typography.bodySmall.withFixedFontScale()
+    val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.copy(
+        fontSize = 10.sp,
+        lineHeight = 12.sp
+    ).withFixedFontScale()
     val backgroundColor = when {
         isToday -> MaterialTheme.colorScheme.primaryContainer
         count > 0 -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = dayCountAlpha(count))
@@ -312,7 +337,8 @@ private fun CalendarDayCell(
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier
             .aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO)
-            .padding(4.dp)
+            .heightIn(min = CALENDAR_DAY_CELL_MIN_HEIGHT)
+            .padding(2.dp)
             .clickable(onClick = onClick)
             .semantics {
                 contentDescription = "${day.monthNumber}월 ${day.dayOfMonth}일, 기록 ${count}회"
@@ -321,14 +347,16 @@ private fun CalendarDayCell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 7.dp, vertical = 8.dp),
+                .padding(horizontal = 6.dp, vertical = 7.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = day.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodySmall,
+                style = fixedDayTextStyle,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                color = textColor
+                color = textColor,
+                maxLines = 1,
+                softWrap = false
             )
 
             if (count > 0) {
@@ -344,7 +372,9 @@ private fun CalendarDayCell(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                     )
                 }
             } else {
@@ -365,6 +395,7 @@ private fun TextStyle.withFixedFontScale(): TextStyle {
 }
 
 private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.76f
+private val CALENDAR_DAY_CELL_MIN_HEIGHT = 60.dp
 
 private fun dayCountAlpha(count: Int): Float {
     return when (count) {
