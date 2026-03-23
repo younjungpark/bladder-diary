@@ -97,6 +97,32 @@ class MainViewModelTest {
         assertNull(viewModel.uiState.value.pendingPdfShareFile)
     }
 
+    @Test
+    fun `지금 기록 시 절박감이 저장소로 전달된다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.addNow(urgency = 4)
+        advanceUntilIdle()
+
+        assertEquals(4, repository.lastAddNowUrgency)
+        assertEquals("배뇨 기록이 저장되었습니다.", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `시간 지정 기록 시 절박감이 저장소로 전달된다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.addAtSelectedTime(hour = 7, minute = 45, urgency = 2)
+        advanceUntilIdle()
+
+        assertEquals(7, repository.lastAddAtHour)
+        assertEquals(45, repository.lastAddAtMinute)
+        assertEquals(2, repository.lastAddAtUrgency)
+        assertEquals("지정한 시간으로 저장되었습니다.", viewModel.uiState.value.message)
+    }
+
     private fun createViewModel(
         repository: FakeVoidingRepository,
         exporter: FakeVoidingPdfExporter
@@ -123,7 +149,8 @@ class MainViewModelTest {
             syncState = SyncState.SYNCED,
             updatedAtEpochMs = 1_000L,
             memo = "메모",
-            volumeMl = 250
+            volumeMl = 250,
+            urgency = 3
         )
     }
 }
@@ -145,21 +172,34 @@ private class FakeVoidingPdfExporter : VoidingPdfExporter {
 
 private class FakeVoidingRepository : VoidingRepository {
     var rangeResult: Result<List<VoidingEvent>> = Result.success(emptyList())
+    var lastAddNowUrgency: Int? = null
+    var lastAddAtHour: Int? = null
+    var lastAddAtMinute: Int? = null
+    var lastAddAtUrgency: Int? = null
     private val events = MutableStateFlow<List<VoidingEvent>>(emptyList())
     private val count = MutableStateFlow(0)
     private val pendingCount = MutableStateFlow(0)
     private val pendingError = MutableStateFlow<String?>(null)
     private val isSyncing = MutableStateFlow(false)
 
-    override suspend fun addNow(memo: String?, volumeMl: Int?): Result<Unit> = Result.success(Unit)
+    override suspend fun addNow(urgency: Int, memo: String?, volumeMl: Int?): Result<Unit> {
+        lastAddNowUrgency = urgency
+        return Result.success(Unit)
+    }
 
     override suspend fun addAt(
         date: LocalDate,
         hour: Int,
         minute: Int,
+        urgency: Int,
         memo: String?,
         volumeMl: Int?
-    ): Result<Unit> = Result.success(Unit)
+    ): Result<Unit> {
+        lastAddAtHour = hour
+        lastAddAtMinute = minute
+        lastAddAtUrgency = urgency
+        return Result.success(Unit)
+    }
 
     override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> = Result.success(Unit)
 

@@ -27,6 +27,8 @@ data class VoidingEventEntity(
     val memo: String? = null,
     @ColumnInfo(name = "volume_ml")
     val volumeMl: Int? = null,
+    @ColumnInfo(name = "urgency")
+    val urgency: Int? = null,
     @ColumnInfo(name = "memo_ciphertext")
     val memoCiphertext: String? = null,
     @ColumnInfo(name = "memo_encryption")

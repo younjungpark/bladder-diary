@@ -41,6 +41,7 @@ class VoidingPdfReportBuilderTest {
         )
 
         assertEquals("첫 메모", report.details.first().memo)
+        assertEquals(1, report.details.first().urgency)
         assertEquals(250, report.dailySummaries.first().totalVolumeMl)
         assertEquals(300, report.dailySummaries.last().totalVolumeMl)
     }
@@ -52,21 +53,24 @@ class VoidingPdfReportBuilderTest {
                 voidedAtEpochMs = 1_000L,
                 localDate = "2026-03-01",
                 memo = "첫 메모",
-                volumeMl = 250
+                volumeMl = 250,
+                urgency = 1
             ),
             event(
                 localId = "b",
                 voidedAtEpochMs = 2_000L,
                 localDate = "2026-03-03",
                 memo = "둘째 메모",
-                volumeMl = 300
+                volumeMl = 300,
+                urgency = 4
             ),
             event(
                 localId = "c",
                 voidedAtEpochMs = 3_000L,
                 localDate = "2026-03-03",
                 memo = null,
-                volumeMl = null
+                volumeMl = null,
+                urgency = null
             )
         )
     }
@@ -76,7 +80,8 @@ class VoidingPdfReportBuilderTest {
         voidedAtEpochMs: Long,
         localDate: String,
         memo: String?,
-        volumeMl: Int?
+        volumeMl: Int?,
+        urgency: Int?
     ): VoidingEvent {
         return VoidingEvent(
             localId = localId,
@@ -87,7 +92,8 @@ class VoidingPdfReportBuilderTest {
             syncState = SyncState.SYNCED,
             updatedAtEpochMs = voidedAtEpochMs,
             memo = memo,
-            volumeMl = volumeMl
+            volumeMl = volumeMl,
+            urgency = urgency
         )
     }
 }

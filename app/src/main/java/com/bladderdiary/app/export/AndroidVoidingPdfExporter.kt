@@ -173,9 +173,9 @@ private class VoidingPdfRenderer(
     private fun drawDetailsTable(report: VoidingPdfReport) {
         drawSectionTitle("상세 기록")
         val columns = if (report.includeMemo) {
-            listOf("날짜" to 90f, "시각" to 60f, "배뇨량" to 75f, "메모" to 250f)
+            listOf("날짜" to 85f, "시각" to 60f, "절박감" to 65f, "배뇨량" to 70f, "메모" to 235f)
         } else {
-            listOf("날짜" to 180f, "시각" to 100f, "배뇨량" to 195f)
+            listOf("날짜" to 180f, "시각" to 100f, "절박감" to 85f, "배뇨량" to 150f)
         }
         drawTableHeader(columns)
 
@@ -249,20 +249,27 @@ private class VoidingPdfRenderer(
     ) {
         val dateX = PAGE_MARGIN + 4f
         val timeX = PAGE_MARGIN + columns[0].second + 4f
-        val volumeX = PAGE_MARGIN + columns[0].second + columns[1].second + 4f
+        val urgencyX = PAGE_MARGIN + columns[0].second + columns[1].second + 4f
+        val volumeX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + 4f
         val topY = cursorY
 
         drawText(row.localDate, dateX, topY, bodyPaint)
         drawText(row.voidedAtEpochMs.toTimeLabel(), timeX, topY, bodyPaint)
+        drawText(row.urgency?.toString().orEmpty().ifBlank { "-" }, urgencyX, topY, bodyPaint)
         drawText(row.volumeMl?.let { "${it} mL" }.orEmpty().ifBlank { "-" }, volumeX, topY, bodyPaint)
 
         if (includeMemo) {
-            val memoX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + 4f
+            val memoX = PAGE_MARGIN
+                    + columns[0].second
+                    + columns[1].second
+                    + columns[2].second
+                    + columns[3].second
+                    + 4f
             drawWrappedText(
                 text = row.memo.orEmpty().ifBlank { "-" },
                 x = memoX,
                 top = topY - bodyPaint.textSize,
-                width = (columns[3].second - 8f).toInt(),
+                width = (columns[4].second - 8f).toInt(),
                 paint = bodyPaint,
                 maxLines = DETAIL_MEMO_MAX_LINES
             )
@@ -280,7 +287,7 @@ private class VoidingPdfRenderer(
     ): Float {
         if (!includeMemo) return 24f
 
-        val memoWidth = (columns[3].second - 8f).toInt()
+        val memoWidth = (columns[4].second - 8f).toInt()
         val layout = buildTextLayout(
             text = row.memo.orEmpty().ifBlank { "-" },
             width = memoWidth,

@@ -13,6 +13,7 @@ fun VoidingEventEntity.toDomain(): VoidingEvent {
         syncState = syncState,
         updatedAtEpochMs = updatedAtEpochMs,
         memo = memo,
-        volumeMl = volumeMl
+        volumeMl = volumeMl,
+        urgency = urgency
     )
 }

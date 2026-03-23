@@ -94,10 +94,10 @@ class MainViewModel(
         }
     }
 
-    fun addNow(memo: String? = null) {
+    fun addNow(urgency: Int, memo: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(memo)
+            val result = addVoidingEventUseCase(urgency, memo)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -107,11 +107,11 @@ class MainViewModel(
         }
     }
 
-    fun addAtSelectedTime(hour: Int, minute: Int, memo: String? = null) {
+    fun addAtSelectedTime(hour: Int, minute: Int, urgency: Int, memo: String? = null) {
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(date, hour, minute, memo)
+            val result = addVoidingEventUseCase(date, hour, minute, urgency, memo)
             _uiState.update {
                 it.copy(
                     isAdding = false,

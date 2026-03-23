@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +21,65 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.datetime.LocalDate
+
+@Composable
+internal fun UrgencyInputDialog(
+    isVisible: Boolean,
+    urgency: Int,
+    selectedTimeText: String?,
+    onUrgencyChange: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (!isVisible) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("절박감 입력") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = selectedTimeText?.let { "$it 기록의 절박감을 선택해 주세요." }
+                        ?: "이번 기록의 절박감을 선택해 주세요.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "1은 절박감 없음, 5는 절박감 강함입니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    (1..5).forEach { level ->
+                        FilterChip(
+                            selected = urgency == level,
+                            onClick = { onUrgencyChange(level) },
+                            label = { Text(level.toString()) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Text(
+                    text = "현재 선택: ${urgency.toUrgencyDescription()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("기록")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
 
 @Composable
 internal fun PdfExportDialog(

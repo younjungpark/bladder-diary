@@ -19,6 +19,8 @@ data class VoidingEventRemoteDto(
     val deletedAt: String? = null,
     @SerialName("volume_ml")
     val volumeMl: Int? = null,
+    @SerialName("urgency")
+    val urgency: Int? = null,
     @SerialName("memo_ciphertext")
     val memoCiphertext: String? = null,
     @SerialName("memo_encryption")

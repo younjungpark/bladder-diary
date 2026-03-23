@@ -604,7 +604,15 @@ private fun RecordsTableHeader(palette: HomePalette) {
             color = palette.tableHeaderText,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1.05f)
+            modifier = Modifier.weight(0.95f)
+        )
+        Text(
+            text = "절박감",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.tableHeaderText,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(0.72f)
         )
         Text(
             text = "배뇨량",
@@ -669,6 +677,7 @@ private fun EventRow(
 ) {
     val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
     val hasVolume = event.volumeMl != null
+    val hasUrgency = event.urgency != null
     val hasMemo = !event.memo.isNullOrBlank()
     val timeLabel = "$periodText $timeText"
     var actionsExpanded by remember { mutableStateOf(false) }
@@ -715,7 +724,17 @@ private fun EventRow(
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1.05f)
+                modifier = Modifier.weight(0.95f)
+            )
+
+            Text(
+                text = event.urgency?.toUrgencyLabel() ?: "-",
+                color = if (hasUrgency) palette.badgeText else palette.mutedText,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = if (hasUrgency) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(0.72f)
             )
 
             Text(

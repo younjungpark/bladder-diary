@@ -375,6 +375,20 @@ internal fun Int.toVolumeLabel(): String {
     return "$this mL"
 }
 
+internal fun Int.toUrgencyLabel(): String {
+    return toString()
+}
+
+internal fun Int.toUrgencyDescription(): String {
+    return when (this) {
+        1 -> "절박감 없음"
+        2 -> "절박감 약함"
+        3 -> "절박감 보통"
+        4 -> "절박감 강함"
+        else -> "절박감 매우 강함"
+    }
+}
+
 @Composable
 internal fun rememberHomePalette(): HomePalette {
     return if (isSystemInDarkTheme()) {

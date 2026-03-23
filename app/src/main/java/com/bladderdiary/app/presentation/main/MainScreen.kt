@@ -56,6 +56,9 @@ fun MainScreen(
     var pdfStartDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfEndDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfIncludeMemo by remember { mutableStateOf(false) }
+    var showUrgencyDialog by remember { mutableStateOf(false) }
+    var selectedUrgency by remember { mutableStateOf(3) }
+    var pendingSelectedTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -103,7 +106,11 @@ fun MainScreen(
                     palette = palette,
                     isAdding = state.isAdding,
                     isE2eeChecking = isE2eeChecking,
-                    onAddNow = { viewModel.addNow(null) },
+                    onAddNow = {
+                        pendingSelectedTime = null
+                        selectedUrgency = 3
+                        showUrgencyDialog = true
+                    },
                     onAddAtTime = {
                         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                         val isToday = state.selectedDate == now.date
@@ -112,7 +119,9 @@ fun MainScreen(
                         TimePickerDialog(
                             context,
                             { _, hourOfDay, minute ->
-                                viewModel.addAtSelectedTime(hourOfDay, minute, null)
+                                pendingSelectedTime = hourOfDay to minute
+                                selectedUrgency = 3
+                                showUrgencyDialog = true
                             },
                             initialHour,
                             initialMinute,
@@ -220,6 +229,36 @@ fun MainScreen(
         confirmDeleteEventId = state.confirmDeleteEventId,
         onDismiss = viewModel::dismissDeleteDialog,
         onConfirm = viewModel::confirmDelete
+    )
+
+    UrgencyInputDialog(
+        isVisible = showUrgencyDialog,
+        urgency = selectedUrgency,
+        selectedTimeText = pendingSelectedTime?.let { (hour, minute) ->
+            "%02d:%02d".format(hour, minute)
+        },
+        onUrgencyChange = { selectedUrgency = it },
+        onDismiss = {
+            showUrgencyDialog = false
+            pendingSelectedTime = null
+            selectedUrgency = 3
+        },
+        onConfirm = {
+            val timeSelection = pendingSelectedTime
+            showUrgencyDialog = false
+            pendingSelectedTime = null
+            if (timeSelection == null) {
+                viewModel.addNow(urgency = selectedUrgency, memo = null)
+            } else {
+                viewModel.addAtSelectedTime(
+                    hour = timeSelection.first,
+                    minute = timeSelection.second,
+                    urgency = selectedUrgency,
+                    memo = null
+                )
+            }
+            selectedUrgency = 3
+        }
     )
 
     PdfExportDialog(

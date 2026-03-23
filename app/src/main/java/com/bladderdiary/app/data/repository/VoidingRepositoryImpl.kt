@@ -43,10 +43,13 @@ class VoidingRepositoryImpl(
     private val queueDao = db.syncQueueDao()
     private val activeSyncCount = MutableStateFlow(0)
 
-    override suspend fun addNow(memo: String?, volumeMl: Int?): Result<Unit> {
+    override suspend fun addNow(urgency: Int, memo: String?, volumeMl: Int?): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
+        if (urgency !in 1..5) {
+            return Result.failure(IllegalArgumentException("절박감은 1부터 5 사이여야 합니다."))
+        }
 
         return runCatching {
             val now = Clock.System.now()
@@ -54,6 +57,7 @@ class VoidingRepositoryImpl(
                 userId = session.userId,
                 epochMs = now.toEpochMilliseconds(),
                 localDate = now.toLocalDate(),
+                urgency = urgency,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -61,12 +65,22 @@ class VoidingRepositoryImpl(
         }
     }
 
-    override suspend fun addAt(date: LocalDate, hour: Int, minute: Int, memo: String?, volumeMl: Int?): Result<Unit> {
+    override suspend fun addAt(
+        date: LocalDate,
+        hour: Int,
+        minute: Int,
+        urgency: Int,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
         if (hour !in 0..23 || minute !in 0..59) {
             return Result.failure(IllegalArgumentException("시간 형식이 올바르지 않습니다."))
+        }
+        if (urgency !in 1..5) {
+            return Result.failure(IllegalArgumentException("절박감은 1부터 5 사이여야 합니다."))
         }
 
         return runCatching {
@@ -78,6 +92,7 @@ class VoidingRepositoryImpl(
                 userId = session.userId,
                 epochMs = epochMs,
                 localDate = date.toString(),
+                urgency = urgency,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -327,6 +342,7 @@ class VoidingRepositoryImpl(
                         updatedAtEpochMs = updatedEpochMs,
                         memo = memo,
                         volumeMl = dto.volumeMl.normalizedVolumeMl(),
+                        urgency = dto.urgency.normalizedUrgency(),
                         memoCiphertext = dto.memoCiphertext,
                         memoEncryption = memoEncryption
                     )
@@ -354,6 +370,7 @@ class VoidingRepositoryImpl(
             clientRef = event.localId,
             deletedAt = null,
             volumeMl = event.volumeMl,
+            urgency = event.urgency,
             memoCiphertext = event.memoCiphertext,
             memoEncryption = event.memoEncryption
         )
@@ -373,6 +390,7 @@ class VoidingRepositoryImpl(
         userId: String,
         epochMs: Long,
         localDate: String,
+        urgency: Int,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -393,6 +411,7 @@ class VoidingRepositoryImpl(
             updatedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
             memo = memo,
             volumeMl = volumeMl.normalizedVolumeMl(),
+            urgency = urgency.normalizedUrgency(),
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption
         )
@@ -435,6 +454,7 @@ class VoidingRepositoryImpl(
                     syncState = SyncState.PENDING_CREATE,
                     updatedAtEpochMs = nowEpochMs,
                     volumeMl = event.volumeMl.normalizedVolumeMl(),
+                    urgency = event.urgency.normalizedUrgency(),
                     memoCiphertext = memoPayload.memoCiphertext,
                     memoEncryption = memoPayload.memoEncryption
                 )
@@ -509,6 +529,7 @@ class VoidingRepositoryImpl(
         val updatedEvent = event.copy(
             memo = memo,
             volumeMl = volumeMl.normalizedVolumeMl(),
+            urgency = event.urgency.normalizedUrgency(),
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption,
             syncState = SyncState.PENDING_CREATE,
@@ -540,4 +561,8 @@ private fun Throwable?.isJwtExpired(): Boolean {
 
 private fun Int?.normalizedVolumeMl(): Int? {
     return this?.takeIf { it > 0 }
+}
+
+private fun Int?.normalizedUrgency(): Int? {
+    return this?.takeIf { it in 1..5 }
 }

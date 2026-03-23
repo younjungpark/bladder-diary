@@ -38,6 +38,7 @@ data class VoidingPdfDetail(
     val localDate: String,
     val voidedAtEpochMs: Long,
     val volumeMl: Int?,
+    val urgency: Int?,
     val memo: String?
 )
 
