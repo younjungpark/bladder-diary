@@ -69,14 +69,11 @@ internal fun MainContent(
     val averageIntervalMillis = remember(sortedEvents) {
         sortedEvents.toAverageIntervalMillis()
     }
-    val syncSummary = remember(state.pendingSyncCount, state.pendingSyncError, state.isSyncing) {
-        state.toSyncSummary()
-    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, top = 14.dp, end = 20.dp, bottom = 124.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 124.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             HeroDateCard(
@@ -94,8 +91,7 @@ internal fun MainContent(
                 palette = palette,
                 dailyVolumeMl = state.dailyVolumeMl ?: 0,
                 dailyCount = state.dailyCount,
-                averageIntervalMillis = averageIntervalMillis,
-                syncSummary = syncSummary
+                averageIntervalMillis = averageIntervalMillis
             )
         }
 
@@ -117,7 +113,6 @@ internal fun MainContent(
         item {
             SectionHeader(
                 title = if (state.selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
-                supporting = "${sortedEvents.size}개의 기록",
                 palette = palette
             )
         }
@@ -169,7 +164,7 @@ private fun HeroDateCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -189,9 +184,9 @@ private fun HeroDateCard(
                     .clip(RoundedCornerShape(20.dp))
                     .clickable(onClick = onPickDate)
                     .background(palette.surfaceMuted)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = selectedDate.toHeroDateText(),
@@ -227,13 +222,11 @@ private fun SummarySection(
     palette: HomePalette,
     dailyVolumeMl: Int,
     dailyCount: Int,
-    averageIntervalMillis: Long?,
-    syncSummary: SyncSummary
+    averageIntervalMillis: Long?
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(
             title = "오늘의 요약",
-            supporting = syncSummary.supporting,
             palette = palette
         )
 
@@ -272,12 +265,12 @@ private fun SummarySection(
 @Composable
 private fun SectionHeader(
     title: String,
-    supporting: String,
+    supporting: String? = null,
     palette: HomePalette
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = if (supporting != null) Arrangement.SpaceBetween else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
         Text(
@@ -286,12 +279,14 @@ private fun SectionHeader(
             color = palette.titleText,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            text = supporting,
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.subtleText,
-            fontWeight = FontWeight.Bold
-        )
+        supporting?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.subtleText,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -739,19 +734,6 @@ private fun RecordsEmptyState(
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-private data class SyncSummary(
-    val supporting: String
-)
-
-private fun MainUiState.toSyncSummary(): SyncSummary {
-    return when {
-        isSyncing -> SyncSummary(supporting = "동기화 중")
-        pendingSyncError != null && pendingSyncCount > 0 -> SyncSummary(supporting = "${pendingSyncCount}건 보관")
-        pendingSyncCount > 0 -> SyncSummary(supporting = "${pendingSyncCount}건 대기")
-        else -> SyncSummary(supporting = "실시간 반영")
     }
 }
 

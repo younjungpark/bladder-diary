@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,6 +28,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -44,7 +46,9 @@ fun MainScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     val palette = rememberHomePalette()
+    val syncStatus = state.toHomeSyncStatus(palette)
     val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
 
     var menuExpanded by remember { mutableStateOf(false) }
@@ -104,11 +108,17 @@ fun MainScreen(
             topBar = {
                 MainTopBar(
                     palette = palette,
-                    syncStatus = state.toHomeSyncStatus(palette),
+                    syncStatus = syncStatus,
                     isPinSet = isPinSet,
                     isE2eeEnabled = isE2eeEnabled,
                     isE2eeChecking = isE2eeChecking,
                     menuExpanded = menuExpanded,
+                    onShowSyncStatus = {
+                        coroutineScope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            snackbarHostState.showSnackbar(syncStatus.message)
+                        }
+                    },
                     onOpenMenu = { menuExpanded = true },
                     onDismissMenu = { menuExpanded = false },
                     onTogglePin = {

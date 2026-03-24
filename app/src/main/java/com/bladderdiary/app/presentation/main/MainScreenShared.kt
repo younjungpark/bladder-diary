@@ -83,6 +83,7 @@ internal fun MainTopBar(
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
     menuExpanded: Boolean,
+    onShowSyncStatus: () -> Unit,
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
@@ -95,7 +96,7 @@ internal fun MainTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -137,7 +138,8 @@ internal fun MainTopBar(
                     .size(42.dp)
                     .clip(CircleShape)
                     .background(palette.surfaceStrong)
-                    .border(1.dp, palette.borderSoft, CircleShape),
+                    .border(1.dp, palette.borderSoft, CircleShape)
+                    .clickable(onClick = onShowSyncStatus),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -516,6 +518,7 @@ internal fun rememberHomePalette(): HomePalette {
 internal data class HomeSyncStatus(
     val icon: ImageVector,
     val label: String,
+    val message: String,
     val tint: Color
 )
 
@@ -524,21 +527,25 @@ internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus 
         isSyncing -> HomeSyncStatus(
             icon = Icons.Default.CloudUpload,
             label = "동기화 중",
+            message = "클라우드에 기록을 동기화하는 중입니다.",
             tint = palette.syncPendingTint
         )
         pendingSyncError != null && pendingSyncCount > 0 -> HomeSyncStatus(
             icon = Icons.Default.CloudOff,
             label = "동기화 오류",
+            message = "동기화에 문제가 있어 ${pendingSyncCount}건을 기기에 안전하게 보관 중입니다.",
             tint = palette.syncErrorTint
         )
         pendingSyncCount > 0 -> HomeSyncStatus(
             icon = Icons.Default.CloudUpload,
             label = "동기화 대기 ${pendingSyncCount}건",
+            message = "${pendingSyncCount}건의 기록이 동기화를 기다리고 있습니다.",
             tint = palette.syncPendingTint
         )
         else -> HomeSyncStatus(
             icon = Icons.Default.CloudDone,
             label = "동기화 완료",
+            message = "클라우드 동기화가 완료되었습니다.",
             tint = palette.syncReadyTint
         )
     }
