@@ -275,9 +275,12 @@ private fun SectionHeader(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 18.sp,
+                lineHeight = 22.sp
+            ),
             color = palette.titleText,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.SemiBold
         )
         supporting?.let {
             Text(
