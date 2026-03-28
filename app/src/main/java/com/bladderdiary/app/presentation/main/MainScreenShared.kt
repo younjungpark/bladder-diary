@@ -50,8 +50,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -249,12 +251,17 @@ internal fun QuickActionBar(
     onAddNow: () -> Unit,
     onAddAtTime: () -> Unit
 ) {
+    val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(
+                horizontal = if (isCompactWidth) 16.dp else 20.dp,
+                vertical = 16.dp
+            ),
+        horizontalArrangement = Arrangement.spacedBy(if (isCompactWidth) 12.dp else 16.dp)
     ) {
         MainActionButton(
             modifier = Modifier.weight(1f),
@@ -266,6 +273,7 @@ internal fun QuickActionBar(
             contentColor = palette.primaryButtonText,
             borderColor = Color.Transparent,
             enabled = !isAdding && !isE2eeChecking,
+            compact = isCompactWidth,
             onClick = onAddNow
         )
         MainActionButton(
@@ -278,6 +286,7 @@ internal fun QuickActionBar(
             contentColor = palette.secondaryButtonText,
             borderColor = palette.secondaryButtonBorder,
             enabled = !isAdding && !isE2eeChecking,
+            compact = isCompactWidth,
             onClick = onAddAtTime
         )
     }
@@ -292,9 +301,15 @@ private fun MainActionButton(
     contentColor: Color,
     borderColor: Color,
     enabled: Boolean,
+    compact: Boolean,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
+    val horizontalPadding = if (compact) 12.dp else 16.dp
+    val iconSize = if (compact) 18.dp else 20.dp
+    val textFontSize = if (compact) 13.sp else 16.sp
+    val textLineHeight = if (compact) 16.sp else 20.sp
+    val itemSpacing = if (compact) 6.dp else 8.dp
 
     Box(
         modifier = modifier
@@ -304,24 +319,29 @@ private fun MainActionButton(
             .background(background)
             .border(1.dp, borderColor, shape)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.Center
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(iconSize)
             )
             Text(
                 text = text,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = textFontSize,
+                    lineHeight = textLineHeight
+                ),
                 color = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

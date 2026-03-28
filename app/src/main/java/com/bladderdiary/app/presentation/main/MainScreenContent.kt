@@ -249,70 +249,37 @@ private fun SummarySection(
             palette = palette
         )
 
-        if (compact) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                SummaryMetricCard(
-                    modifier = Modifier.weight(1f),
-                    palette = palette,
-                    icon = Icons.Default.WaterDrop,
-                    label = "배뇨량",
-                    value = dailyVolumeMl.toString(),
-                    unit = "mL",
-                    compact = true
-                )
-                SummaryMetricCard(
-                    modifier = Modifier.weight(1f),
-                    palette = palette,
-                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
-                    label = "횟수",
-                    value = dailyCount.toString(),
-                    unit = "회",
-                    compact = true
-                )
-            }
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp)
+        ) {
             SummaryMetricCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
+                palette = palette,
+                icon = Icons.Default.WaterDrop,
+                label = "배뇨량",
+                value = dailyVolumeMl.toString(),
+                unit = "mL",
+                compact = compact
+            )
+            SummaryMetricCard(
+                modifier = Modifier.weight(1f),
+                palette = palette,
+                icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                label = "횟수",
+                value = dailyCount.toString(),
+                unit = "회",
+                compact = compact
+            )
+            SummaryMetricCard(
+                modifier = Modifier.weight(1f),
                 palette = palette,
                 icon = Icons.Default.Schedule,
                 label = "평균 간격",
                 value = averageIntervalMillis.toMetricValue(),
                 unit = null,
-                compact = true
+                compact = compact
             )
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                SummaryMetricCard(
-                    modifier = Modifier.weight(1f),
-                    palette = palette,
-                    icon = Icons.Default.WaterDrop,
-                    label = "배뇨량",
-                    value = dailyVolumeMl.toString(),
-                    unit = "mL"
-                )
-                SummaryMetricCard(
-                    modifier = Modifier.weight(1f),
-                    palette = palette,
-                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
-                    label = "횟수",
-                    value = dailyCount.toString(),
-                    unit = "회"
-                )
-                SummaryMetricCard(
-                    modifier = Modifier.weight(1f),
-                    palette = palette,
-                    icon = Icons.Default.Schedule,
-                    label = "평균 간격",
-                    value = averageIntervalMillis.toMetricValue(),
-                    unit = null
-                )
-            }
         }
     }
 }
@@ -359,43 +326,43 @@ private fun SummaryMetricCard(
     compact: Boolean = false
 ) {
     val labelFontSize = when {
-        compact && label.length >= 5 -> 8.sp
-        compact -> 9.sp
+        compact && label.length >= 5 -> 7.5.sp
+        compact -> 8.5.sp
         label.length >= 5 -> 9.sp
         else -> 10.sp
     }
     val labelLineHeight = when {
-        compact && label.length >= 5 -> 10.sp
-        compact -> 11.sp
+        compact && label.length >= 5 -> 9.sp
+        compact -> 10.sp
         label.length >= 5 -> 11.sp
         else -> 12.sp
     }
     val valueFontSize = when {
-        compact && value.length >= 5 -> 16.sp
-        compact && value.length >= 3 -> 18.sp
-        compact -> 20.sp
+        compact && value.length >= 5 -> 15.sp
+        compact && value.length >= 3 -> 17.sp
+        compact -> 19.sp
         value.length >= 5 -> 18.sp
         value.length >= 3 -> 20.sp
         else -> 22.sp
     }
     val valueLineHeight = when {
-        compact && value.length >= 5 -> 18.sp
-        compact && value.length >= 3 -> 20.sp
-        compact -> 22.sp
+        compact && value.length >= 5 -> 17.sp
+        compact && value.length >= 3 -> 19.sp
+        compact -> 21.sp
         value.length >= 5 -> 20.sp
         value.length >= 3 -> 22.sp
         else -> 24.sp
     }
-    val iconContainerSize = if (compact) 22.dp else 24.dp
-    val iconSize = if (compact) 12.dp else 13.dp
-    val contentPaddingHorizontal = if (compact) 11.dp else 12.dp
-    val contentPaddingVertical = if (compact) 9.dp else 10.dp
+    val iconContainerSize = if (compact) 20.dp else 24.dp
+    val iconSize = if (compact) 11.dp else 13.dp
+    val contentPaddingHorizontal = if (compact) 8.dp else 12.dp
+    val contentPaddingVertical = if (compact) 8.dp else 10.dp
 
     Surface(
         modifier = modifier,
         color = palette.surfaceStrong,
-        shape = RoundedCornerShape(22.dp),
-        shadowElevation = 8.dp
+        shape = RoundedCornerShape(if (compact) 20.dp else 22.dp),
+        shadowElevation = if (compact) 6.dp else 8.dp
     ) {
         Column(
             modifier = Modifier.padding(
@@ -431,7 +398,7 @@ private fun SummaryMetricCard(
                     ),
                     color = palette.bodyText,
                     fontWeight = FontWeight.Bold,
-                    maxLines = if (compact) 2 else 1,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
@@ -456,8 +423,8 @@ private fun SummaryMetricCard(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = if (compact) 9.sp else 10.sp,
-                            lineHeight = if (compact) 11.sp else 12.sp
+                            fontSize = if (compact) 8.5.sp else 10.sp,
+                            lineHeight = if (compact) 10.sp else 12.sp
                         ),
                         color = palette.mutedText,
                         modifier = Modifier.padding(bottom = 3.dp)
