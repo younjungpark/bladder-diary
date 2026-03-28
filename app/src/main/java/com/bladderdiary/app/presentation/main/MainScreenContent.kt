@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +64,7 @@ internal fun MainContent(
     onOpenVolume: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
 ) {
+    val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
     val sortedEvents = remember(state.events) {
         state.events.sortedByDescending { it.voidedAtEpochMs }
     }
@@ -80,6 +82,7 @@ internal fun MainContent(
                 palette = palette,
                 selectedDate = state.selectedDate,
                 today = today,
+                compact = isCompactWidth,
                 onPreviousDay = onPreviousDay,
                 onNextDay = onNextDay,
                 onPickDate = onPickDate
@@ -91,7 +94,8 @@ internal fun MainContent(
                 palette = palette,
                 dailyVolumeMl = state.dailyVolumeMl ?: 0,
                 dailyCount = state.dailyCount,
-                averageIntervalMillis = averageIntervalMillis
+                averageIntervalMillis = averageIntervalMillis,
+                compact = isCompactWidth
             )
         }
 
@@ -151,10 +155,19 @@ private fun HeroDateCard(
     palette: HomePalette,
     selectedDate: LocalDate,
     today: LocalDate,
+    compact: Boolean,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onPickDate: () -> Unit
 ) {
+    val buttonSize = if (compact) 34.dp else 38.dp
+    val iconSize = if (compact) 16.dp else 18.dp
+    val cardPaddingHorizontal = if (compact) 12.dp else 16.dp
+    val cardPaddingVertical = if (compact) 10.dp else 8.dp
+    val titleFontSize = if (compact) 22.sp else 26.sp
+    val titleLineHeight = if (compact) 26.sp else 30.sp
+    val heroDateText = if (compact) selectedDate.toCompactHeroDateText() else selectedDate.toHeroDateText()
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = palette.surfaceStrong,
@@ -172,8 +185,8 @@ private fun HeroDateCard(
                 palette = palette,
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "이전 날짜",
-                buttonSize = 38.dp,
-                iconSize = 18.dp,
+                buttonSize = buttonSize,
+                iconSize = iconSize,
                 cornerRadius = 14.dp,
                 onClick = onPreviousDay
             )
@@ -184,17 +197,22 @@ private fun HeroDateCard(
                     .clip(RoundedCornerShape(20.dp))
                     .clickable(onClick = onPickDate)
                     .background(palette.surfaceMuted)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = cardPaddingHorizontal, vertical = cardPaddingVertical),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = selectedDate.toHeroDateText(),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = heroDateText,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = titleFontSize,
+                        lineHeight = titleLineHeight
+                    ),
                     color = palette.titleText,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    textAlign = TextAlign.Center,
+                    maxLines = if (compact) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Text(
                     text = selectedDate.toHeroCaption(today),
@@ -208,8 +226,8 @@ private fun HeroDateCard(
                 palette = palette,
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "다음 날짜",
-                buttonSize = 38.dp,
-                iconSize = 18.dp,
+                buttonSize = buttonSize,
+                iconSize = iconSize,
                 cornerRadius = 14.dp,
                 onClick = onNextDay
             )
@@ -222,7 +240,8 @@ private fun SummarySection(
     palette: HomePalette,
     dailyVolumeMl: Int,
     dailyCount: Int,
-    averageIntervalMillis: Long?
+    averageIntervalMillis: Long?,
+    compact: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(
@@ -230,34 +249,70 @@ private fun SummarySection(
             palette = palette
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        if (compact) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    palette = palette,
+                    icon = Icons.Default.WaterDrop,
+                    label = "배뇨량",
+                    value = dailyVolumeMl.toString(),
+                    unit = "mL",
+                    compact = true
+                )
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    palette = palette,
+                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                    label = "횟수",
+                    value = dailyCount.toString(),
+                    unit = "회",
+                    compact = true
+                )
+            }
+
             SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                palette = palette,
-                icon = Icons.Default.WaterDrop,
-                label = "배뇨량",
-                value = dailyVolumeMl.toString(),
-                unit = "mL"
-            )
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                palette = palette,
-                icon = Icons.AutoMirrored.Filled.FormatListBulleted,
-                label = "횟수",
-                value = dailyCount.toString(),
-                unit = "회"
-            )
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 palette = palette,
                 icon = Icons.Default.Schedule,
                 label = "평균 간격",
                 value = averageIntervalMillis.toMetricValue(),
-                unit = null
+                unit = null,
+                compact = true
             )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    palette = palette,
+                    icon = Icons.Default.WaterDrop,
+                    label = "배뇨량",
+                    value = dailyVolumeMl.toString(),
+                    unit = "mL"
+                )
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    palette = palette,
+                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                    label = "횟수",
+                    value = dailyCount.toString(),
+                    unit = "회"
+                )
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    palette = palette,
+                    icon = Icons.Default.Schedule,
+                    label = "평균 간격",
+                    value = averageIntervalMillis.toMetricValue(),
+                    unit = null
+                )
+            }
         }
     }
 }
@@ -300,20 +355,41 @@ private fun SummaryMetricCard(
     icon: ImageVector,
     label: String,
     value: String,
-    unit: String?
+    unit: String?,
+    compact: Boolean = false
 ) {
-    val labelFontSize = if (label.length >= 5) 9.sp else 10.sp
-    val labelLineHeight = if (label.length >= 5) 11.sp else 12.sp
+    val labelFontSize = when {
+        compact && label.length >= 5 -> 8.sp
+        compact -> 9.sp
+        label.length >= 5 -> 9.sp
+        else -> 10.sp
+    }
+    val labelLineHeight = when {
+        compact && label.length >= 5 -> 10.sp
+        compact -> 11.sp
+        label.length >= 5 -> 11.sp
+        else -> 12.sp
+    }
     val valueFontSize = when {
+        compact && value.length >= 5 -> 16.sp
+        compact && value.length >= 3 -> 18.sp
+        compact -> 20.sp
         value.length >= 5 -> 18.sp
         value.length >= 3 -> 20.sp
         else -> 22.sp
     }
     val valueLineHeight = when {
+        compact && value.length >= 5 -> 18.sp
+        compact && value.length >= 3 -> 20.sp
+        compact -> 22.sp
         value.length >= 5 -> 20.sp
         value.length >= 3 -> 22.sp
         else -> 24.sp
     }
+    val iconContainerSize = if (compact) 22.dp else 24.dp
+    val iconSize = if (compact) 12.dp else 13.dp
+    val contentPaddingHorizontal = if (compact) 11.dp else 12.dp
+    val contentPaddingVertical = if (compact) 9.dp else 10.dp
 
     Surface(
         modifier = modifier,
@@ -322,7 +398,10 @@ private fun SummaryMetricCard(
         shadowElevation = 8.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(
+                horizontal = contentPaddingHorizontal,
+                vertical = contentPaddingVertical
+            ),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Row(
@@ -331,7 +410,7 @@ private fun SummaryMetricCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(iconContainerSize)
                         .clip(CircleShape)
                         .background(palette.surfaceTint),
                     contentAlignment = Alignment.Center
@@ -340,7 +419,7 @@ private fun SummaryMetricCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = palette.primaryStrong,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(iconSize)
                     )
                 }
 
@@ -352,8 +431,9 @@ private fun SummaryMetricCard(
                     ),
                     color = palette.bodyText,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = if (compact) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -376,8 +456,8 @@ private fun SummaryMetricCard(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            lineHeight = 12.sp
+                            fontSize = if (compact) 9.sp else 10.sp,
+                            lineHeight = if (compact) 11.sp else 12.sp
                         ),
                         color = palette.mutedText,
                         modifier = Modifier.padding(bottom = 3.dp)

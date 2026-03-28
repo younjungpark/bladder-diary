@@ -5,11 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,8 +35,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.SocialProvider
 
@@ -43,6 +49,7 @@ fun AuthScreen(
     viewModel: AuthViewModel
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
     val primaryGlow = MaterialTheme.colorScheme.primary.copy(alpha = 0.07f)
     val secondaryGlow = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f)
     val tertiaryGlow = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f)
@@ -79,7 +86,10 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 32.dp),
+                .padding(
+                    horizontal = if (isCompactWidth) 18.dp else 24.dp,
+                    vertical = if (isCompactWidth) 28.dp else 32.dp
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -112,7 +122,7 @@ fun AuthScreen(
                 text = "소셜 계정으로 바로 시작하고, 중요한 기록은 같은 톤의 화면 안에서 빠르게 확인할 수 있습니다.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(0.9f)
+                modifier = Modifier.fillMaxWidth(if (isCompactWidth) 1f else 0.9f)
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -126,7 +136,10 @@ fun AuthScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 22.dp, vertical = 24.dp),
+                        .padding(
+                            horizontal = if (isCompactWidth) 18.dp else 22.dp,
+                            vertical = 24.dp
+                        ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
@@ -143,9 +156,9 @@ fun AuthScreen(
 
                     SocialLoginButton(
                         text = if (state.pendingProvider == SocialProvider.GOOGLE && state.isOAuthLoading) {
-                            "Google 로그인 진행 중"
+                            if (isCompactWidth) "Google 로그인 중" else "Google 로그인 진행 중"
                         } else {
-                            "Google 계정으로 계속"
+                            if (isCompactWidth) "Google 로그인" else "Google 계정으로 계속"
                         },
                         icon = Icons.Default.AccountCircle,
                         backgroundColor = Color.White,
@@ -153,20 +166,22 @@ fun AuthScreen(
                         borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
                         loading = state.pendingProvider == SocialProvider.GOOGLE && state.isOAuthLoading,
                         enabled = !state.isOAuthLoading,
+                        compact = isCompactWidth,
                         onClick = { viewModel.signInWithSocial(SocialProvider.GOOGLE) }
                     )
 
                     SocialLoginButton(
                         text = if (state.pendingProvider == SocialProvider.KAKAO && state.isOAuthLoading) {
-                            "카카오 로그인 진행 중"
+                            if (isCompactWidth) "카카오 로그인 중" else "카카오 로그인 진행 중"
                         } else {
-                            "카카오 계정으로 계속"
+                            if (isCompactWidth) "카카오 로그인" else "카카오 계정으로 계속"
                         },
                         icon = Icons.Default.Person,
                         backgroundColor = Color(0xFFFEE500),
                         contentColor = Color(0xFF171D1D),
                         loading = state.pendingProvider == SocialProvider.KAKAO && state.isOAuthLoading,
                         enabled = !state.isOAuthLoading,
+                        compact = isCompactWidth,
                         onClick = { viewModel.signInWithSocial(SocialProvider.KAKAO) }
                     )
 
@@ -198,6 +213,7 @@ private fun SocialLoginButton(
     borderColor: Color? = null,
     loading: Boolean,
     enabled: Boolean,
+    compact: Boolean,
     onClick: () -> Unit
 ) {
     Button(
@@ -205,7 +221,7 @@ private fun SocialLoginButton(
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp),
+            .heightIn(min = if (compact) 64.dp else 58.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor,
             contentColor = contentColor,
@@ -214,11 +230,14 @@ private fun SocialLoginButton(
         ),
         shape = RoundedCornerShape(20.dp),
         border = borderColor?.let { BorderStroke(1.dp, it) },
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+        contentPadding = PaddingValues(
+            horizontal = if (compact) 14.dp else 18.dp,
+            vertical = if (compact) 10.dp else 8.dp
+        )
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -244,12 +263,21 @@ private fun SocialLoginButton(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 10.dp))
             Text(
                 text = text,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = if (compact) 15.sp else 16.sp,
+                    lineHeight = if (compact) 19.sp else 20.sp
+                ),
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 10.dp))
+            Box(modifier = Modifier.size(30.dp))
         }
     }
 }

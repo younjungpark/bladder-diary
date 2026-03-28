@@ -5,8 +5,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import android.text.Layout
-import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import androidx.core.content.FileProvider
@@ -15,6 +13,7 @@ import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.ceil
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -172,11 +171,7 @@ private class VoidingPdfRenderer(
 
     private fun drawDetailsTable(report: VoidingPdfReport) {
         drawSectionTitle("상세 기록")
-        val columns = if (report.includeMemo) {
-            listOf("날짜" to 85f, "시각" to 60f, "절박감" to 65f, "배뇨량" to 70f, "메모" to 235f)
-        } else {
-            listOf("날짜" to 180f, "시각" to 100f, "절박감" to 85f, "배뇨량" to 150f)
-        }
+        val columns = listOf("날짜" to 180f, "시각" to 100f, "절박감" to 85f, "배뇨량" to 150f)
         drawTableHeader(columns)
 
         report.details.forEach { row ->
@@ -258,19 +253,13 @@ private class VoidingPdfRenderer(
         drawText(row.urgency?.toString().orEmpty().ifBlank { "-" }, urgencyX, topY, bodyPaint)
         drawText(row.volumeMl?.let { "${it} mL" }.orEmpty().ifBlank { "-" }, volumeX, topY, bodyPaint)
 
-        if (includeMemo) {
-            val memoX = PAGE_MARGIN
-                    + columns[0].second
-                    + columns[1].second
-                    + columns[2].second
-                    + columns[3].second
-                    + 4f
+        if (includeMemo && !row.memo.isNullOrBlank()) {
             drawWrappedText(
-                text = row.memo.orEmpty().ifBlank { "-" },
-                x = memoX,
-                top = topY - bodyPaint.textSize,
-                width = (columns[4].second - 8f).toInt(),
-                paint = bodyPaint,
+                text = "메모: ${row.memo}",
+                x = PAGE_MARGIN + DETAIL_MEMO_INDENT,
+                top = topY + 8f,
+                width = (PAGE_WIDTH - PAGE_MARGIN * 2 - DETAIL_MEMO_INDENT).toInt(),
+                paint = smallPaint,
                 maxLines = DETAIL_MEMO_MAX_LINES
             )
         }
@@ -285,16 +274,15 @@ private class VoidingPdfRenderer(
         includeMemo: Boolean,
         columns: List<Pair<String, Float>>
     ): Float {
-        if (!includeMemo) return 24f
+        if (!includeMemo || row.memo.isNullOrBlank()) return 24f
 
-        val memoWidth = (columns[4].second - 8f).toInt()
-        val layout = buildTextLayout(
-            text = row.memo.orEmpty().ifBlank { "-" },
-            width = memoWidth,
-            paint = bodyPaint,
+        val memoHeight = measureWrappedTextHeight(
+            text = "메모: ${row.memo}",
+            width = (PAGE_WIDTH - PAGE_MARGIN * 2 - DETAIL_MEMO_INDENT).toInt(),
+            paint = smallPaint,
             maxLines = DETAIL_MEMO_MAX_LINES
         )
-        return maxOf(24f, layout.height + 14f)
+        return 24f + memoHeight + 8f
     }
 
     private fun ensureSpace(requiredHeight: Float, onPageBreak: (() -> Unit)? = null) {
@@ -336,26 +324,85 @@ private class VoidingPdfRenderer(
         paint: TextPaint,
         maxLines: Int
     ): Int {
-        val layout = buildTextLayout(text, width, paint, maxLines)
-        canvas.save()
-        canvas.translate(x, top)
-        layout.draw(canvas)
-        canvas.restore()
-        return layout.height
+        val lines = wrapText(text, width.toFloat(), paint, maxLines)
+        val lineHeight = paint.fontSpacing.takeIf { it > 0f }
+            ?: (paint.fontMetrics.descent - paint.fontMetrics.ascent)
+        var baselineY = top - paint.fontMetrics.ascent
+        lines.forEach { line ->
+            canvas.drawText(line, x, baselineY, paint)
+            baselineY += lineHeight
+        }
+        return ceil(lines.size * lineHeight).toInt()
     }
 
-    private fun buildTextLayout(
+    private fun measureWrappedTextHeight(
         text: String,
         width: Int,
         paint: TextPaint,
         maxLines: Int
-    ): StaticLayout {
-        return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setIncludePad(false)
-            .setMaxLines(maxLines)
-            .setEllipsize(TextUtils.TruncateAt.END)
-            .build()
+    ): Float {
+        val lines = wrapText(text, width.toFloat(), paint, maxLines)
+        val lineHeight = paint.fontSpacing.takeIf { it > 0f }
+            ?: (paint.fontMetrics.descent - paint.fontMetrics.ascent)
+        return lines.size * lineHeight
+    }
+
+    private fun wrapText(
+        text: String,
+        maxWidth: Float,
+        paint: TextPaint,
+        maxLines: Int
+    ): List<String> {
+        if (maxLines <= 0) return emptyList()
+
+        val source = text.ifBlank { "-" }.replace("\r\n", "\n")
+        val lines = mutableListOf<String>()
+        val paragraphs = source.split('\n')
+
+        paragraphs.forEachIndexed { paragraphIndex, paragraph ->
+            if (lines.size >= maxLines) return@forEachIndexed
+            if (paragraph.isEmpty()) {
+                lines += ""
+                return@forEachIndexed
+            }
+
+            var remaining = paragraph
+            while (remaining.isNotEmpty() && lines.size < maxLines) {
+                var count = paint.breakText(remaining, true, maxWidth, null).coerceAtLeast(1)
+                var candidate = remaining.substring(0, count)
+
+                if (count < remaining.length) {
+                    val softBreak = candidate.lastIndexOfAny(charArrayOf(' ', '\t'))
+                    if (softBreak > 0) {
+                        count = softBreak + 1
+                        candidate = remaining.substring(0, count)
+                    }
+                }
+
+                val isLastAvailableLine = lines.size == maxLines - 1
+                val hasMoreParagraphText = count < remaining.length
+                val hasMoreParagraphs = paragraphIndex < paragraphs.lastIndex
+                if (isLastAvailableLine && (hasMoreParagraphText || hasMoreParagraphs)) {
+                    val tail = if (hasMoreParagraphText) {
+                        candidate + remaining.substring(count)
+                    } else {
+                        candidate
+                    }
+                    lines += TextUtils.ellipsize(
+                        tail.trim(),
+                        paint,
+                        maxWidth,
+                        TextUtils.TruncateAt.END
+                    ).toString()
+                    break
+                }
+
+                lines += candidate.trimEnd()
+                remaining = remaining.substring(count).trimStart()
+            }
+        }
+
+        return lines.ifEmpty { listOf("-") }
     }
 
     companion object {
@@ -363,6 +410,7 @@ private class VoidingPdfRenderer(
         private const val PAGE_HEIGHT = 842f
         private const val PAGE_MARGIN = 40f
         private const val DETAIL_MEMO_MAX_LINES = 6
+        private const val DETAIL_MEMO_INDENT = 16f
     }
 }
 

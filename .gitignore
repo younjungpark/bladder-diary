@@ -2,10 +2,12 @@
 .gradle
 /local.properties
 /.idea
+/.vscode
 /build
 /captures
 .externalNativeBuild
 .cxx
 **/build
+/app/release
 .gradle-user-home
 /.codex/

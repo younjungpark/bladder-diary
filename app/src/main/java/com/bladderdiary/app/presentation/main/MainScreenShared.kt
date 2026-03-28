@@ -399,6 +399,10 @@ internal fun LocalDate.toHeroDateText(): String {
     return "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanLabel()}"
 }
 
+internal fun LocalDate.toCompactHeroDateText(): String {
+    return "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanShortLabel()}"
+}
+
 internal fun LocalDate.toHeroCaption(today: LocalDate): String {
     return if (this == today) "오늘" else "${year}년 ${monthNumber}월 ${dayOfMonth}일"
 }
@@ -412,6 +416,18 @@ private fun DayOfWeek.toKoreanLabel(): String {
         5 -> "금요일"
         6 -> "토요일"
         else -> "일요일"
+    }
+}
+
+private fun DayOfWeek.toKoreanShortLabel(): String {
+    return when (value) {
+        1 -> "월"
+        2 -> "화"
+        3 -> "수"
+        4 -> "목"
+        5 -> "금"
+        6 -> "토"
+        else -> "일"
     }
 }
 

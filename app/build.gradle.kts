@@ -11,20 +11,20 @@ android {
     namespace = "com.bladderdiary.app"
     compileSdk = 34
 
+    val localProps = Properties()
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) {
+        localPropsFile.inputStream().use(localProps::load)
+    }
+
     defaultConfig {
         applicationId = "com.bladderdiary.app"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        val localProps = Properties()
-        val localPropsFile = rootProject.file("local.properties")
-        if (localPropsFile.exists()) {
-            localPropsFile.inputStream().use(localProps::load)
-        }
 
         val supabaseUrl = localProps.getProperty("SUPABASE_URL", "")
         val supabaseAnonKey = localProps.getProperty("SUPABASE_ANON_KEY", "")
@@ -35,9 +35,33 @@ android {
         buildConfigField("String", "SUPABASE_REDIRECT_URI", "\"$supabaseRedirectUri\"")
     }
 
+    signingConfigs {
+        create("release") {
+            val releaseStoreFile = localProps.getProperty("RELEASE_STORE_FILE")
+            val releaseStorePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+            val releaseKeyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+            val releaseKeyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+
+            if (
+                !releaseStoreFile.isNullOrBlank() &&
+                !releaseStorePassword.isNullOrBlank() &&
+                !releaseKeyAlias.isNullOrBlank() &&
+                !releaseKeyPassword.isNullOrBlank()
+            ) {
+                storeFile = file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
+            // Release minification currently breaks Compose lifecycle owners on startup.
+            // Keep release stable for store validation until the shrinking issue is resolved.
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
