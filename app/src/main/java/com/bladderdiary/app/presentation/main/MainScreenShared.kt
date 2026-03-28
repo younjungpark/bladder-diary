@@ -249,46 +249,37 @@ internal fun QuickActionBar(
     onAddNow: () -> Unit,
     onAddAtTime: () -> Unit
 ) {
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        color = palette.surfaceGlass,
-        shape = RoundedCornerShape(28.dp),
-        shadowElevation = 18.dp
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            MainActionButton(
-                modifier = Modifier.weight(1f),
-                text = if (isAdding) "저장 중" else "지금 기록",
-                icon = Icons.Default.AddCircle,
-                background = Brush.linearGradient(
-                    listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
-                ),
-                contentColor = palette.primaryButtonText,
-                borderColor = Color.Transparent,
-                enabled = !isAdding && !isE2eeChecking,
-                onClick = onAddNow
-            )
-            MainActionButton(
-                modifier = Modifier.weight(1f),
-                text = "시간 지정",
-                icon = Icons.Default.AccessTime,
-                background = Brush.linearGradient(
-                    listOf(palette.secondaryButtonBackground, palette.secondaryButtonBackground)
-                ),
-                contentColor = palette.secondaryButtonText,
-                borderColor = palette.secondaryButtonBorder,
-                enabled = !isAdding && !isE2eeChecking,
-                onClick = onAddAtTime
-            )
-        }
+        MainActionButton(
+            modifier = Modifier.weight(1f),
+            text = if (isAdding) "저장 중" else "지금 기록",
+            icon = Icons.Default.AddCircle,
+            background = Brush.linearGradient(
+                listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
+            ),
+            contentColor = palette.primaryButtonText,
+            borderColor = Color.Transparent,
+            enabled = !isAdding && !isE2eeChecking,
+            onClick = onAddNow
+        )
+        MainActionButton(
+            modifier = Modifier.weight(1f),
+            text = "시간 지정",
+            icon = Icons.Default.AccessTime,
+            background = Brush.linearGradient(
+                listOf(palette.secondaryButtonBackground, palette.secondaryButtonBackground)
+            ),
+            contentColor = palette.secondaryButtonText,
+            borderColor = palette.secondaryButtonBorder,
+            enabled = !isAdding && !isE2eeChecking,
+            onClick = onAddAtTime
+        )
     }
 }
 

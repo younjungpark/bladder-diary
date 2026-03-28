@@ -256,7 +256,7 @@ private fun SummarySection(
                 icon = Icons.Default.Schedule,
                 label = "평균 간격",
                 value = averageIntervalMillis.toMetricValue(),
-                unit = averageIntervalMillis?.let { "h" }
+                unit = null
             )
         }
     }
@@ -490,8 +490,8 @@ private fun DiaryEventCard(
         shadowElevation = 10.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -540,7 +540,7 @@ private fun DiaryEventCard(
                         Icon(
                             imageVector = Icons.Default.Schedule,
                             contentDescription = null,
-                            tint = palette.subtleText,
+                            tint = palette.mutedText,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -549,7 +549,7 @@ private fun DiaryEventCard(
                                 fontSize = 11.sp,
                                 lineHeight = 14.sp
                             ),
-                            color = palette.mutedText
+                            color = palette.bodyText
                         )
                     }
                 }
@@ -606,7 +606,7 @@ private fun DiaryEventCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 EventActionButton(
@@ -672,8 +672,8 @@ private fun EventActionButton(
 
     Box(
         modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(13.dp))
+            .size(44.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(background)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -682,7 +682,7 @@ private fun EventActionButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(20.dp)
         )
     }
 }
@@ -754,10 +754,10 @@ private fun List<VoidingEvent>.toAverageIntervalMillis(): Long? {
 
 private fun urgencyBadgeColors(level: Int): Pair<Color, Color> {
     return when (level) {
-        1 -> Color(0xFFE7F4F0) to Color(0xFF2D6B5B)
-        2 -> Color(0xFFE8F1F1) to Color(0xFF416464)
-        3 -> Color(0xFFDDEDED) to Color(0xFF006767)
-        4 -> Color(0xFFFFE6D6) to Color(0xFFB46800)
-        else -> Color(0xFFFFDED6) to Color(0xFFB2453B)
+        1 -> Color(0xFFE7F4F0) to Color(0xFF2D6B5B)  // Green
+        2 -> Color(0xFFFFF4D4) to Color(0xFF8A6C1C)  // Yellow
+        3 -> Color(0xFFFFEFE0) to Color(0xFFB85D00)  // Light Orange
+        4 -> Color(0xFFFFE6D6) to Color(0xFFD14321)  // Orange Red
+        else -> Color(0xFFFFDED6) to Color(0xFFBF2613) // Deep Red
     }
 }
