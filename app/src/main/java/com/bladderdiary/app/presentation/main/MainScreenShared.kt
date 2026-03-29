@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
@@ -49,7 +48,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -237,95 +235,6 @@ private fun MainOverflowMenu(
                     )
                 },
                 onClick = onSignOut
-            )
-        }
-    }
-}
-
-@Composable
-internal fun QuickActionBar(
-    palette: HomePalette,
-    isAdding: Boolean,
-    isE2eeChecking: Boolean,
-    onAdd: () -> Unit
-) {
-    val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(
-                horizontal = if (isCompactWidth) 16.dp else 20.dp,
-                vertical = 16.dp
-            )
-    ) {
-        MainActionButton(
-            modifier = Modifier.fillMaxWidth(),
-            text = if (isAdding) "저장 중" else "기록 추가",
-            icon = Icons.Default.AddCircle,
-            background = Brush.linearGradient(
-                listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
-            ),
-            contentColor = palette.primaryButtonText,
-            borderColor = Color.Transparent,
-            enabled = !isAdding && !isE2eeChecking,
-            compact = isCompactWidth,
-            onClick = onAdd
-        )
-    }
-}
-
-@Composable
-private fun MainActionButton(
-    modifier: Modifier = Modifier,
-    text: String,
-    icon: ImageVector,
-    background: Brush,
-    contentColor: Color,
-    borderColor: Color,
-    enabled: Boolean,
-    compact: Boolean,
-    onClick: () -> Unit
-) {
-    val shape = RoundedCornerShape(20.dp)
-    val horizontalPadding = if (compact) 12.dp else 16.dp
-    val iconSize = if (compact) 18.dp else 20.dp
-    val textFontSize = if (compact) 13.sp else 16.sp
-    val textLineHeight = if (compact) 16.sp else 20.sp
-    val itemSpacing = if (compact) 6.dp else 8.dp
-
-    Box(
-        modifier = modifier
-            .height(54.dp)
-            .shadow(14.dp, shape)
-            .clip(shape)
-            .background(background)
-            .border(1.dp, borderColor, shape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = horizontalPadding),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
-                modifier = Modifier.size(iconSize)
-            )
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontSize = textFontSize,
-                    lineHeight = textLineHeight
-                ),
-                color = contentColor.copy(alpha = if (enabled) 1f else 0.45f),
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
             )
         }
     }

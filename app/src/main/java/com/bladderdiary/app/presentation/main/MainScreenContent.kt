@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
@@ -56,9 +57,11 @@ internal fun MainContent(
     today: LocalDate,
     palette: HomePalette,
     modifier: Modifier = Modifier,
+    isAddActionEnabled: Boolean,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onPickDate: () -> Unit,
+    onAddEvent: () -> Unit,
     onEditEvent: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
 ) {
@@ -72,7 +75,7 @@ internal fun MainContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 124.dp),
+        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -115,7 +118,15 @@ internal fun MainContent(
         item {
             SectionHeader(
                 title = if (state.selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
-                palette = palette
+                palette = palette,
+                action = {
+                    RecordAddActionButton(
+                        palette = palette,
+                        compact = isCompactWidth,
+                        enabled = isAddActionEnabled,
+                        onClick = onAddEvent
+                    )
+                }
             )
         }
 
@@ -285,27 +296,79 @@ private fun SummarySection(
 private fun SectionHeader(
     title: String,
     supporting: String? = null,
-    palette: HomePalette
+    palette: HomePalette,
+    action: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (supporting != null) Arrangement.SpaceBetween else Arrangement.Start,
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 18.sp,
-                lineHeight = 22.sp
-            ),
-            color = palette.titleText,
-            fontWeight = FontWeight.SemiBold
-        )
-        supporting?.let {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
-                text = it,
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.subtleText,
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp
+                ),
+                color = palette.titleText,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            supporting?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.subtleText,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        action?.invoke()
+    }
+}
+
+@Composable
+private fun RecordAddActionButton(
+    palette: HomePalette,
+    compact: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+
+    Surface(
+        color = palette.surfaceStrong,
+        shape = shape,
+        shadowElevation = 6.dp,
+        modifier = Modifier.padding(start = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(shape)
+                .clickable(enabled = enabled, onClick = onClick)
+                .background(if (enabled) palette.surfaceTint else palette.surfaceMuted)
+                .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = if (enabled) palette.primaryStrong else palette.subtleText,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = "기록 추가",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = if (compact) 11.sp else 13.sp,
+                    lineHeight = if (compact) 14.sp else 18.sp
+                ),
+                color = if (enabled) palette.primaryStrong else palette.subtleText,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -654,7 +717,7 @@ private fun DiaryEventCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 EventActionButton(
@@ -664,7 +727,7 @@ private fun DiaryEventCard(
                     active = true,
                     onClick = onEdit
                 )
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(10.dp))
                 EventActionButton(
                     palette = palette,
                     icon = Icons.Default.Delete,
@@ -713,8 +776,8 @@ private fun EventActionButton(
 
     Box(
         modifier = Modifier
-            .size(44.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(background)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -723,7 +786,7 @@ private fun EventActionButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -772,7 +835,7 @@ private fun RecordsEmptyState(
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "하단의 빠른 액션 버튼으로 지금 바로 기록을 추가해보세요.",
+                text = "위의 기록 추가 버튼으로 지금 바로 기록을 남겨보세요.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = palette.mutedText,
                 textAlign = TextAlign.Center

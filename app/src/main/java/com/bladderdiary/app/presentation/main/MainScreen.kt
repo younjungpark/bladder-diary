@@ -182,17 +182,6 @@ fun MainScreen(
                         onSignOut()
                     }
                 )
-            },
-            bottomBar = {
-                QuickActionBar(
-                    palette = palette,
-                    isAdding = state.isAdding,
-                    isE2eeChecking = isE2eeChecking,
-                    onAdd = {
-                        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                        openNewEventEditor(defaultRecordEditorTime(state.selectedDate, now))
-                    }
-                )
             }
         ) { padding ->
             MainContent(
@@ -200,9 +189,14 @@ fun MainScreen(
                 today = today,
                 palette = palette,
                 modifier = Modifier.padding(padding),
+                isAddActionEnabled = !state.isAdding && !isE2eeChecking,
                 onPreviousDay = viewModel::goPreviousDay,
                 onNextDay = viewModel::goNextDay,
                 onPickDate = onShowCalendar,
+                onAddEvent = {
+                    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                    openNewEventEditor(defaultRecordEditorTime(state.selectedDate, now))
+                },
                 onEditEvent = openExistingEventEditor,
                 onDeleteEvent = { viewModel.askDelete(it) }
             )
