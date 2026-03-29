@@ -91,13 +91,9 @@ class VoidingRepositoryImpl(
         }
 
         return runCatching {
-            val localDateTime = LocalDateTime(date, LocalTime(hour = hour, minute = minute))
-            val epochMs = localDateTime
-                .toInstant(TimeZone.currentSystemDefault())
-                .toEpochMilliseconds()
             addPendingCreate(
                 userId = session.userId,
-                epochMs = epochMs,
+                epochMs = date.toEpochMilliseconds(hour = hour, minute = minute),
                 localDate = date.toString(),
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
@@ -216,6 +212,8 @@ class VoidingRepositoryImpl(
 
     override suspend fun updateEvent(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,
@@ -224,13 +222,18 @@ class VoidingRepositoryImpl(
         val event = eventDao.getById(localId) ?: return Result.failure(
             IllegalStateException("기록을 찾을 수 없습니다.")
         )
+        if (hour !in 0..23 || minute !in 0..59) {
+            return Result.failure(IllegalArgumentException("시간 형식이 올바르지 않습니다."))
+        }
         if (urgency !in 1..5) {
             return Result.failure(IllegalArgumentException("절박감은 1부터 5 사이여야 합니다."))
         }
 
         return runCatching {
+            val eventDate = LocalDate.parse(event.localDate)
             upsertPendingUpdate(
                 event = event,
+                voidedAtEpochMs = eventDate.toEpochMilliseconds(hour = hour, minute = minute),
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
                 memo = memo,
@@ -526,6 +529,7 @@ class VoidingRepositoryImpl(
 
     private suspend fun upsertPendingUpdate(
         event: VoidingEventEntity,
+        voidedAtEpochMs: Long,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,
@@ -539,6 +543,7 @@ class VoidingRepositoryImpl(
             memo = memo
         ).getOrThrow()
         val updatedEvent = event.copy(
+            voidedAtEpochMs = voidedAtEpochMs,
             memo = memo,
             volumeMl = volumeMl.normalizedVolumeMl(),
             urgency = urgency.normalizedUrgency(),
@@ -565,6 +570,12 @@ class VoidingRepositoryImpl(
 
 private fun Instant.toLocalDate(): String {
     return this.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+}
+
+private fun LocalDate.toEpochMilliseconds(hour: Int, minute: Int): Long {
+    return LocalDateTime(this, LocalTime(hour = hour, minute = minute))
+        .toInstant(TimeZone.currentSystemDefault())
+        .toEpochMilliseconds()
 }
 
 private fun Throwable?.isJwtExpired(): Boolean {

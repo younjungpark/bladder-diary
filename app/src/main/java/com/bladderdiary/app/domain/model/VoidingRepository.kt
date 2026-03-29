@@ -21,6 +21,8 @@ interface VoidingRepository {
     ): Result<Unit>
     suspend fun updateEvent(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,

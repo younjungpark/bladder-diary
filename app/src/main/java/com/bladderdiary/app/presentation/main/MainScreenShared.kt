@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CloudDone
@@ -248,24 +247,22 @@ internal fun QuickActionBar(
     palette: HomePalette,
     isAdding: Boolean,
     isE2eeChecking: Boolean,
-    onAddNow: () -> Unit,
-    onAddAtTime: () -> Unit
+    onAdd: () -> Unit
 ) {
     val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(
                 horizontal = if (isCompactWidth) 16.dp else 20.dp,
                 vertical = 16.dp
-            ),
-        horizontalArrangement = Arrangement.spacedBy(if (isCompactWidth) 12.dp else 16.dp)
+            )
     ) {
         MainActionButton(
-            modifier = Modifier.weight(1f),
-            text = if (isAdding) "저장 중" else "지금 기록",
+            modifier = Modifier.fillMaxWidth(),
+            text = if (isAdding) "저장 중" else "기록 추가",
             icon = Icons.Default.AddCircle,
             background = Brush.linearGradient(
                 listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
@@ -274,20 +271,7 @@ internal fun QuickActionBar(
             borderColor = Color.Transparent,
             enabled = !isAdding && !isE2eeChecking,
             compact = isCompactWidth,
-            onClick = onAddNow
-        )
-        MainActionButton(
-            modifier = Modifier.weight(1f),
-            text = "시간 지정",
-            icon = Icons.Default.AccessTime,
-            background = Brush.linearGradient(
-                listOf(palette.secondaryButtonBackground, palette.secondaryButtonBackground)
-            ),
-            contentColor = palette.secondaryButtonText,
-            borderColor = palette.secondaryButtonBorder,
-            enabled = !isAdding && !isE2eeChecking,
-            compact = isCompactWidth,
-            onClick = onAddAtTime
+            onClick = onAdd
         )
     }
 }

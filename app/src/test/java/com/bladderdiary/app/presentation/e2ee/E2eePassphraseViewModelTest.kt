@@ -186,6 +186,8 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override suspend fun updateEvent(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,

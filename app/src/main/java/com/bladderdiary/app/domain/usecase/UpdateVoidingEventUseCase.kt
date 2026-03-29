@@ -7,6 +7,8 @@ class UpdateVoidingEventUseCase(
 ) {
     suspend operator fun invoke(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,
@@ -14,6 +16,8 @@ class UpdateVoidingEventUseCase(
     ): Result<Unit> {
         return repository.updateEvent(
             localId = localId,
+            hour = hour,
+            minute = minute,
             urgency = urgency,
             hasIncontinence = hasIncontinence,
             memo = memo,

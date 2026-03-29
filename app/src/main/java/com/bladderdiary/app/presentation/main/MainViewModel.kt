@@ -133,13 +133,23 @@ class MainViewModel(
 
     fun updateEvent(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
         viewModelScope.launch {
-            val result = updateVoidingEventUseCase(localId, urgency, hasIncontinence, memo, volumeMl)
+            val result = updateVoidingEventUseCase(
+                localId = localId,
+                hour = hour,
+                minute = minute,
+                urgency = urgency,
+                hasIncontinence = hasIncontinence,
+                memo = memo,
+                volumeMl = volumeMl
+            )
             _uiState.update {
                 it.copy(
                     message = if (result.isSuccess) "기록이 업데이트되었습니다." else result.exceptionOrNull()?.message

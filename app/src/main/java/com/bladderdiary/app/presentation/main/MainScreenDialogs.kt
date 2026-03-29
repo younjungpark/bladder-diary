@@ -1,5 +1,6 @@
 package com.bladderdiary.app.presentation.main
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,9 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +39,7 @@ internal fun EventEditorDialog(
     memoText: String,
     isE2eeChecking: Boolean,
     onUrgencyChange: (Int) -> Unit,
+    onPickTime: () -> Unit,
     onIncontinenceChange: (Boolean) -> Unit,
     onVolumeChange: (String) -> Unit,
     onMemoChange: (String) -> Unit,
@@ -57,16 +62,29 @@ internal fun EventEditorDialog(
                     )
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isE2eeChecking, onClick = onPickTime)
                     ) {
-                        Text(
-                            text = timeText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
-                        )
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = timeText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
                 Text(

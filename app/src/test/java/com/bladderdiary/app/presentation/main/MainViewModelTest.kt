@@ -147,6 +147,8 @@ class MainViewModelTest {
 
         viewModel.updateEvent(
             localId = "event-1",
+            hour = 21,
+            minute = 5,
             urgency = 5,
             hasIncontinence = true,
             memo = "수정 메모",
@@ -155,6 +157,8 @@ class MainViewModelTest {
         advanceUntilIdle()
 
         assertEquals("event-1", repository.lastUpdatedLocalId)
+        assertEquals(21, repository.lastUpdatedHour)
+        assertEquals(5, repository.lastUpdatedMinute)
         assertEquals(5, repository.lastUpdatedUrgency)
         assertEquals(true, repository.lastUpdatedHasIncontinence)
         assertEquals("수정 메모", repository.lastUpdatedMemo)
@@ -222,6 +226,8 @@ private class FakeVoidingRepository : VoidingRepository {
     var lastAddAtMemo: String? = null
     var lastAddAtVolumeMl: Int? = null
     var lastUpdatedLocalId: String? = null
+    var lastUpdatedHour: Int? = null
+    var lastUpdatedMinute: Int? = null
     var lastUpdatedUrgency: Int? = null
     var lastUpdatedHasIncontinence: Boolean? = null
     var lastUpdatedMemo: String? = null
@@ -265,12 +271,16 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override suspend fun updateEvent(
         localId: String,
+        hour: Int,
+        minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
         lastUpdatedLocalId = localId
+        lastUpdatedHour = hour
+        lastUpdatedMinute = minute
         lastUpdatedUrgency = urgency
         lastUpdatedHasIncontinence = hasIncontinence
         lastUpdatedMemo = memo

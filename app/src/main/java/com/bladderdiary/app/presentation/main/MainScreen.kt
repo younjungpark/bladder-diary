@@ -26,7 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
@@ -78,11 +80,11 @@ fun MainScreen(
         editorVolumeText = ""
         editorMemoText = ""
     }
-    val openNewEventEditor: (Int?, Int?, String) -> Unit = { hour, minute, timeText ->
+    val openNewEventEditor: (RecordEditorTimeState) -> Unit = { initialTime ->
         editingEventId = null
-        editorTimeText = timeText
-        editorSelectedHour = hour
-        editorSelectedMinute = minute
+        editorTimeText = initialTime.label
+        editorSelectedHour = initialTime.hour
+        editorSelectedMinute = initialTime.minute
         editorUrgency = 3
         editorHasIncontinence = false
         editorVolumeText = ""
@@ -90,10 +92,11 @@ fun MainScreen(
         showEventEditorDialog = true
     }
     val openExistingEventEditor: (VoidingEvent) -> Unit = { event ->
+        val timeState = event.toRecordEditorTimeState()
         editingEventId = event.localId
-        editorTimeText = event.voidedAtEpochMs.toRecordTimeLabel()
-        editorSelectedHour = null
-        editorSelectedMinute = null
+        editorTimeText = timeState.label
+        editorSelectedHour = timeState.hour
+        editorSelectedMinute = timeState.minute
         editorUrgency = event.urgency ?: 3
         editorHasIncontinence = event.hasIncontinence
         editorVolumeText = event.volumeMl?.toString().orEmpty()
@@ -185,31 +188,9 @@ fun MainScreen(
                     palette = palette,
                     isAdding = state.isAdding,
                     isE2eeChecking = isE2eeChecking,
-                    onAddNow = {
-                        openNewEventEditor(
-                            null,
-                            null,
-                            Clock.System.now().toEpochMilliseconds().toRecordTimeLabel()
-                        )
-                    },
-                    onAddAtTime = {
+                    onAdd = {
                         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                        val isToday = state.selectedDate == now.date
-                        val initialHour = if (isToday) now.hour else 12
-                        val initialMinute = if (isToday) now.minute else 0
-                        TimePickerDialog(
-                            context,
-                            { _, hourOfDay, minute ->
-                                openNewEventEditor(
-                                    hourOfDay,
-                                    minute,
-                                    hourOfDay.toRecordTimeLabel(minute)
-                                )
-                            },
-                            initialHour,
-                            initialMinute,
-                            DateFormat.is24HourFormat(context)
-                        ).show()
+                        openNewEventEditor(defaultRecordEditorTime(state.selectedDate, now))
                     }
                 )
             }
@@ -230,8 +211,8 @@ fun MainScreen(
 
     EventEditorDialog(
         isVisible = showEventEditorDialog,
-        title = if (editingEventId == null) "기록 입력" else "기록 수정",
-        confirmLabel = if (editingEventId == null) "기록" else "저장",
+        title = if (editingEventId == null) "기록 추가" else "기록 수정",
+        confirmLabel = "저장",
         timeText = editorTimeText,
         urgency = editorUrgency,
         hasIncontinence = editorHasIncontinence,
@@ -239,6 +220,25 @@ fun MainScreen(
         memoText = editorMemoText,
         isE2eeChecking = isE2eeChecking,
         onUrgencyChange = { editorUrgency = it },
+        onPickTime = {
+            val fallbackTime = defaultRecordEditorTime(
+                selectedDate = state.selectedDate,
+                now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            )
+            val initialHour = editorSelectedHour ?: fallbackTime.hour
+            val initialMinute = editorSelectedMinute ?: fallbackTime.minute
+            TimePickerDialog(
+                context,
+                { _, hourOfDay, minute ->
+                    editorSelectedHour = hourOfDay
+                    editorSelectedMinute = minute
+                    editorTimeText = hourOfDay.toRecordTimeLabel(minute)
+                },
+                initialHour,
+                initialMinute,
+                DateFormat.is24HourFormat(context)
+            ).show()
+        },
         onIncontinenceChange = { editorHasIncontinence = it },
         onVolumeChange = { next ->
             editorVolumeText = next.filter(Char::isDigit).take(4)
@@ -248,30 +248,23 @@ fun MainScreen(
         onConfirm = {
             val normalizedMemo = editorMemoText.trim().takeIf { it.isNotEmpty() }
             val normalizedVolume = editorVolumeText.toVolumeMlOrNull()
+            val hour = editorSelectedHour ?: return@EventEditorDialog
+            val minute = editorSelectedMinute ?: return@EventEditorDialog
             val targetEventId = editingEventId
             if (targetEventId == null) {
-                val hour = editorSelectedHour
-                val minute = editorSelectedMinute
-                if (hour == null || minute == null) {
-                    viewModel.addNow(
-                        urgency = editorUrgency,
-                        hasIncontinence = editorHasIncontinence,
-                        memo = normalizedMemo,
-                        volumeMl = normalizedVolume
-                    )
-                } else {
-                    viewModel.addAtSelectedTime(
-                        hour = hour,
-                        minute = minute,
-                        urgency = editorUrgency,
-                        hasIncontinence = editorHasIncontinence,
-                        memo = normalizedMemo,
-                        volumeMl = normalizedVolume
-                    )
-                }
+                viewModel.addAtSelectedTime(
+                    hour = hour,
+                    minute = minute,
+                    urgency = editorUrgency,
+                    hasIncontinence = editorHasIncontinence,
+                    memo = normalizedMemo,
+                    volumeMl = normalizedVolume
+                )
             } else {
                 viewModel.updateEvent(
                     localId = targetEventId,
+                    hour = hour,
+                    minute = minute,
                     urgency = editorUrgency,
                     hasIncontinence = editorHasIncontinence,
                     memo = normalizedMemo,
@@ -330,6 +323,35 @@ fun MainScreen(
                 includeMemo = pdfIncludeMemo
             )
         }
+    )
+}
+
+internal data class RecordEditorTimeState(
+    val hour: Int,
+    val minute: Int,
+    val label: String
+)
+
+internal fun defaultRecordEditorTime(
+    selectedDate: LocalDate,
+    now: LocalDateTime
+): RecordEditorTimeState {
+    val hour = if (selectedDate == now.date) now.hour else 12
+    val minute = if (selectedDate == now.date) now.minute else 0
+    return RecordEditorTimeState(
+        hour = hour,
+        minute = minute,
+        label = hour.toRecordTimeLabel(minute)
+    )
+}
+
+internal fun VoidingEvent.toRecordEditorTimeState(): RecordEditorTimeState {
+    val localDateTime = Instant.fromEpochMilliseconds(voidedAtEpochMs)
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+    return RecordEditorTimeState(
+        hour = localDateTime.hour,
+        minute = localDateTime.minute,
+        label = voidedAtEpochMs.toRecordTimeLabel()
     )
 }
 
