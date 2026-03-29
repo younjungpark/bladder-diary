@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,17 +53,53 @@ fun MainScreen(
     val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
 
     var menuExpanded by remember { mutableStateOf(false) }
-    var viewMemoEvent by remember { mutableStateOf<VoidingEvent?>(null) }
-    var editMemoText by remember { mutableStateOf("") }
-    var viewVolumeEvent by remember { mutableStateOf<VoidingEvent?>(null) }
-    var editVolumeText by remember { mutableStateOf("") }
+    var showEventEditorDialog by rememberSaveable { mutableStateOf(false) }
+    var editingEventId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editorTimeText by rememberSaveable { mutableStateOf("") }
+    var editorSelectedHour by rememberSaveable { mutableStateOf<Int?>(null) }
+    var editorSelectedMinute by rememberSaveable { mutableStateOf<Int?>(null) }
+    var editorUrgency by rememberSaveable { mutableStateOf(3) }
+    var editorHasIncontinence by rememberSaveable { mutableStateOf(false) }
+    var editorVolumeText by rememberSaveable { mutableStateOf("") }
+    var editorMemoText by rememberSaveable { mutableStateOf("") }
     var showPdfExportDialog by remember { mutableStateOf(false) }
     var pdfStartDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfEndDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfIncludeMemo by remember { mutableStateOf(false) }
-    var showUrgencyDialog by remember { mutableStateOf(false) }
-    var selectedUrgency by remember { mutableStateOf(3) }
-    var pendingSelectedTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    val clearEditorState = {
+        showEventEditorDialog = false
+        editingEventId = null
+        editorTimeText = ""
+        editorSelectedHour = null
+        editorSelectedMinute = null
+        editorUrgency = 3
+        editorHasIncontinence = false
+        editorVolumeText = ""
+        editorMemoText = ""
+    }
+    val openNewEventEditor: (Int?, Int?, String) -> Unit = { hour, minute, timeText ->
+        editingEventId = null
+        editorTimeText = timeText
+        editorSelectedHour = hour
+        editorSelectedMinute = minute
+        editorUrgency = 3
+        editorHasIncontinence = false
+        editorVolumeText = ""
+        editorMemoText = ""
+        showEventEditorDialog = true
+    }
+    val openExistingEventEditor: (VoidingEvent) -> Unit = { event ->
+        editingEventId = event.localId
+        editorTimeText = event.voidedAtEpochMs.toRecordTimeLabel()
+        editorSelectedHour = null
+        editorSelectedMinute = null
+        editorUrgency = event.urgency ?: 3
+        editorHasIncontinence = event.hasIncontinence
+        editorVolumeText = event.volumeMl?.toString().orEmpty()
+        editorMemoText = event.memo.orEmpty()
+        showEventEditorDialog = true
+    }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -149,9 +186,11 @@ fun MainScreen(
                     isAdding = state.isAdding,
                     isE2eeChecking = isE2eeChecking,
                     onAddNow = {
-                        pendingSelectedTime = null
-                        selectedUrgency = 3
-                        showUrgencyDialog = true
+                        openNewEventEditor(
+                            null,
+                            null,
+                            Clock.System.now().toEpochMilliseconds().toRecordTimeLabel()
+                        )
                     },
                     onAddAtTime = {
                         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -161,9 +200,11 @@ fun MainScreen(
                         TimePickerDialog(
                             context,
                             { _, hourOfDay, minute ->
-                                pendingSelectedTime = hourOfDay to minute
-                                selectedUrgency = 3
-                                showUrgencyDialog = true
+                                openNewEventEditor(
+                                    hourOfDay,
+                                    minute,
+                                    hourOfDay.toRecordTimeLabel(minute)
+                                )
                             },
                             initialHour,
                             initialMinute,
@@ -181,63 +222,63 @@ fun MainScreen(
                 onPreviousDay = viewModel::goPreviousDay,
                 onNextDay = viewModel::goNextDay,
                 onPickDate = onShowCalendar,
-                onOpenMemo = { event ->
-                    viewMemoEvent = event
-                    editMemoText = event.memo ?: ""
-                },
-                onOpenVolume = { event ->
-                    viewVolumeEvent = event
-                    editVolumeText = event.volumeMl?.toString().orEmpty()
-                },
+                onEditEvent = openExistingEventEditor,
                 onDeleteEvent = { viewModel.askDelete(it) }
             )
         }
     }
 
-    MemoEditDialog(
-        event = viewMemoEvent,
-        editMemoText = editMemoText,
+    EventEditorDialog(
+        isVisible = showEventEditorDialog,
+        title = if (editingEventId == null) "기록 입력" else "기록 수정",
+        confirmLabel = if (editingEventId == null) "기록" else "저장",
+        timeText = editorTimeText,
+        urgency = editorUrgency,
+        hasIncontinence = editorHasIncontinence,
+        volumeText = editorVolumeText,
+        memoText = editorMemoText,
         isE2eeChecking = isE2eeChecking,
-        onValueChange = { editMemoText = it },
-        onDismiss = { viewMemoEvent = null },
-        onDelete = {
-            viewMemoEvent?.let { eventToUpdate ->
-                viewModel.updateMemo(eventToUpdate.localId, null)
-                viewMemoEvent = null
-            }
+        onUrgencyChange = { editorUrgency = it },
+        onIncontinenceChange = { editorHasIncontinence = it },
+        onVolumeChange = { next ->
+            editorVolumeText = next.filter(Char::isDigit).take(4)
         },
+        onMemoChange = { editorMemoText = it },
+        onDismiss = clearEditorState,
         onConfirm = {
-            viewMemoEvent?.let { eventToUpdate ->
-                viewModel.updateMemo(
-                    eventToUpdate.localId,
-                    editMemoText.trim().takeIf { text -> text.isNotEmpty() }
+            val normalizedMemo = editorMemoText.trim().takeIf { it.isNotEmpty() }
+            val normalizedVolume = editorVolumeText.toVolumeMlOrNull()
+            val targetEventId = editingEventId
+            if (targetEventId == null) {
+                val hour = editorSelectedHour
+                val minute = editorSelectedMinute
+                if (hour == null || minute == null) {
+                    viewModel.addNow(
+                        urgency = editorUrgency,
+                        hasIncontinence = editorHasIncontinence,
+                        memo = normalizedMemo,
+                        volumeMl = normalizedVolume
+                    )
+                } else {
+                    viewModel.addAtSelectedTime(
+                        hour = hour,
+                        minute = minute,
+                        urgency = editorUrgency,
+                        hasIncontinence = editorHasIncontinence,
+                        memo = normalizedMemo,
+                        volumeMl = normalizedVolume
+                    )
+                }
+            } else {
+                viewModel.updateEvent(
+                    localId = targetEventId,
+                    urgency = editorUrgency,
+                    hasIncontinence = editorHasIncontinence,
+                    memo = normalizedMemo,
+                    volumeMl = normalizedVolume
                 )
-                viewMemoEvent = null
             }
-        }
-    )
-
-    VolumeEditDialog(
-        event = viewVolumeEvent,
-        editVolumeText = editVolumeText,
-        onValueChange = { next ->
-            editVolumeText = next.filter(Char::isDigit).take(4)
-        },
-        onDismiss = { viewVolumeEvent = null },
-        onDelete = {
-            viewVolumeEvent?.let { eventToUpdate ->
-                viewModel.updateVolume(eventToUpdate.localId, null)
-                viewVolumeEvent = null
-            }
-        },
-        onConfirm = {
-            viewVolumeEvent?.let { eventToUpdate ->
-                viewModel.updateVolume(
-                    eventToUpdate.localId,
-                    editVolumeText.toVolumeMlOrNull()
-                )
-                viewVolumeEvent = null
-            }
+            clearEditorState()
         }
     )
 
@@ -245,36 +286,6 @@ fun MainScreen(
         confirmDeleteEventId = state.confirmDeleteEventId,
         onDismiss = viewModel::dismissDeleteDialog,
         onConfirm = viewModel::confirmDelete
-    )
-
-    UrgencyInputDialog(
-        isVisible = showUrgencyDialog,
-        urgency = selectedUrgency,
-        selectedTimeText = pendingSelectedTime?.let { (hour, minute) ->
-            "%02d:%02d".format(hour, minute)
-        },
-        onUrgencyChange = { selectedUrgency = it },
-        onDismiss = {
-            showUrgencyDialog = false
-            pendingSelectedTime = null
-            selectedUrgency = 3
-        },
-        onConfirm = {
-            val timeSelection = pendingSelectedTime
-            showUrgencyDialog = false
-            pendingSelectedTime = null
-            if (timeSelection == null) {
-                viewModel.addNow(urgency = selectedUrgency, memo = null)
-            } else {
-                viewModel.addAtSelectedTime(
-                    hour = timeSelection.first,
-                    minute = timeSelection.second,
-                    urgency = selectedUrgency,
-                    memo = null
-                )
-            }
-            selectedUrgency = 3
-        }
     )
 
     PdfExportDialog(
@@ -320,4 +331,18 @@ fun MainScreen(
             )
         }
     )
+}
+
+private fun Long.toRecordTimeLabel(): String {
+    val (timeText, periodText) = toTimeDisplay()
+    return "$periodText $timeText"
+}
+
+private fun Int.toRecordTimeLabel(minute: Int): String {
+    val meridiem = if (this < 12) "오전" else "오후"
+    val displayHour = when (val normalized = this % 12) {
+        0 -> 12
+        else -> normalized
+    }
+    return "$meridiem ${displayHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
 }

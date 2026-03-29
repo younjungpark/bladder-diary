@@ -9,8 +9,7 @@ import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
-import com.bladderdiary.app.domain.usecase.UpdateVoidingEventMemoUseCase
-import com.bladderdiary.app.domain.usecase.UpdateVoidingEventVolumeUseCase
+import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
 import com.bladderdiary.app.export.VoidingPdfExportParams
 import com.bladderdiary.app.export.VoidingPdfExporter
 import com.bladderdiary.app.export.VoidingPdfShareFile
@@ -98,29 +97,69 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `지금 기록 시 절박감이 저장소로 전달된다`() = runTest {
+    fun `지금 기록 시 절박감과 요실금 여부가 저장소로 전달된다`() = runTest {
         val repository = FakeVoidingRepository()
         val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
 
-        viewModel.addNow(urgency = 4)
+        viewModel.addNow(
+            urgency = 4,
+            hasIncontinence = true,
+            memo = "메모",
+            volumeMl = 180
+        )
         advanceUntilIdle()
 
         assertEquals(4, repository.lastAddNowUrgency)
+        assertEquals(true, repository.lastAddNowHasIncontinence)
+        assertEquals("메모", repository.lastAddNowMemo)
+        assertEquals(180, repository.lastAddNowVolumeMl)
         assertEquals("배뇨 기록이 저장되었습니다.", viewModel.uiState.value.message)
     }
 
     @Test
-    fun `시간 지정 기록 시 절박감이 저장소로 전달된다`() = runTest {
+    fun `시간 지정 기록 시 모든 입력값이 저장소로 전달된다`() = runTest {
         val repository = FakeVoidingRepository()
         val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
 
-        viewModel.addAtSelectedTime(hour = 7, minute = 45, urgency = 2)
+        viewModel.addAtSelectedTime(
+            hour = 7,
+            minute = 45,
+            urgency = 2,
+            hasIncontinence = false,
+            memo = "지정 메모",
+            volumeMl = 250
+        )
         advanceUntilIdle()
 
         assertEquals(7, repository.lastAddAtHour)
         assertEquals(45, repository.lastAddAtMinute)
         assertEquals(2, repository.lastAddAtUrgency)
+        assertEquals(false, repository.lastAddAtHasIncontinence)
+        assertEquals("지정 메모", repository.lastAddAtMemo)
+        assertEquals(250, repository.lastAddAtVolumeMl)
         assertEquals("지정한 시간으로 저장되었습니다.", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `기록 수정 시 단일 업데이트로 전체 필드가 갱신된다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.updateEvent(
+            localId = "event-1",
+            urgency = 5,
+            hasIncontinence = true,
+            memo = "수정 메모",
+            volumeMl = 320
+        )
+        advanceUntilIdle()
+
+        assertEquals("event-1", repository.lastUpdatedLocalId)
+        assertEquals(5, repository.lastUpdatedUrgency)
+        assertEquals(true, repository.lastUpdatedHasIncontinence)
+        assertEquals("수정 메모", repository.lastUpdatedMemo)
+        assertEquals(320, repository.lastUpdatedVolumeMl)
+        assertEquals("기록이 업데이트되었습니다.", viewModel.uiState.value.message)
     }
 
     private fun createViewModel(
@@ -132,8 +171,7 @@ class MainViewModelTest {
             getDailyEventsUseCase = GetDailyEventsUseCase(repository),
             getDailyCountUseCase = GetDailyCountUseCase(repository),
             deleteVoidingEventUseCase = DeleteVoidingEventUseCase(repository),
-            updateVoidingEventMemoUseCase = UpdateVoidingEventMemoUseCase(repository),
-            updateVoidingEventVolumeUseCase = UpdateVoidingEventVolumeUseCase(repository),
+            updateVoidingEventUseCase = UpdateVoidingEventUseCase(repository),
             voidingPdfExporter = exporter,
             voidingRepository = repository
         )
@@ -150,7 +188,8 @@ class MainViewModelTest {
             updatedAtEpochMs = 1_000L,
             memo = "메모",
             volumeMl = 250,
-            urgency = 3
+            urgency = 3,
+            hasIncontinence = true
         )
     }
 }
@@ -173,17 +212,36 @@ private class FakeVoidingPdfExporter : VoidingPdfExporter {
 private class FakeVoidingRepository : VoidingRepository {
     var rangeResult: Result<List<VoidingEvent>> = Result.success(emptyList())
     var lastAddNowUrgency: Int? = null
+    var lastAddNowHasIncontinence: Boolean? = null
+    var lastAddNowMemo: String? = null
+    var lastAddNowVolumeMl: Int? = null
     var lastAddAtHour: Int? = null
     var lastAddAtMinute: Int? = null
     var lastAddAtUrgency: Int? = null
+    var lastAddAtHasIncontinence: Boolean? = null
+    var lastAddAtMemo: String? = null
+    var lastAddAtVolumeMl: Int? = null
+    var lastUpdatedLocalId: String? = null
+    var lastUpdatedUrgency: Int? = null
+    var lastUpdatedHasIncontinence: Boolean? = null
+    var lastUpdatedMemo: String? = null
+    var lastUpdatedVolumeMl: Int? = null
     private val events = MutableStateFlow<List<VoidingEvent>>(emptyList())
     private val count = MutableStateFlow(0)
     private val pendingCount = MutableStateFlow(0)
     private val pendingError = MutableStateFlow<String?>(null)
     private val isSyncing = MutableStateFlow(false)
 
-    override suspend fun addNow(urgency: Int, memo: String?, volumeMl: Int?): Result<Unit> {
+    override suspend fun addNow(
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> {
         lastAddNowUrgency = urgency
+        lastAddNowHasIncontinence = hasIncontinence
+        lastAddNowMemo = memo
+        lastAddNowVolumeMl = volumeMl
         return Result.success(Unit)
     }
 
@@ -192,18 +250,33 @@ private class FakeVoidingRepository : VoidingRepository {
         hour: Int,
         minute: Int,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
         lastAddAtHour = hour
         lastAddAtMinute = minute
         lastAddAtUrgency = urgency
+        lastAddAtHasIncontinence = hasIncontinence
+        lastAddAtMemo = memo
+        lastAddAtVolumeMl = volumeMl
         return Result.success(Unit)
     }
 
-    override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> = Result.success(Unit)
-
-    override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> = Result.success(Unit)
+    override suspend fun updateEvent(
+        localId: String,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> {
+        lastUpdatedLocalId = localId
+        lastUpdatedUrgency = urgency
+        lastUpdatedHasIncontinence = hasIncontinence
+        lastUpdatedMemo = memo
+        lastUpdatedVolumeMl = volumeMl
+        return Result.success(Unit)
+    }
 
     override suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>> {
         return rangeResult

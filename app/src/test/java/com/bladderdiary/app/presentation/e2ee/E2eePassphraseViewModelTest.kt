@@ -167,20 +167,30 @@ private class FakeE2eeRepository(
 private class FakeVoidingRepository : VoidingRepository {
     var fetchCalled = false
 
-    override suspend fun addNow(urgency: Int, memo: String?, volumeMl: Int?): Result<Unit> = Result.success(Unit)
+    override suspend fun addNow(
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> = Result.success(Unit)
 
     override suspend fun addAt(
         date: kotlinx.datetime.LocalDate,
         hour: Int,
         minute: Int,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)
 
-    override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> = Result.success(Unit)
-
-    override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> = Result.success(Unit)
+    override suspend fun updateEvent(
+        localId: String,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> = Result.success(Unit)
 
     override suspend fun getByDateRange(
         startDate: kotlinx.datetime.LocalDate,

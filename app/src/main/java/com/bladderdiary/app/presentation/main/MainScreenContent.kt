@@ -27,8 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.LocalDrink
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Icon
@@ -60,8 +59,7 @@ internal fun MainContent(
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onPickDate: () -> Unit,
-    onOpenMemo: (VoidingEvent) -> Unit,
-    onOpenVolume: (VoidingEvent) -> Unit,
+    onEditEvent: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
 ) {
     val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
@@ -141,8 +139,7 @@ internal fun MainContent(
                         ?.toIntervalText(),
                     isFirst = index == 0,
                     isLast = index == sortedEvents.lastIndex,
-                    onOpenMemo = { onOpenMemo(event) },
-                    onOpenVolume = { onOpenVolume(event) },
+                    onEdit = { onEditEvent(event) },
                     onDelete = { onDeleteEvent(event.localId) }
                 )
             }
@@ -442,8 +439,7 @@ private fun DiaryTimelineItem(
     intervalText: String?,
     isFirst: Boolean,
     isLast: Boolean,
-    onOpenMemo: () -> Unit,
-    onOpenVolume: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Row(
@@ -463,8 +459,7 @@ private fun DiaryTimelineItem(
             palette = palette,
             event = event,
             intervalText = intervalText,
-            onOpenMemo = onOpenMemo,
-            onOpenVolume = onOpenVolume,
+            onEdit = onEdit,
             onDelete = onDelete
         )
     }
@@ -522,8 +517,7 @@ private fun DiaryEventCard(
     palette: HomePalette,
     event: VoidingEvent,
     intervalText: String?,
-    onOpenMemo: () -> Unit,
-    onOpenVolume: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
@@ -568,6 +562,13 @@ private fun DiaryEventCard(
                                 text = "메모",
                                 containerColor = palette.surfaceTint,
                                 contentColor = palette.primaryStrong
+                            )
+                        }
+                        if (event.hasIncontinence) {
+                            SmallBadge(
+                                text = "요실금",
+                                containerColor = palette.warningBackground,
+                                contentColor = palette.warningText
                             )
                         }
                         event.urgency?.let { urgency ->
@@ -658,17 +659,10 @@ private fun DiaryEventCard(
             ) {
                 EventActionButton(
                     palette = palette,
-                    icon = Icons.Default.Description,
-                    contentDescription = if (hasMemo) "메모 수정" else "메모 입력",
-                    active = hasMemo,
-                    onClick = onOpenMemo
-                )
-                EventActionButton(
-                    palette = palette,
-                    icon = Icons.Default.LocalDrink,
-                    contentDescription = if (hasVolume) "배뇨량 수정" else "배뇨량 입력",
-                    active = hasVolume,
-                    onClick = onOpenVolume
+                    icon = Icons.Default.Edit,
+                    contentDescription = "기록 수정",
+                    active = true,
+                    onClick = onEdit
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 EventActionButton(

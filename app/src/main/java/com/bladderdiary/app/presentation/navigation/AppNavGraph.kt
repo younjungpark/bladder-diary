@@ -52,8 +52,7 @@ fun AppNavGraph() {
             getDailyEventsUseCase = AppGraph.getDailyEventsUseCase,
             getDailyCountUseCase = AppGraph.getDailyCountUseCase,
             deleteVoidingEventUseCase = AppGraph.deleteVoidingEventUseCase,
-            updateVoidingEventMemoUseCase = AppGraph.updateVoidingEventMemoUseCase,
-            updateVoidingEventVolumeUseCase = AppGraph.updateVoidingEventVolumeUseCase,
+            updateVoidingEventUseCase = AppGraph.updateVoidingEventUseCase,
             voidingPdfExporter = AppGraph.voidingPdfExporter,
             voidingRepository = AppGraph.voidingRepository
         )

@@ -43,7 +43,12 @@ class VoidingRepositoryImpl(
     private val queueDao = db.syncQueueDao()
     private val activeSyncCount = MutableStateFlow(0)
 
-    override suspend fun addNow(urgency: Int, memo: String?, volumeMl: Int?): Result<Unit> {
+    override suspend fun addNow(
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -58,6 +63,7 @@ class VoidingRepositoryImpl(
                 epochMs = now.toEpochMilliseconds(),
                 localDate = now.toLocalDate(),
                 urgency = urgency,
+                hasIncontinence = hasIncontinence,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -70,6 +76,7 @@ class VoidingRepositoryImpl(
         hour: Int,
         minute: Int,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -93,6 +100,7 @@ class VoidingRepositoryImpl(
                 epochMs = epochMs,
                 localDate = date.toString(),
                 urgency = urgency,
+                hasIncontinence = hasIncontinence,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -206,29 +214,26 @@ class VoidingRepositoryImpl(
         }
     }
 
-    override suspend fun updateMemo(localId: String, memo: String?): Result<Unit> {
+    override suspend fun updateEvent(
+        localId: String,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit> {
         val event = eventDao.getById(localId) ?: return Result.failure(
             IllegalStateException("기록을 찾을 수 없습니다.")
         )
-
-        return runCatching {
-            upsertPendingUpdate(
-                event = event,
-                memo = memo,
-                volumeMl = event.volumeMl
-            )
+        if (urgency !in 1..5) {
+            return Result.failure(IllegalArgumentException("절박감은 1부터 5 사이여야 합니다."))
         }
-    }
-
-    override suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit> {
-        val event = eventDao.getById(localId) ?: return Result.failure(
-            IllegalStateException("기록을 찾을 수 없습니다.")
-        )
 
         return runCatching {
             upsertPendingUpdate(
                 event = event,
-                memo = event.memo,
+                urgency = urgency,
+                hasIncontinence = hasIncontinence,
+                memo = memo,
                 volumeMl = volumeMl
             )
         }
@@ -343,6 +348,7 @@ class VoidingRepositoryImpl(
                         memo = memo,
                         volumeMl = dto.volumeMl.normalizedVolumeMl(),
                         urgency = dto.urgency.normalizedUrgency(),
+                        hasIncontinence = dto.hasIncontinence,
                         memoCiphertext = dto.memoCiphertext,
                         memoEncryption = memoEncryption
                     )
@@ -371,6 +377,7 @@ class VoidingRepositoryImpl(
             deletedAt = null,
             volumeMl = event.volumeMl,
             urgency = event.urgency,
+            hasIncontinence = event.hasIncontinence,
             memoCiphertext = event.memoCiphertext,
             memoEncryption = event.memoEncryption
         )
@@ -391,6 +398,7 @@ class VoidingRepositoryImpl(
         epochMs: Long,
         localDate: String,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -412,6 +420,7 @@ class VoidingRepositoryImpl(
             memo = memo,
             volumeMl = volumeMl.normalizedVolumeMl(),
             urgency = urgency.normalizedUrgency(),
+            hasIncontinence = hasIncontinence,
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption
         )
@@ -455,6 +464,7 @@ class VoidingRepositoryImpl(
                     updatedAtEpochMs = nowEpochMs,
                     volumeMl = event.volumeMl.normalizedVolumeMl(),
                     urgency = event.urgency.normalizedUrgency(),
+                    hasIncontinence = event.hasIncontinence,
                     memoCiphertext = memoPayload.memoCiphertext,
                     memoEncryption = memoPayload.memoEncryption
                 )
@@ -516,6 +526,8 @@ class VoidingRepositoryImpl(
 
     private suspend fun upsertPendingUpdate(
         event: VoidingEventEntity,
+        urgency: Int,
+        hasIncontinence: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -529,7 +541,8 @@ class VoidingRepositoryImpl(
         val updatedEvent = event.copy(
             memo = memo,
             volumeMl = volumeMl.normalizedVolumeMl(),
-            urgency = event.urgency.normalizedUrgency(),
+            urgency = urgency.normalizedUrgency(),
+            hasIncontinence = hasIncontinence,
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption,
             syncState = SyncState.PENDING_CREATE,

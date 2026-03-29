@@ -10,5 +10,6 @@ data class VoidingEvent(
     val updatedAtEpochMs: Long,
     val memo: String? = null,
     val volumeMl: Int? = null,
-    val urgency: Int? = null
+    val urgency: Int? = null,
+    val hasIncontinence: Boolean = false
 )

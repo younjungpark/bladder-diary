@@ -28,8 +28,7 @@ class MainActivity : ComponentActivity() {
                 AppGraph.getDailyEventsUseCase,
                 AppGraph.getDailyCountUseCase,
                 AppGraph.deleteVoidingEventUseCase,
-                AppGraph.updateVoidingEventMemoUseCase,
-                AppGraph.updateVoidingEventVolumeUseCase,
+                AppGraph.updateVoidingEventUseCase,
                 AppGraph.voidingPdfExporter,
                 AppGraph.voidingRepository
             )

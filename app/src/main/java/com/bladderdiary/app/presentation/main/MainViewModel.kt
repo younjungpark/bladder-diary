@@ -12,8 +12,7 @@ import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
-import com.bladderdiary.app.domain.usecase.UpdateVoidingEventMemoUseCase
-import com.bladderdiary.app.domain.usecase.UpdateVoidingEventVolumeUseCase
+import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,8 +46,7 @@ class MainViewModel(
     private val getDailyEventsUseCase: GetDailyEventsUseCase,
     private val getDailyCountUseCase: GetDailyCountUseCase,
     private val deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
-    private val updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
-    private val updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
+    private val updateVoidingEventUseCase: UpdateVoidingEventUseCase,
     private val voidingPdfExporter: VoidingPdfExporter,
     private val voidingRepository: VoidingRepository
 ) : ViewModel() {
@@ -94,10 +92,15 @@ class MainViewModel(
         }
     }
 
-    fun addNow(urgency: Int, memo: String? = null) {
+    fun addNow(
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String? = null,
+        volumeMl: Int? = null
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(urgency, memo)
+            val result = addVoidingEventUseCase(urgency, hasIncontinence, memo, volumeMl)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -107,11 +110,18 @@ class MainViewModel(
         }
     }
 
-    fun addAtSelectedTime(hour: Int, minute: Int, urgency: Int, memo: String? = null) {
+    fun addAtSelectedTime(
+        hour: Int,
+        minute: Int,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String? = null,
+        volumeMl: Int? = null
+    ) {
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(date, hour, minute, urgency, memo)
+            val result = addVoidingEventUseCase(date, hour, minute, urgency, hasIncontinence, memo, volumeMl)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -121,23 +131,18 @@ class MainViewModel(
         }
     }
 
-    fun updateMemo(localId: String, memo: String?) {
+    fun updateEvent(
+        localId: String,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ) {
         viewModelScope.launch {
-            val result = updateVoidingEventMemoUseCase(localId, memo)
+            val result = updateVoidingEventUseCase(localId, urgency, hasIncontinence, memo, volumeMl)
             _uiState.update {
                 it.copy(
-                    message = if (result.isSuccess) "메모가 업데이트되었습니다." else result.exceptionOrNull()?.message
-                )
-            }
-        }
-    }
-
-    fun updateVolume(localId: String, volumeMl: Int?) {
-        viewModelScope.launch {
-            val result = updateVoidingEventVolumeUseCase(localId, volumeMl)
-            _uiState.update {
-                it.copy(
-                    message = if (result.isSuccess) "배뇨량이 업데이트되었습니다." else result.exceptionOrNull()?.message
+                    message = if (result.isSuccess) "기록이 업데이트되었습니다." else result.exceptionOrNull()?.message
                 )
             }
         }
@@ -243,8 +248,7 @@ class MainViewModel(
             getDailyEventsUseCase: GetDailyEventsUseCase,
             getDailyCountUseCase: GetDailyCountUseCase,
             deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
-            updateVoidingEventMemoUseCase: UpdateVoidingEventMemoUseCase,
-            updateVoidingEventVolumeUseCase: UpdateVoidingEventVolumeUseCase,
+            updateVoidingEventUseCase: UpdateVoidingEventUseCase,
             voidingPdfExporter: VoidingPdfExporter,
             voidingRepository: VoidingRepository
         ): ViewModelProvider.Factory {
@@ -256,8 +260,7 @@ class MainViewModel(
                         getDailyEventsUseCase = getDailyEventsUseCase,
                         getDailyCountUseCase = getDailyCountUseCase,
                         deleteVoidingEventUseCase = deleteVoidingEventUseCase,
-                        updateVoidingEventMemoUseCase = updateVoidingEventMemoUseCase,
-                        updateVoidingEventVolumeUseCase = updateVoidingEventVolumeUseCase,
+                        updateVoidingEventUseCase = updateVoidingEventUseCase,
                         voidingPdfExporter = voidingPdfExporter,
                         voidingRepository = voidingRepository
                     ) as T

@@ -8,16 +8,18 @@ class AddVoidingEventUseCase(
 ) {
     suspend operator fun invoke(
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
-    ): Result<Unit> = repository.addNow(urgency, memo, volumeMl)
+    ): Result<Unit> = repository.addNow(urgency, hasIncontinence, memo, volumeMl)
 
     suspend operator fun invoke(
         date: LocalDate,
         hour: Int,
         minute: Int,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
-    ): Result<Unit> = repository.addAt(date, hour, minute, urgency, memo, volumeMl)
+    ): Result<Unit> = repository.addAt(date, hour, minute, urgency, hasIncontinence, memo, volumeMl)
 }

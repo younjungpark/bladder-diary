@@ -14,6 +14,7 @@ fun VoidingEventEntity.toDomain(): VoidingEvent {
         updatedAtEpochMs = updatedAtEpochMs,
         memo = memo,
         volumeMl = volumeMl,
-        urgency = urgency
+        urgency = urgency,
+        hasIncontinence = hasIncontinence
     )
 }

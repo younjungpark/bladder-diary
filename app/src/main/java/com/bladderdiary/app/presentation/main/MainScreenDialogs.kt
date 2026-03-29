@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -12,6 +13,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,29 +21,58 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.datetime.LocalDate
 
 @Composable
-internal fun UrgencyInputDialog(
+internal fun EventEditorDialog(
     isVisible: Boolean,
+    title: String,
+    confirmLabel: String,
+    timeText: String,
     urgency: Int,
-    selectedTimeText: String?,
+    hasIncontinence: Boolean,
+    volumeText: String,
+    memoText: String,
+    isE2eeChecking: Boolean,
     onUrgencyChange: (Int) -> Unit,
+    onIncontinenceChange: (Boolean) -> Unit,
+    onVolumeChange: (String) -> Unit,
+    onMemoChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
     if (!isVisible) return
+    val isValidVolume = volumeText.isBlank() || volumeText.toVolumeMlOrNull() != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("절박감 입력") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "기록 시각",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+                    }
+                }
                 Text(
-                    text = selectedTimeText?.let { "$it 기록의 절박감을 선택해 주세요." }
-                        ?: "이번 기록의 절박감을 선택해 주세요.",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "절박감",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "1은 절박감 없음, 5는 절박감 강함입니다.",
@@ -66,11 +97,53 @@ internal fun UrgencyInputDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+                Text(
+                    text = "요실금 여부",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = !hasIncontinence,
+                        onClick = { onIncontinenceChange(false) },
+                        label = { Text("없음") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = hasIncontinence,
+                        onClick = { onIncontinenceChange(true) },
+                        label = { Text("있음") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                OutlinedTextField(
+                    value = volumeText,
+                    onValueChange = onVolumeChange,
+                    label = { Text("배뇨량 (mL)") },
+                    placeholder = { Text("예: 250") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = !isValidVolume
+                )
+                OutlinedTextField(
+                    value = memoText,
+                    onValueChange = onMemoChange,
+                    label = { Text("메모") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("기록")
+            TextButton(
+                onClick = onConfirm,
+                enabled = isValidVolume && !isE2eeChecking
+            ) {
+                Text(confirmLabel)
             }
         },
         dismissButton = {
@@ -161,118 +234,6 @@ internal fun PdfExportDialog(
                 enabled = !isExporting
             ) {
                 Text("취소")
-            }
-        }
-    )
-}
-
-@Composable
-internal fun MemoEditDialog(
-    event: VoidingEvent?,
-    editMemoText: String,
-    isE2eeChecking: Boolean,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onDelete: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    if (event == null) return
-    val showMemoLabel = editMemoText.isNotBlank()
-    val hasMemo = !event.memo.isNullOrBlank()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("메모 조회 및 수정") },
-        text = {
-            OutlinedTextField(
-                value = editMemoText,
-                onValueChange = onValueChange,
-                label = if (showMemoLabel) {
-                    { Text("메모") }
-                } else {
-                    null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = !isE2eeChecking
-            ) {
-                Text("저장")
-            }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (hasMemo) {
-                    TextButton(
-                        onClick = onDelete,
-                        enabled = !isE2eeChecking
-                    ) {
-                        Text("삭제")
-                    }
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("닫기")
-                }
-            }
-        }
-    )
-}
-
-@Composable
-internal fun VolumeEditDialog(
-    event: VoidingEvent?,
-    editVolumeText: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onDelete: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    if (event == null) return
-    val hasInput = editVolumeText.isNotBlank()
-    val isValidInput = editVolumeText.isBlank() || editVolumeText.toVolumeMlOrNull() != null
-    val hasSavedVolume = event.volumeMl != null
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("배뇨량 입력") },
-        text = {
-            OutlinedTextField(
-                value = editVolumeText,
-                onValueChange = onValueChange,
-                label = if (hasInput) {
-                    { Text("배뇨량 (mL)") }
-                } else {
-                    null
-                },
-                placeholder = { Text("예: 250") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = !isValidInput
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = isValidInput
-            ) {
-                Text("저장")
-            }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (hasSavedVolume) {
-                    TextButton(onClick = onDelete) {
-                        Text("삭제")
-                    }
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("닫기")
-                }
             }
         }
     )

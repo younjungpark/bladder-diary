@@ -171,11 +171,11 @@ private class VoidingPdfRenderer(
 
     private fun drawDetailsTable(report: VoidingPdfReport) {
         drawSectionTitle("상세 기록")
-        val columns = listOf("날짜" to 180f, "시각" to 100f, "절박감" to 85f, "배뇨량" to 150f)
+        val columns = listOf("날짜" to 150f, "시각" to 80f, "절박감" to 70f, "요실금" to 70f, "배뇨량" to 145f)
         drawTableHeader(columns)
 
         report.details.forEach { row ->
-            val rowHeight = measureDetailRowHeight(row, report.includeMemo, columns)
+            val rowHeight = measureDetailRowHeight(row, report.includeMemo)
             ensureSpace(rowHeight) {
                 drawSectionTitle("상세 기록 (계속)")
                 drawTableHeader(columns)
@@ -245,12 +245,14 @@ private class VoidingPdfRenderer(
         val dateX = PAGE_MARGIN + 4f
         val timeX = PAGE_MARGIN + columns[0].second + 4f
         val urgencyX = PAGE_MARGIN + columns[0].second + columns[1].second + 4f
-        val volumeX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + 4f
+        val incontinenceX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + 4f
+        val volumeX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + columns[3].second + 4f
         val topY = cursorY
 
         drawText(row.localDate, dateX, topY, bodyPaint)
         drawText(row.voidedAtEpochMs.toTimeLabel(), timeX, topY, bodyPaint)
         drawText(row.urgency?.toString().orEmpty().ifBlank { "-" }, urgencyX, topY, bodyPaint)
+        drawText(if (row.hasIncontinence) "있음" else "없음", incontinenceX, topY, bodyPaint)
         drawText(row.volumeMl?.let { "${it} mL" }.orEmpty().ifBlank { "-" }, volumeX, topY, bodyPaint)
 
         if (includeMemo && !row.memo.isNullOrBlank()) {
@@ -271,8 +273,7 @@ private class VoidingPdfRenderer(
 
     private fun measureDetailRowHeight(
         row: VoidingPdfDetail,
-        includeMemo: Boolean,
-        columns: List<Pair<String, Float>>
+        includeMemo: Boolean
     ): Float {
         if (!includeMemo || row.memo.isNullOrBlank()) return 24f
 

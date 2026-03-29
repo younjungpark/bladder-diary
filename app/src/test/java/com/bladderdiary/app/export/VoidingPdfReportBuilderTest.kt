@@ -42,6 +42,7 @@ class VoidingPdfReportBuilderTest {
 
         assertEquals("첫 메모", report.details.first().memo)
         assertEquals(1, report.details.first().urgency)
+        assertEquals(true, report.details.first().hasIncontinence)
         assertEquals(250, report.dailySummaries.first().totalVolumeMl)
         assertEquals(300, report.dailySummaries.last().totalVolumeMl)
     }
@@ -54,7 +55,8 @@ class VoidingPdfReportBuilderTest {
                 localDate = "2026-03-01",
                 memo = "첫 메모",
                 volumeMl = 250,
-                urgency = 1
+                urgency = 1,
+                hasIncontinence = true
             ),
             event(
                 localId = "b",
@@ -62,7 +64,8 @@ class VoidingPdfReportBuilderTest {
                 localDate = "2026-03-03",
                 memo = "둘째 메모",
                 volumeMl = 300,
-                urgency = 4
+                urgency = 4,
+                hasIncontinence = false
             ),
             event(
                 localId = "c",
@@ -70,7 +73,8 @@ class VoidingPdfReportBuilderTest {
                 localDate = "2026-03-03",
                 memo = null,
                 volumeMl = null,
-                urgency = null
+                urgency = null,
+                hasIncontinence = false
             )
         )
     }
@@ -81,7 +85,8 @@ class VoidingPdfReportBuilderTest {
         localDate: String,
         memo: String?,
         volumeMl: Int?,
-        urgency: Int?
+        urgency: Int?,
+        hasIncontinence: Boolean
     ): VoidingEvent {
         return VoidingEvent(
             localId = localId,
@@ -93,7 +98,8 @@ class VoidingPdfReportBuilderTest {
             updatedAtEpochMs = voidedAtEpochMs,
             memo = memo,
             volumeMl = volumeMl,
-            urgency = urgency
+            urgency = urgency,
+            hasIncontinence = hasIncontinence
         )
     }
 }

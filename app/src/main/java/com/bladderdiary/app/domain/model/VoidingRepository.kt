@@ -4,17 +4,28 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 
 interface VoidingRepository {
-    suspend fun addNow(urgency: Int, memo: String? = null, volumeMl: Int? = null): Result<Unit>
+    suspend fun addNow(
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String? = null,
+        volumeMl: Int? = null
+    ): Result<Unit>
     suspend fun addAt(
         date: LocalDate,
         hour: Int,
         minute: Int,
         urgency: Int,
+        hasIncontinence: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
     ): Result<Unit>
-    suspend fun updateMemo(localId: String, memo: String?): Result<Unit>
-    suspend fun updateVolume(localId: String, volumeMl: Int?): Result<Unit>
+    suspend fun updateEvent(
+        localId: String,
+        urgency: Int,
+        hasIncontinence: Boolean,
+        memo: String?,
+        volumeMl: Int?
+    ): Result<Unit>
     suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>>
     fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>>
     fun observeDailyCount(date: LocalDate): Flow<Int>
