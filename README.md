@@ -1,28 +1,84 @@
 # BladderDiary
 
-Supabase와 Room을 기반으로 구축된 BladderDiary 안드로이드 프로젝트입니다.
+BladderDiary는 배뇨 기록을 빠르게 남기고, 날짜별 패턴을 확인하며, 필요 시 PDF로 내보낼 수 있는 안드로이드 앱입니다.  
+로컬 우선 저장 구조를 기반으로 동작하며, 온라인 상태에서는 Supabase와 자동 동기화를 수행합니다.
 
-## 핵심 기능
-- 소셜 회원가입/로그인 (Google, Kakao 지원)
-- PIN 번호 설정 및 앱 실행 시 보안 잠금 유지
-- 단 1번의 터치로 배뇨 기록 저장 (현재 시각 기준 저장)
-- 날짜별 배뇨 기록 상세 조회, 일일 총 횟수 확인 및 각 기록별 메모 작성/수정
-- 메모에 민감한 개인 정보가 포함될 경우를 대비한 선택형 종단간 암호화(E2EE) 비밀문구 설정/변경 지원
-- 배뇨 기록 삭제 기능 (소프트 삭제 처리로 안전하게 보관 및 원격 반영)
-- 오프라인 환경 로컬 저장 (Room) 및 온라인 연결 시 자동 전체 동기화 (WorkManager)
-- 최신 안드로이드 표준에 맞춘 깔끔한 UI/UX (스플래시 화면, Adaptive Icon 적용 등)
+## 주요 기능
+
+- Google / Kakao 소셜 로그인
+- 4자리 PIN 잠금
+- 날짜별 배뇨 기록 추가, 수정, 삭제
+- 기록 항목별 메모, 배뇨량, 절박감, 요실금 여부 저장
+- 메인 화면 타임라인과 월간 캘린더 조회
+- 오프라인 로컬 저장 후 온라인 복구 시 자동 동기화
+- 메모 선택형 종단간 암호화(E2EE) 비밀문구 설정 / 변경 / 잠금 해제
+- 기간 선택 기반 PDF 내보내기
+
+## 화면 구성
+
+- 인증 화면: Google 또는 Kakao 계정으로 로그인
+- 메인 화면: 선택 날짜 기준 기록 타임라인, 요약 정보, 동기화 상태 확인
+- 기록 입력 시트: 시간, 절박감, 요실금 여부, 배뇨량, 메모 입력
+- 캘린더 화면: 월간 기록 밀도와 날짜별 기록 유무 확인
+- 보안 화면: PIN 설정 및 잠금 해제
+- 메모 암호화 화면: E2EE 비밀문구 설정, 변경, 잠금 해제
+
+## 기술 스택
+
+- Kotlin
+- Jetpack Compose + Material 3
+- Room
+- DataStore
+- WorkManager
+- Ktor Client
+- kotlinx.serialization
+- Supabase REST/Auth 연동
+
+## 프로젝트 구조
+
+```text
+app/src/main/java/com/bladderdiary/app
+|- core/           앱 그래프 및 의존성 초기화
+|- data/           로컬 DB, 원격 API, 저장소 구현, 보안 처리
+|- domain/         모델 및 유스케이스
+|- export/         PDF 보고서 생성
+|- presentation/   인증, 메인, PIN, E2EE 화면과 ViewModel
+|- ui/theme/       앱 테마, 색상, 타이포그래피
+|- worker/         백그라운드 동기화 작업
+```
 
 ## 개발 환경
-- Android Studio (Giraffe 이상 권장)
+
+- Android Studio 최신 안정 버전 권장
 - JDK 17
 - Android SDK 34
+- 최소 SDK 26
 
-## Supabase 설정
-1. Supabase 프로젝트 생성
-2. SQL Editor에서 `supabase/sql/001_init.sql` 실행
-3. Authentication > Providers에서 Google, Kakao provider 활성화 및 앱 키 등록
-4. Authentication > URL Configuration에서 Redirect URL에 `bladderdiary://auth/callback` 추가
-5. 프로젝트 루트 `local.properties`에 아래 앱 연동 필수 키값 추가
+## 시작하기
+
+### 1. 저장소 준비
+
+```bash
+git clone https://github.com/younjungpark/bladder-diary.git
+cd bladder-diary
+```
+
+### 2. Supabase 초기 설정
+
+1. Supabase 프로젝트를 생성합니다.
+2. `supabase/sql` 아래 SQL 파일을 번호 순서대로 실행합니다.
+
+```text
+001_init.sql
+002_e2ee_memo.sql
+003_add_volume_ml.sql
+004_add_urgency.sql
+005_add_has_incontinence.sql
+```
+
+3. Authentication에서 Google, Kakao provider를 활성화합니다.
+4. Redirect URL에 `bladderdiary://auth/callback`를 추가합니다.
+5. 프로젝트 루트의 `local.properties`에 아래 값을 설정합니다.
 
 ```properties
 SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
@@ -30,23 +86,58 @@ SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_REDIRECT_URI=bladderdiary://auth/callback
 ```
 
-## 실행
-1. Android Studio로 프로젝트 열기
-2. Gradle Sync
-3. 에뮬레이터/실기기에서 `app` 실행
+### 3. 앱 실행
 
-## 참고
-- 일별 기준은 **기기 로컬 타임존 자정**입니다.
-- 메모 암호화는 선택 기능이며, 비밀문구를 설정하면 메모를 종단간 암호화(E2EE)하여 서버에 저장할 수 있습니다.
-- 비밀문구를 설정하지 않은 메모는 평문으로 동기화됩니다.
-- 삭제는 소프트 삭제(`deleted_at`)로 원격 반영됩니다.
+- Android Studio에서 프로젝트를 연 뒤 Gradle Sync를 수행합니다.
+- 에뮬레이터 또는 실기기에서 `app` 모듈을 실행합니다.
+
+CLI로 빌드할 경우:
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+## 릴리즈 APK 빌드
+
+릴리즈 서명까지 포함해 APK를 만들려면 `local.properties`에 아래 항목을 추가합니다.
+
+```properties
+RELEASE_STORE_FILE=your-release-keystore.jks
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
+그다음 아래 명령으로 릴리즈 APK를 생성할 수 있습니다.
+
+```bash
+./gradlew :app:assembleRelease
+```
+
+생성 위치:
+
+```text
+app/build/outputs/apk/release/app-release.apk
+```
+
+## 동작 메모
+
+- 일별 기준은 기기 로컬 타임존의 자정입니다.
+- 메모 암호화는 선택 기능입니다.
+- E2EE 비밀문구를 잊어버리면 암호화된 메모를 복구할 수 없습니다.
+- 암호화가 꺼진 메모는 평문 상태로 동기화됩니다.
+- 삭제는 소프트 삭제 기반으로 원격 반영됩니다.
+- 오프라인 상태에서 저장한 기록은 로컬에 보관되며, 연결이 복구되면 다시 동기화됩니다.
+- PDF는 개인 참고용 기록이며 의료적 진단이나 치료 판단을 대체하지 않습니다.
+
+## 관련 문서
+
+- [LICENSE](LICENSE)
+- [TRADEMARK_POLICY.md](TRADEMARK_POLICY.md)
+- [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+- [MEDICAL_DISCLAIMER.md](MEDICAL_DISCLAIMER.md)
 
 ## 라이선스
-- 이 프로젝트는 `Apache License 2.0`으로 공개됩니다.
-- 자세한 내용은 [LICENSE](/c:/work/BladderDiary/LICENSE) 파일을 참고하세요.
-- 단, `BladderDiary` 이름, 로고, 아이콘 등 브랜드 자산은 오픈소스 라이선스에 포함되지 않습니다.
-- 브랜드 사용 기준은 [TRADEMARK_POLICY.md](/c:/work/BladderDiary/TRADEMARK_POLICY.md)를 참고하세요.
 
-## 배포 문서
-- 개인정보 처리방침: [PRIVACY_POLICY.md](/c:/work/BladderDiary/PRIVACY_POLICY.md)
-- 의료 비고지 안내: [MEDICAL_DISCLAIMER.md](/c:/work/BladderDiary/MEDICAL_DISCLAIMER.md)
+이 프로젝트는 Apache License 2.0을 따릅니다.  
+단, `BladderDiary` 이름, 로고, 아이콘 등 브랜드 자산은 별도 정책의 적용을 받을 수 있습니다.
