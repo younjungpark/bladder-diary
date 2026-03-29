@@ -1,10 +1,14 @@
 package com.bladderdiary.app.presentation.main
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -28,7 +32,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +53,10 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,6 +73,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.datetime.LocalDate
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -184,32 +193,20 @@ internal fun MainContent(
                     },
                     label = "dateRecordsSlide"
                 ) { _ ->
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        if (sortedEvents.isEmpty()) {
-                            RecordsEmptyState(
-                                palette = palette,
-                                selectedDate = state.selectedDate,
-                                today = today
-                            )
-                        } else {
-                            sortedEvents.forEachIndexed { index, event ->
-                                val previousEvent = sortedEvents.getOrNull(index + 1)
-                                DiaryTimelineItem(
-                                    palette = palette,
-                                    event = event,
-                                    intervalText = previousEvent
-                                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                                        ?.takeIf { it > 0 }
-                                        ?.toIntervalText(),
-                                    isFirst = index == 0,
-                                    isLast = index == sortedEvents.lastIndex,
-                                    onEdit = { onEditEvent(event) },
-                                    onDelete = { onDeleteEvent(event.localId) }
-                                )
-                            }
-                        }
+                    if (sortedEvents.isEmpty()) {
+                        RecordsEmptyState(
+                            palette = palette,
+                            selectedDate = state.selectedDate,
+                            today = today
+                        )
+                    } else {
+                        AnimatedTimelineEvents(
+                            palette = palette,
+                            selectedDate = state.selectedDate,
+                            events = sortedEvents,
+                            onEditEvent = onEditEvent,
+                            onDeleteEvent = onDeleteEvent
+                        )
                     }
                 }
             }
@@ -588,6 +585,127 @@ private fun DiaryTimelineItem(
 }
 
 @Composable
+private fun AnimatedTimelineEvents(
+    palette: HomePalette,
+    selectedDate: LocalDate,
+    events: List<VoidingEvent>,
+    onEditEvent: (VoidingEvent) -> Unit,
+    onDeleteEvent: (String) -> Unit
+) {
+    val renderedIds = remember(selectedDate) { mutableStateListOf<String>() }
+    val renderedEvents = remember(selectedDate) { mutableStateMapOf<String, VoidingEvent>() }
+    val coroutineScope = rememberCoroutineScope()
+    val visibilityStates = remember(selectedDate) {
+        mutableMapOf<String, MutableTransitionState<Boolean>>()
+    }
+    var hasInitialized by remember(selectedDate) { mutableStateOf(false) }
+
+    LaunchedEffect(events) {
+        val targetIds = events.map { it.localId }
+        val targetIdSet = targetIds.toSet()
+        val currentIds = renderedIds.toList()
+
+        events.forEach { event ->
+            renderedEvents[event.localId] = event
+            val state = visibilityStates[event.localId]
+            if (state == null) {
+                visibilityStates[event.localId] =
+                    MutableTransitionState(!hasInitialized).apply { targetState = true }
+                if (event.localId !in renderedIds) {
+                    renderedIds += event.localId
+                }
+            } else {
+                state.targetState = true
+            }
+        }
+
+        val exitingIdsWithIndex = currentIds.withIndex()
+            .filter { (_, id) -> id !in targetIdSet }
+
+        val reorderedIds = targetIds.toMutableList()
+        exitingIdsWithIndex
+            .sortedBy { it.index }
+            .forEach { (index, id) ->
+                reorderedIds.add(index.coerceAtMost(reorderedIds.size), id)
+            }
+
+        renderedIds.clear()
+        renderedIds.addAll(reorderedIds)
+
+        exitingIdsWithIndex.forEach { (_, id) ->
+            visibilityStates[id]?.targetState = false
+            coroutineScope.launch {
+                delay(TIMELINE_EXIT_DURATION_MS)
+                if (id !in targetIdSet && visibilityStates[id]?.targetState == false) {
+                    renderedIds.remove(id)
+                    renderedEvents.remove(id)
+                    visibilityStates.remove(id)
+                }
+            }
+        }
+
+        hasInitialized = true
+    }
+
+    Column {
+        renderedIds.forEachIndexed { index, id ->
+            val event = renderedEvents[id] ?: return@forEachIndexed
+            val previousEvent = nextRenderedEvent(
+                renderedIds = renderedIds,
+                renderedEvents = renderedEvents,
+                startIndex = index + 1
+            )
+            val visibilityState = visibilityStates[id] ?: return@forEachIndexed
+
+            key(id) {
+                AnimatedVisibility(
+                    visibleState = visibilityState,
+                    enter = fadeIn(animationSpec = tween(TIMELINE_ENTER_DURATION_MS)) +
+                        expandVertically(
+                            animationSpec = tween(TIMELINE_ENTER_DURATION_MS),
+                            expandFrom = Alignment.Top
+                        ),
+                    exit = fadeOut(animationSpec = tween(TIMELINE_EXIT_DURATION_MS.toInt())) +
+                        shrinkVertically(
+                            animationSpec = tween(TIMELINE_EXIT_DURATION_MS.toInt()),
+                            shrinkTowards = Alignment.Top
+                        )
+                ) {
+                    Column {
+                        DiaryTimelineItem(
+                            palette = palette,
+                            event = event,
+                            intervalText = previousEvent
+                                ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                                ?.takeIf { it > 0 }
+                                ?.toIntervalText(),
+                            isFirst = index == 0,
+                            isLast = index == renderedIds.lastIndex,
+                            onEdit = { onEditEvent(event) },
+                            onDelete = { onDeleteEvent(event.localId) }
+                        )
+                        if (index != renderedIds.lastIndex) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun nextRenderedEvent(
+    renderedIds: List<String>,
+    renderedEvents: Map<String, VoidingEvent>,
+    startIndex: Int
+): VoidingEvent? {
+    for (index in startIndex..renderedIds.lastIndex) {
+        renderedEvents[renderedIds[index]]?.let { return it }
+    }
+    return null
+}
+
+@Composable
 private fun TimelineRail(
     palette: HomePalette,
     isFirst: Boolean,
@@ -723,11 +841,11 @@ private fun DiaryEventCard(
                                 )
                             }
                             event.urgency?.let { urgency ->
-                                val badgeColors = urgencyBadgeColors(urgency)
+                                val tone = palette.urgencyTone(urgency)
                                 SmallBadge(
                                     text = "절박감 ${urgency.toUrgencyLabel()}",
-                                    containerColor = badgeColors.first,
-                                    contentColor = badgeColors.second
+                                    containerColor = tone.container,
+                                    contentColor = tone.content
                                 )
                             }
                         }
@@ -895,12 +1013,5 @@ private fun List<VoidingEvent>.toAverageIntervalMillis(): Long? {
     }
 }
 
-private fun urgencyBadgeColors(level: Int): Pair<Color, Color> {
-    return when (level) {
-        1 -> Color(0xFFE7F4F0) to Color(0xFF2D6B5B)  // Green
-        2 -> Color(0xFFFFF4D4) to Color(0xFF8A6C1C)  // Yellow
-        3 -> Color(0xFFFFEFE0) to Color(0xFFB85D00)  // Light Orange
-        4 -> Color(0xFFFFE6D6) to Color(0xFFD14321)  // Orange Red
-        else -> Color(0xFFFFDED6) to Color(0xFFBF2613) // Deep Red
-    }
-}
+private const val TIMELINE_ENTER_DURATION_MS = 220
+private const val TIMELINE_EXIT_DURATION_MS = 180L

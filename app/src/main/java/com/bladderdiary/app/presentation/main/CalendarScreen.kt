@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,6 +62,7 @@ fun CalendarScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
+    val palette = rememberHomePalette()
     val primaryGlow = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
     val secondaryGlow = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f)
     val totalCount = state.dailyCounts.values.sum()
@@ -242,6 +245,7 @@ fun CalendarScreen(
                                         day = day,
                                         count = state.dailyCounts[day] ?: 0,
                                         isToday = day == today,
+                                        palette = palette,
                                         onClick = { onDateSelected(day) }
                                     )
                                 }
@@ -314,27 +318,35 @@ private fun CalendarDayCell(
     day: LocalDate,
     count: Int,
     isToday: Boolean,
+    palette: HomePalette,
     onClick: () -> Unit
 ) {
+    val heatLevel = calendarHeatLevel(count)
+    val isSunday = day.dayOfWeek.value == 7
     val fixedDayTextStyle = MaterialTheme.typography.bodySmall.withFixedFontScale()
     val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.copy(
         fontSize = 10.sp,
         lineHeight = 12.sp
     ).withFixedFontScale()
-    val backgroundColor = when {
-        isToday -> MaterialTheme.colorScheme.primaryContainer
-        count > 0 -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = dayCountAlpha(count))
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f)
-    }
+    val backgroundColor = calendarCellBackgroundColor(
+        palette = palette,
+        heatLevel = heatLevel,
+        isToday = isToday
+    )
     val textColor = when {
-        isToday -> MaterialTheme.colorScheme.onPrimaryContainer
-        day.dayOfWeek.value == 7 -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
-        else -> MaterialTheme.colorScheme.onSurface
+        isToday || heatLevel >= 4 -> palette.primaryButtonText
+        isSunday -> palette.syncErrorTint.copy(alpha = 0.92f)
+        else -> palette.titleText
     }
 
     Surface(
         color = backgroundColor,
         shape = RoundedCornerShape(18.dp),
+        border = calendarCellBorder(
+            palette = palette,
+            heatLevel = heatLevel,
+            isToday = isToday
+        ),
         modifier = Modifier
             .aspectRatio(CALENDAR_DAY_CELL_ASPECT_RATIO)
             .heightIn(min = CALENDAR_DAY_CELL_MIN_HEIGHT)
@@ -361,17 +373,21 @@ private fun CalendarDayCell(
 
             if (count > 0) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = if (isToday) 0.28f else 0.72f),
+                    color = calendarCountBadgeContainerColor(
+                        palette = palette,
+                        heatLevel = heatLevel,
+                        isToday = isToday
+                    ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(
-                        text = "${count}회",
+                        text = calendarCountLabel(count),
                         style = fixedBadgeTextStyle,
-                        color = if (isToday) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color = calendarCountBadgeContentColor(
+                            palette = palette,
+                            heatLevel = heatLevel,
+                            isToday = isToday
+                        ),
                         maxLines = 1,
                         softWrap = false,
                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
@@ -397,15 +413,73 @@ private fun TextStyle.withFixedFontScale(): TextStyle {
 private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.76f
 private val CALENDAR_DAY_CELL_MIN_HEIGHT = 60.dp
 
-private fun dayCountAlpha(count: Int): Float {
+private fun calendarHeatLevel(count: Int): Int {
     return when (count) {
-        0 -> 0f
-        1 -> 0.38f
-        2 -> 0.48f
-        3 -> 0.58f
-        4 -> 0.68f
-        else -> 0.78f
+        0 -> 0
+        in 1..2 -> 1
+        in 3..4 -> 2
+        in 5..6 -> 3
+        in 7..9 -> 4
+        else -> 5
     }
+}
+
+private fun calendarCellBackgroundColor(
+    palette: HomePalette,
+    heatLevel: Int,
+    isToday: Boolean
+): Color {
+    if (isToday) {
+        return lerp(palette.surfaceStrong, palette.primaryStrong, 0.7f)
+    }
+
+    return when (heatLevel) {
+        0 -> palette.surfaceMuted.copy(alpha = 0.34f)
+        1 -> lerp(palette.surfaceStrong, palette.primaryStrong, 0.12f)
+        2 -> lerp(palette.surfaceStrong, palette.primaryStrong, 0.24f)
+        3 -> lerp(palette.surfaceStrong, palette.primaryStrong, 0.4f)
+        4 -> lerp(palette.surfaceStrong, palette.primaryStrong, 0.58f)
+        else -> lerp(palette.surfaceStrong, palette.primaryStrong, 0.78f)
+    }
+}
+
+private fun calendarCellBorder(
+    palette: HomePalette,
+    heatLevel: Int,
+    isToday: Boolean
+): BorderStroke? {
+    return when {
+        isToday -> BorderStroke(1.5.dp, palette.primaryStrong.copy(alpha = 0.96f))
+        heatLevel >= 5 -> BorderStroke(1.dp, palette.primaryStrong.copy(alpha = 0.26f))
+        else -> null
+    }
+}
+
+private fun calendarCountBadgeContainerColor(
+    palette: HomePalette,
+    heatLevel: Int,
+    isToday: Boolean
+): Color {
+    return when {
+        isToday || heatLevel >= 4 -> Color.White.copy(alpha = 0.18f)
+        heatLevel >= 2 -> palette.surfaceStrong.copy(alpha = 0.82f)
+        else -> palette.surfaceStrong.copy(alpha = 0.9f)
+    }
+}
+
+private fun calendarCountBadgeContentColor(
+    palette: HomePalette,
+    heatLevel: Int,
+    isToday: Boolean
+): Color {
+    return when {
+        isToday || heatLevel >= 4 -> palette.primaryButtonText
+        else -> palette.mutedText
+    }
+}
+
+private fun calendarCountLabel(count: Int): String {
+    return if (count >= 10) "10+" else "${count}회"
 }
 
 private fun generateCalendarDays(yearMonth: LocalDate): List<LocalDate?> {

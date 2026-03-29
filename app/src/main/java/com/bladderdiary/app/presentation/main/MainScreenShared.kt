@@ -442,6 +442,12 @@ internal data class HomeSyncStatus(
     val tint: Color
 )
 
+internal data class UrgencyTone(
+    val container: Color,
+    val content: Color,
+    val border: Color
+)
+
 internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus {
     return when {
         isSyncing -> HomeSyncStatus(
@@ -504,7 +510,8 @@ internal data class HomePalette(
     val syncReadyTint: Color,
     val syncPendingTint: Color,
     val syncErrorTint: Color,
-    val dangerTint: Color
+    val dangerTint: Color,
+    val urgencyTones: List<UrgencyTone>
 )
 
 private val DarkHomePalette = HomePalette(
@@ -540,7 +547,34 @@ private val DarkHomePalette = HomePalette(
     syncReadyTint = Color(0xFF8BE2BD),
     syncPendingTint = Color(0xFFFFD083),
     syncErrorTint = Color(0xFFFFA299),
-    dangerTint = Color(0xFFFFB4AB)
+    dangerTint = Color(0xFFFFB4AB),
+    urgencyTones = listOf(
+        UrgencyTone(
+            container = Color(0xFF20372F),
+            content = Color(0xFF9DE9CD),
+            border = Color(0xFF57C49A)
+        ),
+        UrgencyTone(
+            container = Color(0xFF3A331A),
+            content = Color(0xFFFFE09A),
+            border = Color(0xFFD9B351)
+        ),
+        UrgencyTone(
+            container = Color(0xFF3D2B1A),
+            content = Color(0xFFFFC48B),
+            border = Color(0xFFE08F43)
+        ),
+        UrgencyTone(
+            container = Color(0xFF43261D),
+            content = Color(0xFFFFB29C),
+            border = Color(0xFFF07C57)
+        ),
+        UrgencyTone(
+            container = Color(0xFF4A2322),
+            content = Color(0xFFFFB7AF),
+            border = Color(0xFFFF7E71)
+        )
+    )
 )
 
 private val LightHomePalette = HomePalette(
@@ -576,5 +610,37 @@ private val LightHomePalette = HomePalette(
     syncReadyTint = Color(0xFF1E8B6A),
     syncPendingTint = Color(0xFFC4801F),
     syncErrorTint = Color(0xFFB2453B),
-    dangerTint = Color(0xFFB2453B)
+    dangerTint = Color(0xFFB2453B),
+    urgencyTones = listOf(
+        UrgencyTone(
+            container = Color(0xFFE7F4F0),
+            content = Color(0xFF2D6B5B),
+            border = Color(0xFF7CB6A6)
+        ),
+        UrgencyTone(
+            container = Color(0xFFFFF4D4),
+            content = Color(0xFF8A6C1C),
+            border = Color(0xFFE0C66B)
+        ),
+        UrgencyTone(
+            container = Color(0xFFFFEFE0),
+            content = Color(0xFFB85D00),
+            border = Color(0xFFF0A14F)
+        ),
+        UrgencyTone(
+            container = Color(0xFFFFE6D6),
+            content = Color(0xFFD14321),
+            border = Color(0xFFF08A6F)
+        ),
+        UrgencyTone(
+            container = Color(0xFFFFDED6),
+            content = Color(0xFFBF2613),
+            border = Color(0xFFE47162)
+        )
+    )
 )
+
+internal fun HomePalette.urgencyTone(level: Int): UrgencyTone {
+    val index = level.coerceIn(1, urgencyTones.size) - 1
+    return urgencyTones[index]
+}

@@ -390,18 +390,19 @@ private fun UrgencyChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tone = palette.urgencyTone(level)
     val bgColor by animateColorAsState(
-        targetValue = if (isSelected) editorUrgencySelectedColor(level) else palette.surfaceMuted,
+        targetValue = if (isSelected) tone.container else palette.surfaceMuted,
         animationSpec = tween(200),
         label = "urgencyBg"
     )
     val textColor by animateColorAsState(
-        targetValue = if (isSelected) editorUrgencySelectedTextColor(level) else palette.bodyText,
+        targetValue = if (isSelected) tone.content else palette.bodyText,
         animationSpec = tween(200),
         label = "urgencyText"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) editorUrgencySelectedColor(level) else palette.borderSoft,
+        targetValue = if (isSelected) tone.border else palette.borderSoft,
         animationSpec = tween(200),
         label = "urgencyBorder"
     )
@@ -468,26 +469,6 @@ private fun ToggleChip(
             color = contentColor,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
         )
-    }
-}
-
-private fun editorUrgencySelectedColor(level: Int): Color {
-    return when (level) {
-        1 -> Color(0xFFDDF0EA)
-        2 -> Color(0xFFFFF4D4)
-        3 -> Color(0xFFFFEFE0)
-        4 -> Color(0xFFFFE6D6)
-        else -> Color(0xFFFFDED6)
-    }
-}
-
-private fun editorUrgencySelectedTextColor(level: Int): Color {
-    return when (level) {
-        1 -> Color(0xFF1B5E4B)
-        2 -> Color(0xFF7A5C12)
-        3 -> Color(0xFFB06000)
-        4 -> Color(0xFFC04020)
-        else -> Color(0xFFAA2210)
     }
 }
 
