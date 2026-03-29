@@ -322,11 +322,12 @@ private fun CalendarDayCell(
     onClick: () -> Unit
 ) {
     val heatLevel = calendarHeatLevel(count)
+    val usesCompactBadge = count >= 10
     val isSunday = day.dayOfWeek.value == 7
     val fixedDayTextStyle = MaterialTheme.typography.bodySmall.withFixedFontScale()
     val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 10.sp,
-        lineHeight = 12.sp
+        fontSize = if (usesCompactBadge) 9.sp else 10.sp,
+        lineHeight = if (usesCompactBadge) 11.sp else 12.sp
     ).withFixedFontScale()
     val backgroundColor = calendarCellBackgroundColor(
         palette = palette,
@@ -359,7 +360,10 @@ private fun CalendarDayCell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 7.dp),
+                .padding(
+                    horizontal = if (usesCompactBadge) 5.dp else 6.dp,
+                    vertical = 7.dp
+                ),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
@@ -390,7 +394,10 @@ private fun CalendarDayCell(
                         ),
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(
+                            horizontal = if (usesCompactBadge) 4.dp else 5.dp,
+                            vertical = if (usesCompactBadge) 1.dp else 2.dp
+                        )
                     )
                 }
             } else {
