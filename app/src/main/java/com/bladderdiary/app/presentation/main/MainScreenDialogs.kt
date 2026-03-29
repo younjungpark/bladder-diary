@@ -1,14 +1,25 @@
 package com.bladderdiary.app.presentation.main
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,25 +27,34 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.datetime.LocalDate
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EventEditorDialog(
     isVisible: Boolean,
@@ -55,31 +75,48 @@ internal fun EventEditorDialog(
     onConfirm: () -> Unit
 ) {
     if (!isVisible) return
+    val palette = rememberHomePalette()
     val isValidVolume = volumeText.isBlank() || volumeText.toVolumeMlOrNull() != null
     val scrollState = rememberScrollState()
-    val maxDialogContentHeight = 520.dp
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+        sheetState = sheetState,
+        containerColor = palette.surfaceStrong,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 14.dp, bottom = 6.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(palette.trackMuted)
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                color = palette.titleText,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp)
             )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxDialogContentHeight)
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                EditorFieldLabel("기록 시각")
+
+            // 기록 시각
+            EditorSection(palette = palette, label = "기록 시각") {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
-                    shape = RoundedCornerShape(18.dp),
+                    color = palette.surfaceTint,
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = !isE2eeChecking, onClick = onPickTime)
@@ -87,156 +124,371 @@ internal fun EventEditorDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = timeText,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 20.sp,
+                                lineHeight = 24.sp
+                            ),
+                            color = palette.titleText,
+                            fontWeight = FontWeight.Bold
                         )
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                EditorSectionDivider()
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EditorFieldLabel("절박감")
-                    Text(
-                        text = "1은 절박감 없음, 5는 절박감 강함입니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        (1..5).forEach { level ->
-                            FilterChip(
-                                selected = urgency == level,
-                                onClick = { onUrgencyChange(level) },
-                                label = { Text(level.toString()) },
-                                modifier = Modifier.weight(1f)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(palette.surfaceStrong),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = palette.primaryStrong,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
-                    Text(
-                        text = "현재 선택: ${urgency.toUrgencyDescription()}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
-                EditorSectionDivider()
+            }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EditorFieldLabel("요실금 여부")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = !hasIncontinence,
-                            onClick = { onIncontinenceChange(false) },
-                            label = { Text("없음") },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = hasIncontinence,
-                            onClick = { onIncontinenceChange(true) },
-                            label = { Text("있음") },
+            EditorDivider(palette)
+
+            // 절박감
+            EditorSection(palette = palette, label = "절박감") {
+                Text(
+                    text = "1은 절박감 없음, 5는 절박감 강함입니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.mutedText
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    (1..5).forEach { level ->
+                        UrgencyChip(
+                            level = level,
+                            isSelected = urgency == level,
+                            palette = palette,
+                            onClick = { onUrgencyChange(level) },
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
-                EditorSectionDivider()
+                Text(
+                    text = "현재 선택: ${urgency.toUrgencyDescription()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.primaryStrong,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EditorFieldLabel("배뇨량")
-                    OutlinedTextField(
-                        value = volumeText,
-                        onValueChange = onVolumeChange,
-                        placeholder = { Text("예: 250") },
-                        trailingIcon = {
-                            Text(
-                                text = "mL",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier
-                            .widthIn(min = 132.dp, max = 172.dp)
-                            .heightIn(min = 50.dp),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = !isValidVolume,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface
-                        )
+            EditorDivider(palette)
+
+            // 요실금 여부
+            EditorSection(palette = palette, label = "요실금 여부") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ToggleChip(
+                        text = "없음",
+                        isSelected = !hasIncontinence,
+                        palette = palette,
+                        onClick = { onIncontinenceChange(false) },
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                EditorSectionDivider()
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EditorFieldLabel("메모")
-                    OutlinedTextField(
-                        value = memoText,
-                        onValueChange = onMemoChange,
-                        placeholder = { Text("증상이나 상황을 짧게 남겨보세요.") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 90.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        minLines = 2,
-                        maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface
-                        )
+                    ToggleChip(
+                        text = "있음",
+                        isSelected = hasIncontinence,
+                        palette = palette,
+                        onClick = { onIncontinenceChange(true) },
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = isValidVolume && !isE2eeChecking
+
+            EditorDivider(palette)
+
+            // 배뇨량
+            EditorSection(palette = palette, label = "배뇨량") {
+                OutlinedTextField(
+                    value = volumeText,
+                    onValueChange = onVolumeChange,
+                    placeholder = {
+                        Text(
+                            text = "예: 250",
+                            color = palette.subtleText
+                        )
+                    },
+                    trailingIcon = {
+                        Text(
+                            text = "mL",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = palette.mutedText,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    modifier = Modifier
+                        .widthIn(min = 140.dp, max = 180.dp)
+                        .heightIn(min = 54.dp),
+                    singleLine = true,
+                    shape = RoundedCornerShape(18.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = !isValidVolume,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = palette.surfaceMuted,
+                        focusedContainerColor = palette.surfaceMuted,
+                        unfocusedBorderColor = palette.borderSoft,
+                        focusedBorderColor = palette.primaryStrong,
+                        cursorColor = palette.primaryStrong
+                    )
+                )
+            }
+
+            EditorDivider(palette)
+
+            // 메모
+            EditorSection(palette = palette, label = "메모") {
+                OutlinedTextField(
+                    value = memoText,
+                    onValueChange = onMemoChange,
+                    placeholder = {
+                        Text(
+                            text = "증상이나 상황을 짧게 남겨보세요.",
+                            color = palette.subtleText
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 96.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    minLines = 2,
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = palette.surfaceMuted,
+                        focusedContainerColor = palette.surfaceMuted,
+                        unfocusedBorderColor = palette.borderSoft,
+                        focusedBorderColor = palette.primaryStrong,
+                        cursorColor = palette.primaryStrong
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 하단 버튼
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(confirmLabel)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소")
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    color = palette.secondaryButtonBackground,
+                    shape = RoundedCornerShape(18.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        palette.secondaryButtonBorder
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable(onClick = onDismiss)
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "취소",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = palette.secondaryButtonText,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(
+                            brush = if (isValidVolume && !isE2eeChecking) {
+                                Brush.horizontalGradient(
+                                    listOf(palette.primaryButtonStart, palette.primaryButtonEnd)
+                                )
+                            } else {
+                                Brush.horizontalGradient(
+                                    listOf(palette.surfaceMuted, palette.surfaceMuted)
+                                )
+                            }
+                        )
+                        .clickable(
+                            enabled = isValidVolume && !isE2eeChecking,
+                            onClick = onConfirm
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = confirmLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isValidVolume && !isE2eeChecking) {
+                            palette.primaryButtonText
+                        } else {
+                            palette.subtleText
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
-private fun EditorSectionDivider() {
+private fun EditorSection(
+    palette: HomePalette,
+    label: String,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontSize = 14.sp,
+                lineHeight = 18.sp
+            ),
+            color = palette.titleText,
+            fontWeight = FontWeight.Bold
+        )
+        content()
+    }
+}
+
+@Composable
+private fun EditorDivider(palette: HomePalette) {
     HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-        thickness = 1.dp
+        color = palette.borderSoft,
+        thickness = 1.dp,
+        modifier = Modifier.padding(vertical = 2.dp)
     )
 }
 
 @Composable
-private fun EditorFieldLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface,
-        fontWeight = FontWeight.SemiBold
+private fun UrgencyChip(
+    level: Int,
+    isSelected: Boolean,
+    palette: HomePalette,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) editorUrgencySelectedColor(level) else palette.surfaceMuted,
+        animationSpec = tween(200),
+        label = "urgencyBg"
     )
+    val textColor by animateColorAsState(
+        targetValue = if (isSelected) editorUrgencySelectedTextColor(level) else palette.bodyText,
+        animationSpec = tween(200),
+        label = "urgencyText"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) editorUrgencySelectedColor(level) else palette.borderSoft,
+        animationSpec = tween(200),
+        label = "urgencyBorder"
+    )
+
+    Box(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = level.toString(),
+            style = MaterialTheme.typography.titleSmall,
+            color = textColor,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun ToggleChip(
+    text: String,
+    isSelected: Boolean,
+    palette: HomePalette,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) palette.surfaceTint else palette.surfaceMuted,
+        animationSpec = tween(200),
+        label = "toggleBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) palette.primaryStrong else palette.borderSoft,
+        animationSpec = tween(200),
+        label = "toggleBorder"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) palette.primaryStrong else palette.bodyText,
+        animationSpec = tween(200),
+        label = "toggleText"
+    )
+
+    Box(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(bgColor)
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = contentColor,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+private fun editorUrgencySelectedColor(level: Int): Color {
+    return when (level) {
+        1 -> Color(0xFFDDF0EA)
+        2 -> Color(0xFFFFF4D4)
+        3 -> Color(0xFFFFEFE0)
+        4 -> Color(0xFFFFE6D6)
+        else -> Color(0xFFFFDED6)
+    }
+}
+
+private fun editorUrgencySelectedTextColor(level: Int): Color {
+    return when (level) {
+        1 -> Color(0xFF1B5E4B)
+        2 -> Color(0xFF7A5C12)
+        3 -> Color(0xFFB06000)
+        4 -> Color(0xFFC04020)
+        else -> Color(0xFFAA2210)
+    }
 }
 
 @Composable

@@ -29,14 +29,18 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -577,7 +581,7 @@ private fun TimelineRail(
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun DiaryEventCard(
     palette: HomePalette,
@@ -591,81 +595,111 @@ private fun DiaryEventCard(
     val hasMemo = !event.memo.isNullOrBlank()
     val hasVolume = event.volumeMl != null
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = palette.surfaceStrong,
-        shape = RoundedCornerShape(28.dp),
-        shadowElevation = 10.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Top
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+            }
+            false
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(palette.dangerTint.copy(alpha = 0.15f))
+                    .padding(end = 24.dp),
+                contentAlignment = Alignment.CenterEnd
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "삭제",
+                    tint = palette.dangerTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        },
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .clickable(onClick = onEdit),
+            color = palette.surfaceStrong,
+            shape = RoundedCornerShape(28.dp),
+            shadowElevation = 10.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Text(
-                        text = "$periodText $timeText",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontSize = 16.sp,
-                            lineHeight = 20.sp
-                        ),
-                        color = palette.titleText,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (event.hasIncontinence) {
-                            SmallBadge(
-                                text = "요실금",
-                                containerColor = palette.warningBackground,
-                                contentColor = palette.warningText
-                            )
-                        }
-                        event.urgency?.let { urgency ->
-                            val badgeColors = urgencyBadgeColors(urgency)
-                            SmallBadge(
-                                text = "절박감 ${urgency.toUrgencyLabel()}",
-                                containerColor = badgeColors.first,
-                                contentColor = badgeColors.second
-                            )
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = palette.mutedText,
-                            modifier = Modifier.size(14.dp)
-                        )
                         Text(
-                            text = intervalText?.let { "$it 간격" } ?: "이전 기록 없음",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 11.sp,
-                                lineHeight = 14.sp
+                            text = "$periodText $timeText",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontSize = 16.sp,
+                                lineHeight = 20.sp
                             ),
-                            color = palette.bodyText
+                            color = palette.titleText,
+                            fontWeight = FontWeight.Bold
                         )
-                    }
-                }
 
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            if (event.hasIncontinence) {
+                                SmallBadge(
+                                    text = "요실금",
+                                    containerColor = palette.warningBackground,
+                                    contentColor = palette.warningText
+                                )
+                            }
+                            event.urgency?.let { urgency ->
+                                val badgeColors = urgencyBadgeColors(urgency)
+                                SmallBadge(
+                                    text = "절박감 ${urgency.toUrgencyLabel()}",
+                                    containerColor = badgeColors.first,
+                                    contentColor = badgeColors.second
+                                )
+                            }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = palette.mutedText,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = intervalText?.let { "$it 간격" } ?: "이전 기록 없음",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp
+                                ),
+                                color = palette.bodyText
+                            )
+                        }
+                    }
+
                     if (hasVolume) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -692,54 +726,25 @@ private fun DiaryEventCard(
                                 modifier = Modifier.padding(bottom = if (isCompactWidth) 4.dp else 5.dp)
                             )
                         }
-                    } else {
+                    }
+                }
+
+                if (hasMemo) {
+                    Surface(
+                        color = palette.noteSurface,
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
                         Text(
-                            text = "-",
-                            style = MaterialTheme.typography.displaySmall,
-                            color = palette.subtleText,
-                            fontWeight = FontWeight.Medium
+                            text = event.memo.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp
+                            ),
+                            color = palette.bodyText,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                         )
                     }
                 }
-            }
-
-            if (hasMemo) {
-                Surface(
-                    color = palette.noteSurface,
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Text(
-                        text = event.memo.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        ),
-                        color = palette.bodyText,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                EventActionButton(
-                    palette = palette,
-                    icon = Icons.Default.Edit,
-                    contentDescription = "기록 수정",
-                    active = true,
-                    onClick = onEdit
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                EventActionButton(
-                    palette = palette,
-                    icon = Icons.Default.Delete,
-                    contentDescription = "기록 삭제",
-                    active = false,
-                    onClick = onDelete
-                )
             }
         }
     }
@@ -770,33 +775,7 @@ private fun SmallBadge(
     }
 }
 
-@Composable
-private fun EventActionButton(
-    palette: HomePalette,
-    icon: ImageVector,
-    contentDescription: String,
-    active: Boolean,
-    onClick: () -> Unit
-) {
-    val background = if (active) palette.surfaceTint else palette.surfaceMuted
-    val tint = if (active) palette.primaryStrong else palette.iconTint
 
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(background)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
 
 @Composable
 private fun InlineNotice(
