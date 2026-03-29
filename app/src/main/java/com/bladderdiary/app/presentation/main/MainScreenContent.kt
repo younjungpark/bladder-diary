@@ -878,21 +878,19 @@ private fun DiaryEventCard(
                         ) {
                             Text(
                                 text = event.volumeMl.toString(),
-                                style = if (isCompactWidth) {
-                                    MaterialTheme.typography.headlineLarge
-                                } else {
-                                    MaterialTheme.typography.displaySmall
-                                },
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontSize = if (isCompactWidth) 24.sp else 28.sp,
+                                    lineHeight = if (isCompactWidth) 26.sp else 30.sp
+                                ),
                                 color = palette.primary,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "mL",
-                                style = if (isCompactWidth) {
-                                    MaterialTheme.typography.labelSmall
-                                } else {
-                                    MaterialTheme.typography.labelMedium
-                                },
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = if (isCompactWidth) 11.sp else 12.sp,
+                                    lineHeight = if (isCompactWidth) 13.sp else 14.sp
+                                ),
                                 color = palette.primary,
                                 modifier = Modifier.padding(bottom = if (isCompactWidth) 4.dp else 5.dp)
                             )
