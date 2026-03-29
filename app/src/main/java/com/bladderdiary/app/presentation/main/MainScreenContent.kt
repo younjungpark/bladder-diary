@@ -1,5 +1,13 @@
 package com.bladderdiary.app.presentation.main
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,7 +49,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,93 +83,135 @@ internal fun MainContent(
     onDeleteEvent: (String) -> Unit
 ) {
     val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
-    val sortedEvents = remember(state.events) {
-        state.events.sortedByDescending { it.voidedAtEpochMs }
+
+    var previousDate by remember { mutableStateOf(state.selectedDate) }
+    val slideDirection = remember(state.selectedDate) {
+        val direction = when {
+            state.selectedDate > previousDate -> 1
+            state.selectedDate < previousDate -> -1
+            else -> 0
+        }
+        previousDate = state.selectedDate
+        direction
     }
-    val averageIntervalMillis = remember(sortedEvents) {
-        sortedEvents.toAverageIntervalMillis()
-    }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            HeroDateCard(
-                palette = palette,
-                selectedDate = state.selectedDate,
-                today = today,
-                compact = isCompactWidth,
-                onPreviousDay = onPreviousDay,
-                onNextDay = onNextDay,
-                onPickDate = onPickDate
-            )
-        }
-
-        item {
-            SummarySection(
-                palette = palette,
-                dailyVolumeMl = state.dailyVolumeMl ?: 0,
-                dailyCount = state.dailyCount,
-                averageIntervalMillis = averageIntervalMillis,
-                compact = isCompactWidth
-            )
-        }
-
-        if (state.pendingSyncCount > 0) {
+    Column(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             item {
-                InlineNotice(
-                    palette = palette,
-                    text = state.pendingSyncError?.let { rawError ->
-                        if (rawError.isLikelyOfflineSyncError()) {
-                            "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
-                        } else {
-                            "동기화 오류: ${rawError.toUiErrorText()}"
-                        }
-                    } ?: "기록은 안전하게 로컬에 보관되며 연결되면 자동으로 동기화됩니다."
-                )
-            }
-        }
-
-        item {
-            SectionHeader(
-                title = if (state.selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
-                palette = palette,
-                action = {
-                    RecordAddActionButton(
-                        palette = palette,
-                        compact = isCompactWidth,
-                        enabled = isAddActionEnabled,
-                        onClick = onAddEvent
-                    )
-                }
-            )
-        }
-
-        if (sortedEvents.isEmpty()) {
-            item {
-                RecordsEmptyState(
+                HeroDateCard(
                     palette = palette,
                     selectedDate = state.selectedDate,
-                    today = today
+                    today = today,
+                    compact = isCompactWidth,
+                    onPreviousDay = onPreviousDay,
+                    onNextDay = onNextDay,
+                    onPickDate = onPickDate
                 )
             }
-        } else {
-            itemsIndexed(sortedEvents, key = { _, item -> item.localId }) { index, event ->
-                val previousEvent = sortedEvents.getOrNull(index + 1)
-                DiaryTimelineItem(
+
+            item {
+                AnimatedContent(
+                    targetState = state.selectedDate,
+                    transitionSpec = {
+                        val direction = slideDirection
+                        (slideInHorizontally { fullWidth -> direction * fullWidth } + fadeIn())
+                            .togetherWith(
+                                slideOutHorizontally { fullWidth -> -direction * fullWidth } + fadeOut()
+                            ).using(SizeTransform(clip = false))
+                    },
+                    label = "dateSummarySlide"
+                ) { _ ->
+                    SummarySection(
+                        palette = palette,
+                        dailyVolumeMl = state.dailyVolumeMl ?: 0,
+                        dailyCount = state.dailyCount,
+                        averageIntervalMillis = remember(state.events) {
+                            state.events.sortedByDescending { it.voidedAtEpochMs }
+                                .toAverageIntervalMillis()
+                        },
+                        compact = isCompactWidth
+                    )
+                }
+            }
+
+            if (state.pendingSyncCount > 0) {
+                item {
+                    InlineNotice(
+                        palette = palette,
+                        text = state.pendingSyncError?.let { rawError ->
+                            if (rawError.isLikelyOfflineSyncError()) {
+                                "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
+                            } else {
+                                "동기화 오류: ${rawError.toUiErrorText()}"
+                            }
+                        } ?: "기록은 안전하게 로컬에 보관되며 연결되면 자동으로 동기화됩니다."
+                    )
+                }
+            }
+
+            item {
+                SectionHeader(
+                    title = if (state.selectedDate == today) "오늘의 기록" else "선택한 날짜의 기록",
                     palette = palette,
-                    event = event,
-                    intervalText = previousEvent
-                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                        ?.takeIf { it > 0 }
-                        ?.toIntervalText(),
-                    isFirst = index == 0,
-                    isLast = index == sortedEvents.lastIndex,
-                    onEdit = { onEditEvent(event) },
-                    onDelete = { onDeleteEvent(event.localId) }
+                    action = {
+                        RecordAddActionButton(
+                            palette = palette,
+                            compact = isCompactWidth,
+                            enabled = isAddActionEnabled,
+                            onClick = onAddEvent
+                        )
+                    }
                 )
+            }
+
+            item {
+                val sortedEvents = remember(state.events) {
+                    state.events.sortedByDescending { it.voidedAtEpochMs }
+                }
+
+                AnimatedContent(
+                    targetState = state.selectedDate,
+                    transitionSpec = {
+                        val direction = slideDirection
+                        (slideInHorizontally { fullWidth -> direction * fullWidth } + fadeIn())
+                            .togetherWith(
+                                slideOutHorizontally { fullWidth -> -direction * fullWidth } + fadeOut()
+                            ).using(SizeTransform(clip = false))
+                    },
+                    label = "dateRecordsSlide"
+                ) { _ ->
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        if (sortedEvents.isEmpty()) {
+                            RecordsEmptyState(
+                                palette = palette,
+                                selectedDate = state.selectedDate,
+                                today = today
+                            )
+                        } else {
+                            sortedEvents.forEachIndexed { index, event ->
+                                val previousEvent = sortedEvents.getOrNull(index + 1)
+                                DiaryTimelineItem(
+                                    palette = palette,
+                                    event = event,
+                                    intervalText = previousEvent
+                                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                                        ?.takeIf { it > 0 }
+                                        ?.toIntervalText(),
+                                    isFirst = index == 0,
+                                    isLast = index == sortedEvents.lastIndex,
+                                    onEdit = { onEditEvent(event) },
+                                    onDelete = { onDeleteEvent(event.localId) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
