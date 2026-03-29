@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.datetime.LocalDate
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun MainContent(
     state: MainUiState,
@@ -575,6 +577,7 @@ private fun TimelineRail(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun DiaryEventCard(
     palette: HomePalette,
@@ -583,6 +586,7 @@ private fun DiaryEventCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isCompactWidth = LocalConfiguration.current.screenWidthDp <= 390
     val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
     val hasMemo = !event.memo.isNullOrBlank()
     val hasVolume = event.volumeMl != null
@@ -616,17 +620,10 @@ private fun DiaryEventCard(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        if (hasMemo) {
-                            SmallBadge(
-                                text = "메모",
-                                containerColor = palette.surfaceTint,
-                                contentColor = palette.primaryStrong
-                            )
-                        }
                         if (event.hasIncontinence) {
                             SmallBadge(
                                 text = "요실금",
@@ -676,15 +673,23 @@ private fun DiaryEventCard(
                         ) {
                             Text(
                                 text = event.volumeMl.toString(),
-                                style = MaterialTheme.typography.displaySmall,
+                                style = if (isCompactWidth) {
+                                    MaterialTheme.typography.headlineLarge
+                                } else {
+                                    MaterialTheme.typography.displaySmall
+                                },
                                 color = palette.primary,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "mL",
-                                style = MaterialTheme.typography.labelMedium,
+                                style = if (isCompactWidth) {
+                                    MaterialTheme.typography.labelSmall
+                                } else {
+                                    MaterialTheme.typography.labelMedium
+                                },
                                 color = palette.primary,
-                                modifier = Modifier.padding(bottom = 5.dp)
+                                modifier = Modifier.padding(bottom = if (isCompactWidth) 4.dp else 5.dp)
                             )
                         }
                     } else {
@@ -758,6 +763,8 @@ private fun SmallBadge(
             ),
             color = contentColor,
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
         )
     }
