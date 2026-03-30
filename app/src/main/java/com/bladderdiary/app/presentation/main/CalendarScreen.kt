@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -324,11 +325,6 @@ private fun CalendarDayCell(
     val heatLevel = calendarHeatLevel(count)
     val usesCompactBadge = count >= 10
     val isSunday = day.dayOfWeek.value == 7
-    val fixedDayTextStyle = MaterialTheme.typography.bodySmall.withFixedFontScale()
-    val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.copy(
-        fontSize = if (usesCompactBadge) 9.sp else 10.sp,
-        lineHeight = if (usesCompactBadge) 11.sp else 12.sp
-    ).withFixedFontScale()
     val backgroundColor = calendarCellBackgroundColor(
         palette = palette,
         heatLevel = heatLevel,
@@ -342,7 +338,7 @@ private fun CalendarDayCell(
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(CALENDAR_DAY_CELL_CORNER_RADIUS),
         border = calendarCellBorder(
             palette = palette,
             heatLevel = heatLevel,
@@ -357,51 +353,108 @@ private fun CalendarDayCell(
                 contentDescription = "${day.monthNumber}월 ${day.dayOfMonth}일, 기록 ${count}회"
             }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    horizontal = if (usesCompactBadge) 5.dp else 6.dp,
-                    vertical = 7.dp
-                ),
-            verticalArrangement = Arrangement.SpaceBetween
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = day.dayOfMonth.toString(),
-                style = fixedDayTextStyle,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                color = textColor,
-                maxLines = 1,
-                softWrap = false
-            )
+            val isCompactCell = maxWidth < 46.dp || maxHeight < 64.dp
+            val isExtraCompactCell = maxWidth < 42.dp || maxHeight < 60.dp
+            val fixedDayTextStyle = MaterialTheme.typography.bodySmall.copy(
+                fontSize = if (isExtraCompactCell) 11.sp else 12.sp,
+                lineHeight = if (isExtraCompactCell) 13.sp else 16.sp
+            ).withFixedFontScale()
+            val fixedBadgeTextStyle = MaterialTheme.typography.labelSmall.copy(
+                fontSize = when {
+                    isExtraCompactCell -> 8.sp
+                    usesCompactBadge || isCompactCell -> 9.sp
+                    else -> 10.sp
+                },
+                lineHeight = when {
+                    isExtraCompactCell -> 9.sp
+                    usesCompactBadge || isCompactCell -> 11.sp
+                    else -> 12.sp
+                }
+            ).withFixedFontScale()
+            val contentHorizontalPadding = when {
+                isExtraCompactCell -> 4.dp
+                usesCompactBadge || isCompactCell -> 5.dp
+                else -> 6.dp
+            }
+            val contentVerticalPadding = when {
+                isExtraCompactCell -> 5.dp
+                isCompactCell -> 6.dp
+                else -> 7.dp
+            }
+            val badgeHorizontalPadding = when {
+                isExtraCompactCell -> 3.dp
+                usesCompactBadge || isCompactCell -> 4.dp
+                else -> 5.dp
+            }
+            val badgeVerticalPadding = when {
+                isExtraCompactCell -> 0.dp
+                usesCompactBadge || isCompactCell -> 1.dp
+                else -> 2.dp
+            }
 
-            if (count > 0) {
-                Surface(
-                    color = calendarCountBadgeContainerColor(
-                        palette = palette,
-                        heatLevel = heatLevel,
-                        isToday = isToday
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = contentHorizontalPadding,
+                        vertical = contentVerticalPadding
                     ),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(
-                        text = calendarCountLabel(count),
-                        style = fixedBadgeTextStyle,
-                        color = calendarCountBadgeContentColor(
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = day.dayOfMonth.toString(),
+                    style = fixedDayTextStyle,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
+                    color = textColor,
+                    maxLines = 1,
+                    softWrap = false
+                )
+
+                if (count > 0) {
+                    Surface(
+                        color = calendarCountBadgeContainerColor(
                             palette = palette,
                             heatLevel = heatLevel,
                             isToday = isToday
                         ),
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.padding(
-                            horizontal = if (usesCompactBadge) 4.dp else 5.dp,
-                            vertical = if (usesCompactBadge) 1.dp else 2.dp
+                        shape = RoundedCornerShape(
+                            when {
+                                isExtraCompactCell -> 8.dp
+                                else -> 10.dp
+                            }
+                        ),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = calendarCountLabel(count),
+                            style = fixedBadgeTextStyle,
+                            color = calendarCountBadgeContentColor(
+                                palette = palette,
+                                heatLevel = heatLevel,
+                                isToday = isToday
+                            ),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(
+                                horizontal = badgeHorizontalPadding,
+                                vertical = badgeVerticalPadding
+                            )
+                        )
+                    }
+                } else {
+                    Spacer(
+                        modifier = Modifier.height(
+                            when {
+                                isExtraCompactCell -> 6.dp
+                                else -> 8.dp
+                            }
                         )
                     )
                 }
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
@@ -417,8 +470,9 @@ private fun TextStyle.withFixedFontScale(): TextStyle {
     )
 }
 
-private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.76f
-private val CALENDAR_DAY_CELL_MIN_HEIGHT = 60.dp
+private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.74f
+private val CALENDAR_DAY_CELL_MIN_HEIGHT = 64.dp
+private val CALENDAR_DAY_CELL_CORNER_RADIUS = 18.dp
 
 private fun calendarHeatLevel(count: Int): Int {
     return when (count) {
