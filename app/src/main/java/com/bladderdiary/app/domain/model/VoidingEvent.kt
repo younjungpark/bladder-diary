@@ -11,5 +11,6 @@ data class VoidingEvent(
     val memo: String? = null,
     val volumeMl: Int? = null,
     val urgency: Int? = null,
-    val hasIncontinence: Boolean = false
+    val hasIncontinence: Boolean = false,
+    val isNocturia: Boolean = false
 )

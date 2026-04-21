@@ -95,12 +95,13 @@ class MainViewModel(
     fun addNow(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(urgency, hasIncontinence, memo, volumeMl)
+            val result = addVoidingEventUseCase(urgency, hasIncontinence, isNocturia, memo, volumeMl)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -115,13 +116,14 @@ class MainViewModel(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
     ) {
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(date, hour, minute, urgency, hasIncontinence, memo, volumeMl)
+            val result = addVoidingEventUseCase(date, hour, minute, urgency, hasIncontinence, isNocturia, memo, volumeMl)
             _uiState.update {
                 it.copy(
                     isAdding = false,
@@ -137,6 +139,7 @@ class MainViewModel(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -147,6 +150,7 @@ class MainViewModel(
                 minute = minute,
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
+                isNocturia = isNocturia,
                 memo = memo,
                 volumeMl = volumeMl
             )

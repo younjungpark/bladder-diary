@@ -9,9 +9,10 @@ class AddVoidingEventUseCase(
     suspend operator fun invoke(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
-    ): Result<Unit> = repository.addNow(urgency, hasIncontinence, memo, volumeMl)
+    ): Result<Unit> = repository.addNow(urgency, hasIncontinence, isNocturia, memo, volumeMl)
 
     suspend operator fun invoke(
         date: LocalDate,
@@ -19,7 +20,8 @@ class AddVoidingEventUseCase(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
-    ): Result<Unit> = repository.addAt(date, hour, minute, urgency, hasIncontinence, memo, volumeMl)
+    ): Result<Unit> = repository.addAt(date, hour, minute, urgency, hasIncontinence, isNocturia, memo, volumeMl)
 }

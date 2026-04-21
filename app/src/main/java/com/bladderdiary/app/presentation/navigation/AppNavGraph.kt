@@ -145,6 +145,7 @@ fun AppNavGraph() {
     } else {
         MainScreen(
             viewModel = mainViewModel,
+            currentAccountLabel = authState.currentAccount?.summary,
             isPinSet = pinState.isPinSet,
             isE2eeEnabled = e2eeState.isEnabled,
             isE2eeChecking = e2eeState.isCheckingRemoteState,

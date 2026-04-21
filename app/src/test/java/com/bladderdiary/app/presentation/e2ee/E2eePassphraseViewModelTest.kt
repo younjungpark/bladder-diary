@@ -170,6 +170,7 @@ private class FakeVoidingRepository : VoidingRepository {
     override suspend fun addNow(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)
@@ -180,6 +181,7 @@ private class FakeVoidingRepository : VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)
@@ -190,6 +192,7 @@ private class FakeVoidingRepository : VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)

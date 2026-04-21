@@ -63,12 +63,14 @@ internal fun EventEditorDialog(
     timeText: String,
     urgency: Int,
     hasIncontinence: Boolean,
+    isNocturia: Boolean,
     volumeText: String,
     memoText: String,
     isE2eeChecking: Boolean,
     onUrgencyChange: (Int) -> Unit,
     onPickTime: () -> Unit,
     onIncontinenceChange: (Boolean) -> Unit,
+    onNocturiaChange: (Boolean) -> Unit,
     onVolumeChange: (String) -> Unit,
     onMemoChange: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -207,6 +209,37 @@ internal fun EventEditorDialog(
                         isSelected = hasIncontinence,
                         palette = palette,
                         onClick = { onIncontinenceChange(true) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            EditorDivider(palette)
+
+            // 야간뇨 여부
+            EditorSection(palette = palette, label = "야간뇨 여부") {
+                Text(
+                    text = "밤에 잠들었다가 깨어 화장실에 간 기록이라면 선택해 주세요.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.mutedText
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ToggleChip(
+                        text = "일반 배뇨",
+                        isSelected = !isNocturia,
+                        palette = palette,
+                        onClick = { onNocturiaChange(false) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    ToggleChip(
+                        text = "야간뇨",
+                        isSelected = isNocturia,
+                        palette = palette,
+                        onClick = { onNocturiaChange(true) },
                         modifier = Modifier.weight(1f)
                     )
                 }

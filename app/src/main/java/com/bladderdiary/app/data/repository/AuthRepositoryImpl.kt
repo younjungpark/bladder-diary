@@ -6,6 +6,8 @@ import androidx.browser.customtabs.CustomTabsIntent
 import com.bladderdiary.app.data.remote.SupabaseAuthClient
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
+import com.bladderdiary.app.data.remote.resolveProvider
+import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.AuthResult
 import com.bladderdiary.app.domain.model.SocialProvider
@@ -20,6 +22,8 @@ class AuthRepositoryImpl(
     private val sessionStore: SessionStore
 ) : AuthRepository {
     override val sessionFlow: Flow<UserSession?> = sessionStore.sessionFlow
+    override val rememberedAccountFlow: Flow<AuthAccount?> = sessionStore.rememberedAccountFlow
+    override val accountSwitchArmedFlow: Flow<Boolean> = sessionStore.accountSwitchArmedFlow
 
     override suspend fun signUp(email: String, password: String): Result<AuthResult> {
         return runCatching {
@@ -31,14 +35,18 @@ class AuthRepositoryImpl(
     override suspend fun signIn(email: String, password: String): Result<AuthResult> {
         return runCatching {
             val response = api.signIn(email, password)
-            val session = response.toSession()
-            sessionStore.save(session)
-            AuthResult(userId = session.userId)
+            val session = response.toSession(
+                fallbackEmail = email.trim(),
+                fallbackProvider = "email"
+            )
+            val persistedSession = persistApprovedSession(session)
+            AuthResult(userId = persistedSession.userId)
         }
     }
 
     override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> {
         return runCatching {
+            sessionStore.savePendingOAuthProvider(provider.providerKey)
             val authUri = Uri.parse(authClient.buildOAuthSignInUrl(provider))
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -46,18 +54,35 @@ class AuthRepositoryImpl(
                 customTabsIntent.intent.setPackage(CHROME_PACKAGE)
             }
             customTabsIntent.launchUrl(appContext, authUri)
+        }.onFailure {
+            sessionStore.clearPendingOAuthProvider()
         }
     }
 
     override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> {
         return runCatching {
-            val session = authClient.createSessionFromCallback(callbackUrl)
-            sessionStore.save(session)
-            AuthResult(userId = session.userId)
+            val pendingProvider = sessionStore.getPendingOAuthProvider()
+            val session = authClient.createSessionFromCallback(
+                callbackUrl = callbackUrl,
+                fallbackProvider = pendingProvider
+            )
+            val persistedSession = persistApprovedSession(session)
+            AuthResult(userId = persistedSession.userId)
+        }.also {
+            sessionStore.clearPendingOAuthProvider()
         }
     }
 
+    override suspend fun armAccountSwitch() {
+        sessionStore.armAccountSwitch()
+    }
+
+    override suspend fun clearPendingAccountSwitch() {
+        sessionStore.clearPendingAccountSwitch()
+    }
+
     override suspend fun signOut() {
+        sessionStore.clearPendingAccountSwitch()
         sessionStore.clear()
     }
 
@@ -72,11 +97,24 @@ class AuthRepositoryImpl(
             val response = api.refreshSession(current.refreshToken)
             val refreshed = response.toSession(
                 fallbackUserId = current.userId,
-                fallbackRefreshToken = current.refreshToken
+                fallbackRefreshToken = current.refreshToken,
+                fallbackEmail = current.email,
+                fallbackProvider = current.provider
             )
-            sessionStore.save(refreshed)
-            refreshed
+            persistApprovedSession(refreshed)
         }
+    }
+
+    private suspend fun persistApprovedSession(session: UserSession): UserSession {
+        val rememberedAccount = sessionStore.getRememberedAccount()
+        val enrichedSession = session.enrichFromRememberedAccount(rememberedAccount)
+        AccountSwitchGuard.ensureAllowed(
+            rememberedAccount = rememberedAccount,
+            candidateSession = enrichedSession,
+            isAccountSwitchArmed = sessionStore.isAccountSwitchArmed()
+        )
+        sessionStore.save(enrichedSession)
+        return enrichedSession
     }
 
     private fun isChromeAvailable(): Boolean {
@@ -92,10 +130,36 @@ class AuthRepositoryImpl(
 
 private fun com.bladderdiary.app.data.remote.dto.AuthResponseDto.toSession(
     fallbackUserId: String? = null,
-    fallbackRefreshToken: String? = null
+    fallbackRefreshToken: String? = null,
+    fallbackEmail: String? = null,
+    fallbackProvider: String? = null
 ): UserSession {
     val userId = user?.id ?: fallbackUserId ?: throw IllegalStateException("사용자 정보가 없습니다.")
     val accessToken = accessToken ?: throw IllegalStateException("액세스 토큰이 없습니다.")
     val refreshToken = refreshToken ?: fallbackRefreshToken ?: ""
-    return UserSession(userId, accessToken, refreshToken)
+    return UserSession(
+        userId = userId,
+        accessToken = accessToken,
+        refreshToken = refreshToken,
+        email = user?.email ?: fallbackEmail,
+        provider = resolveProvider(
+            preferredProvider = user?.appMetadata?.provider,
+            fallbackProvider = fallbackProvider
+        )
+    )
+}
+
+private fun UserSession.enrichFromRememberedAccount(rememberedAccount: AuthAccount?): UserSession {
+    val normalizedEmail = email?.trim()?.takeIf { it.isNotEmpty() }
+    val normalizedProvider = provider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+    if (rememberedAccount == null || rememberedAccount.userId != userId) {
+        return copy(
+            email = normalizedEmail,
+            provider = normalizedProvider
+        )
+    }
+    return copy(
+        email = normalizedEmail ?: rememberedAccount.email,
+        provider = normalizedProvider ?: rememberedAccount.provider
+    )
 }

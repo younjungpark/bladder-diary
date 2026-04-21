@@ -11,6 +11,7 @@ class UpdateVoidingEventUseCase(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -20,6 +21,7 @@ class UpdateVoidingEventUseCase(
             minute = minute,
             urgency = urgency,
             hasIncontinence = hasIncontinence,
+            isNocturia = isNocturia,
             memo = memo,
             volumeMl = volumeMl
         )

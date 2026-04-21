@@ -7,6 +7,7 @@ interface VoidingRepository {
     suspend fun addNow(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
     ): Result<Unit>
@@ -16,6 +17,7 @@ interface VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String? = null,
         volumeMl: Int? = null
     ): Result<Unit>
@@ -25,6 +27,7 @@ interface VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit>

@@ -104,6 +104,7 @@ class MainViewModelTest {
         viewModel.addNow(
             urgency = 4,
             hasIncontinence = true,
+            isNocturia = true,
             memo = "메모",
             volumeMl = 180
         )
@@ -111,6 +112,7 @@ class MainViewModelTest {
 
         assertEquals(4, repository.lastAddNowUrgency)
         assertEquals(true, repository.lastAddNowHasIncontinence)
+        assertEquals(true, repository.lastAddNowIsNocturia)
         assertEquals("메모", repository.lastAddNowMemo)
         assertEquals(180, repository.lastAddNowVolumeMl)
         assertEquals("배뇨 기록이 저장되었습니다.", viewModel.uiState.value.message)
@@ -126,6 +128,7 @@ class MainViewModelTest {
             minute = 45,
             urgency = 2,
             hasIncontinence = false,
+            isNocturia = true,
             memo = "지정 메모",
             volumeMl = 250
         )
@@ -135,6 +138,7 @@ class MainViewModelTest {
         assertEquals(45, repository.lastAddAtMinute)
         assertEquals(2, repository.lastAddAtUrgency)
         assertEquals(false, repository.lastAddAtHasIncontinence)
+        assertEquals(true, repository.lastAddAtIsNocturia)
         assertEquals("지정 메모", repository.lastAddAtMemo)
         assertEquals(250, repository.lastAddAtVolumeMl)
         assertEquals("지정한 시간으로 저장되었습니다.", viewModel.uiState.value.message)
@@ -151,6 +155,7 @@ class MainViewModelTest {
             minute = 5,
             urgency = 5,
             hasIncontinence = true,
+            isNocturia = true,
             memo = "수정 메모",
             volumeMl = 320
         )
@@ -161,6 +166,7 @@ class MainViewModelTest {
         assertEquals(5, repository.lastUpdatedMinute)
         assertEquals(5, repository.lastUpdatedUrgency)
         assertEquals(true, repository.lastUpdatedHasIncontinence)
+        assertEquals(true, repository.lastUpdatedIsNocturia)
         assertEquals("수정 메모", repository.lastUpdatedMemo)
         assertEquals(320, repository.lastUpdatedVolumeMl)
         assertEquals("기록이 업데이트되었습니다.", viewModel.uiState.value.message)
@@ -193,7 +199,8 @@ class MainViewModelTest {
             memo = "메모",
             volumeMl = 250,
             urgency = 3,
-            hasIncontinence = true
+            hasIncontinence = true,
+            isNocturia = true
         )
     }
 }
@@ -217,12 +224,14 @@ private class FakeVoidingRepository : VoidingRepository {
     var rangeResult: Result<List<VoidingEvent>> = Result.success(emptyList())
     var lastAddNowUrgency: Int? = null
     var lastAddNowHasIncontinence: Boolean? = null
+    var lastAddNowIsNocturia: Boolean? = null
     var lastAddNowMemo: String? = null
     var lastAddNowVolumeMl: Int? = null
     var lastAddAtHour: Int? = null
     var lastAddAtMinute: Int? = null
     var lastAddAtUrgency: Int? = null
     var lastAddAtHasIncontinence: Boolean? = null
+    var lastAddAtIsNocturia: Boolean? = null
     var lastAddAtMemo: String? = null
     var lastAddAtVolumeMl: Int? = null
     var lastUpdatedLocalId: String? = null
@@ -230,6 +239,7 @@ private class FakeVoidingRepository : VoidingRepository {
     var lastUpdatedMinute: Int? = null
     var lastUpdatedUrgency: Int? = null
     var lastUpdatedHasIncontinence: Boolean? = null
+    var lastUpdatedIsNocturia: Boolean? = null
     var lastUpdatedMemo: String? = null
     var lastUpdatedVolumeMl: Int? = null
     private val events = MutableStateFlow<List<VoidingEvent>>(emptyList())
@@ -241,11 +251,13 @@ private class FakeVoidingRepository : VoidingRepository {
     override suspend fun addNow(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
         lastAddNowUrgency = urgency
         lastAddNowHasIncontinence = hasIncontinence
+        lastAddNowIsNocturia = isNocturia
         lastAddNowMemo = memo
         lastAddNowVolumeMl = volumeMl
         return Result.success(Unit)
@@ -257,6 +269,7 @@ private class FakeVoidingRepository : VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -264,6 +277,7 @@ private class FakeVoidingRepository : VoidingRepository {
         lastAddAtMinute = minute
         lastAddAtUrgency = urgency
         lastAddAtHasIncontinence = hasIncontinence
+        lastAddAtIsNocturia = isNocturia
         lastAddAtMemo = memo
         lastAddAtVolumeMl = volumeMl
         return Result.success(Unit)
@@ -275,6 +289,7 @@ private class FakeVoidingRepository : VoidingRepository {
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -283,6 +298,7 @@ private class FakeVoidingRepository : VoidingRepository {
         lastUpdatedMinute = minute
         lastUpdatedUrgency = urgency
         lastUpdatedHasIncontinence = hasIncontinence
+        lastUpdatedIsNocturia = isNocturia
         lastUpdatedMemo = memo
         lastUpdatedVolumeMl = volumeMl
         return Result.success(Unit)

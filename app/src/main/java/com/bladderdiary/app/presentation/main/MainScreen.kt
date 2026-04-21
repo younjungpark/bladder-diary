@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
+    currentAccountLabel: String?,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
@@ -62,6 +63,7 @@ fun MainScreen(
     var editorSelectedMinute by rememberSaveable { mutableStateOf<Int?>(null) }
     var editorUrgency by rememberSaveable { mutableStateOf(3) }
     var editorHasIncontinence by rememberSaveable { mutableStateOf(false) }
+    var editorIsNocturia by rememberSaveable { mutableStateOf(false) }
     var editorVolumeText by rememberSaveable { mutableStateOf("") }
     var editorMemoText by rememberSaveable { mutableStateOf("") }
     var showPdfExportDialog by remember { mutableStateOf(false) }
@@ -77,6 +79,7 @@ fun MainScreen(
         editorSelectedMinute = null
         editorUrgency = 3
         editorHasIncontinence = false
+        editorIsNocturia = false
         editorVolumeText = ""
         editorMemoText = ""
     }
@@ -87,6 +90,7 @@ fun MainScreen(
         editorSelectedMinute = initialTime.minute
         editorUrgency = 3
         editorHasIncontinence = false
+        editorIsNocturia = false
         editorVolumeText = ""
         editorMemoText = ""
         showEventEditorDialog = true
@@ -99,6 +103,7 @@ fun MainScreen(
         editorSelectedMinute = timeState.minute
         editorUrgency = event.urgency ?: 3
         editorHasIncontinence = event.hasIncontinence
+        editorIsNocturia = event.isNocturia
         editorVolumeText = event.volumeMl?.toString().orEmpty()
         editorMemoText = event.memo.orEmpty()
         showEventEditorDialog = true
@@ -149,6 +154,7 @@ fun MainScreen(
                 MainTopBar(
                     palette = palette,
                     syncStatus = syncStatus,
+                    currentAccountLabel = currentAccountLabel,
                     isPinSet = isPinSet,
                     isE2eeEnabled = isE2eeEnabled,
                     isE2eeChecking = isE2eeChecking,
@@ -210,6 +216,7 @@ fun MainScreen(
         timeText = editorTimeText,
         urgency = editorUrgency,
         hasIncontinence = editorHasIncontinence,
+        isNocturia = editorIsNocturia,
         volumeText = editorVolumeText,
         memoText = editorMemoText,
         isE2eeChecking = isE2eeChecking,
@@ -234,6 +241,7 @@ fun MainScreen(
             ).show()
         },
         onIncontinenceChange = { editorHasIncontinence = it },
+        onNocturiaChange = { editorIsNocturia = it },
         onVolumeChange = { next ->
             editorVolumeText = next.filter(Char::isDigit).take(4)
         },
@@ -251,6 +259,7 @@ fun MainScreen(
                     minute = minute,
                     urgency = editorUrgency,
                     hasIncontinence = editorHasIncontinence,
+                    isNocturia = editorIsNocturia,
                     memo = normalizedMemo,
                     volumeMl = normalizedVolume
                 )
@@ -261,6 +270,7 @@ fun MainScreen(
                     minute = minute,
                     urgency = editorUrgency,
                     hasIncontinence = editorHasIncontinence,
+                    isNocturia = editorIsNocturia,
                     memo = normalizedMemo,
                     volumeMl = normalizedVolume
                 )

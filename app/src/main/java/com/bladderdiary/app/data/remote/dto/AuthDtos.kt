@@ -17,7 +17,16 @@ data class RefreshTokenRequest(
 
 @Serializable
 data class AuthUserDto(
-    val id: String
+    val id: String,
+    val email: String? = null,
+    @SerialName("app_metadata")
+    val appMetadata: AuthAppMetadataDto? = null
+)
+
+@Serializable
+data class AuthAppMetadataDto(
+    @SerialName("provider")
+    val provider: String? = null
 )
 
 @Serializable

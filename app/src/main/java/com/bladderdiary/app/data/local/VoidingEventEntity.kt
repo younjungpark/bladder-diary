@@ -31,6 +31,8 @@ data class VoidingEventEntity(
     val urgency: Int? = null,
     @ColumnInfo(name = "has_incontinence")
     val hasIncontinence: Boolean = false,
+    @ColumnInfo(name = "is_nocturia")
+    val isNocturia: Boolean = false,
     @ColumnInfo(name = "memo_ciphertext")
     val memoCiphertext: String? = null,
     @ColumnInfo(name = "memo_encryption")

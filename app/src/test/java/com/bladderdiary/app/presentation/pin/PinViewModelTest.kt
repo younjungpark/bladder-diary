@@ -1,6 +1,7 @@
 package com.bladderdiary.app.presentation.pin
 
 import com.bladderdiary.app.MainDispatcherRule
+import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.AuthResult
 import com.bladderdiary.app.domain.model.LockRepository
@@ -90,11 +91,15 @@ private class FakeLockRepository(
 private class FakeAuthRepository : AuthRepository {
     private val sessionState = MutableStateFlow<UserSession?>(UserSession("user-1", "a", "r"))
     override val sessionFlow: Flow<UserSession?> = sessionState
+    override val rememberedAccountFlow: Flow<AuthAccount?> = MutableStateFlow(AuthAccount("user-1"))
+    override val accountSwitchArmedFlow: Flow<Boolean> = MutableStateFlow(false)
 
     override suspend fun signUp(email: String, password: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
     override suspend fun signIn(email: String, password: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
     override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> = Result.success(Unit)
     override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
+    override suspend fun armAccountSwitch() = Unit
+    override suspend fun clearPendingAccountSwitch() = Unit
     override suspend fun signOut() {
         sessionState.value = null
     }

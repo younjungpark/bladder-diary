@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.MainActivity
+import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
-import com.bladderdiary.app.domain.model.VoidingRepository
 import com.bladderdiary.app.domain.model.SocialProvider
+import com.bladderdiary.app.domain.model.VoidingRepository
+import com.bladderdiary.app.domain.model.toAuthAccount
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +24,9 @@ data class AuthUiState(
     val isOAuthLoading: Boolean = false,
     val pendingProvider: SocialProvider? = null,
     val isLoggedIn: Boolean = false,
+    val currentAccount: AuthAccount? = null,
+    val rememberedAccount: AuthAccount? = null,
+    val isAccountSwitchArmed: Boolean = false,
     val errorMessage: String? = null,
     val oauthErrorMessage: String? = null,
     val infoMessage: String? = null
@@ -33,11 +38,43 @@ class AuthViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    private var hydratedUserId: String? = null
 
     init {
         authRepository.sessionFlow
             .onEach { session ->
-                _uiState.value = _uiState.value.copy(isLoggedIn = session != null)
+                _uiState.value = _uiState.value.copy(
+                    isLoggedIn = session != null,
+                    currentAccount = session?.toAuthAccount()
+                )
+                if (session == null) {
+                    debugTrace("sessionFlow: no active session")
+                    hydratedUserId = null
+                } else if (hydratedUserId != session.userId) {
+                    debugTrace("sessionFlow: hydrate start userId=${session.userId}")
+                    hydratedUserId = session.userId
+                    val hydrateResult = voidingRepository.fetchAndSyncAll()
+                    if (hydrateResult.isSuccess) {
+                        debugTrace("sessionFlow: hydrate success userId=${session.userId}")
+                    } else {
+                        debugTrace(
+                            "sessionFlow: hydrate failed userId=${session.userId}",
+                            hydrateResult.exceptionOrNull()
+                        )
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
+
+        authRepository.rememberedAccountFlow
+            .onEach { account ->
+                _uiState.value = _uiState.value.copy(rememberedAccount = account)
+            }
+            .launchIn(viewModelScope)
+
+        authRepository.accountSwitchArmedFlow
+            .onEach { isArmed ->
+                _uiState.value = _uiState.value.copy(isAccountSwitchArmed = isArmed)
             }
             .launchIn(viewModelScope)
 
@@ -46,10 +83,6 @@ class AuthViewModel(
                 handleOAuthCallback(callbackUrl)
             }
             .launchIn(viewModelScope)
-            
-        // 로그인 상태가 되면 기기 백업이 없을 경우를 대비해 1회 데이터 복원을 시도합니다.
-        // sessionFlow에서 isLoggedIn이 true로 바뀔 때 바로 다운로드를 트리거할 수도 있지만
-        // 명시적으로 submit / handleOAuthCallback 성공 시 호출하는 편이 안전합니다.
     }
 
     fun onEmailChange(value: String) {
@@ -111,10 +144,6 @@ class AuthViewModel(
                     oauthErrorMessage = null,
                     infoMessage = null
                 )
-                // 로그인 완료 후 데이터 다운로드
-                viewModelScope.launch {
-                    voidingRepository.fetchAndSyncAll()
-                }
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -127,6 +156,22 @@ class AuthViewModel(
     }
 
     fun signInWithSocial(provider: SocialProvider) {
+        val current = _uiState.value
+        val rememberedProvider = current.rememberedAccount?.normalizedProvider
+        if (!current.isAccountSwitchArmed &&
+            rememberedProvider != null &&
+            rememberedProvider != provider.providerKey
+        ) {
+            _uiState.value = current.copy(
+                oauthErrorMessage = buildAccountSwitchGuidance(current.rememberedAccount),
+                errorMessage = null,
+                infoMessage = null,
+                pendingProvider = null,
+                isOAuthLoading = false
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isOAuthLoading = true,
@@ -147,6 +192,28 @@ class AuthViewModel(
         }
     }
 
+    fun armAccountSwitch() {
+        viewModelScope.launch {
+            authRepository.armAccountSwitch()
+            _uiState.value = _uiState.value.copy(
+                errorMessage = null,
+                oauthErrorMessage = null,
+                infoMessage = "다음 로그인부터 다른 계정으로 전환할 수 있습니다."
+            )
+        }
+    }
+
+    fun cancelPendingAccountSwitch() {
+        viewModelScope.launch {
+            authRepository.clearPendingAccountSwitch()
+            _uiState.value = _uiState.value.copy(
+                errorMessage = null,
+                oauthErrorMessage = null,
+                infoMessage = "기존 기록 계정 보호 모드로 돌아왔습니다."
+            )
+        }
+    }
+
     private fun handleOAuthCallback(callbackUrl: String) {
         viewModelScope.launch {
             val result = authRepository.handleOAuthCallback(callbackUrl)
@@ -157,10 +224,6 @@ class AuthViewModel(
                     oauthErrorMessage = null,
                     infoMessage = null
                 )
-                // Oauth 로그인 완료 후 데이터 다운로드
-                viewModelScope.launch {
-                    voidingRepository.fetchAndSyncAll()
-                }
             } else {
                 _uiState.value = _uiState.value.copy(
                     isOAuthLoading = false,
@@ -187,4 +250,14 @@ class AuthViewModel(
             }
         }
     }
+}
+
+private fun debugTrace(message: String, throwable: Throwable? = null) {
+    println("[AuthViewModel] $message")
+    throwable?.printStackTrace()
+}
+
+private fun buildAccountSwitchGuidance(rememberedAccount: AuthAccount?): String {
+    val summary = rememberedAccount?.summary ?: "기존 기록 계정"
+    return "이 기기의 기존 기록 계정은 $summary 입니다. 다른 계정으로 로그인하려면 먼저 '다른 계정으로 로그인'을 선택해주세요."
 }

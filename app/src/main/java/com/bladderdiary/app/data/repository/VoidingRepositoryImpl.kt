@@ -39,6 +39,10 @@ class VoidingRepositoryImpl(
     private val syncScheduler: SyncScheduler,
     private val e2eeRepository: E2eeRepository
 ) : VoidingRepository {
+    private companion object {
+        const val TAG = "VoidingRepository"
+    }
+
     private val eventDao = db.voidingEventDao()
     private val queueDao = db.syncQueueDao()
     private val activeSyncCount = MutableStateFlow(0)
@@ -46,6 +50,7 @@ class VoidingRepositoryImpl(
     override suspend fun addNow(
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -64,6 +69,7 @@ class VoidingRepositoryImpl(
                 localDate = now.toLocalDate(),
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
+                isNocturia = isNocturia,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -77,6 +83,7 @@ class VoidingRepositoryImpl(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -97,6 +104,7 @@ class VoidingRepositoryImpl(
                 localDate = date.toString(),
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
+                isNocturia = isNocturia,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -216,6 +224,7 @@ class VoidingRepositoryImpl(
         minute: Int,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ): Result<Unit> {
@@ -236,6 +245,7 @@ class VoidingRepositoryImpl(
                 voidedAtEpochMs = eventDate.toEpochMilliseconds(hour = hour, minute = minute),
                 urgency = urgency,
                 hasIncontinence = hasIncontinence,
+                isNocturia = isNocturia,
                 memo = memo,
                 volumeMl = volumeMl
             )
@@ -297,7 +307,15 @@ class VoidingRepositoryImpl(
         activeSyncCount.update { it + 1 }
         try {
             // 1. 기존 기기의 미동기화 기록 업로드 완료
-            syncPending()
+            val uploadResult = syncPending()
+            if (uploadResult.isFailure) {
+                repoTrace("fetchAndSyncAll: syncPending failed", uploadResult.exceptionOrNull())
+            } else {
+                val report = uploadResult.getOrNull()
+                repoTrace(
+                    "fetchAndSyncAll: syncPending success successCount=${report?.successCount} failCount=${report?.failCount}"
+                )
+            }
 
             val session = authRepository.getSession() ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
             return runCatching {
@@ -313,6 +331,9 @@ class VoidingRepositoryImpl(
                 }
                 
                 val dtos = remoteEventsResult.getOrThrow()
+                repoTrace(
+                    "fetchAndSyncAll: downloaded remoteCount=${dtos.size} userId=${session.userId}"
+                )
                 
                 // 2. Dto를 Entity로 변환하며 다운로드 반영
                 val entities = dtos.map { dto ->
@@ -352,6 +373,7 @@ class VoidingRepositoryImpl(
                         volumeMl = dto.volumeMl.normalizedVolumeMl(),
                         urgency = dto.urgency.normalizedUrgency(),
                         hasIncontinence = dto.hasIncontinence,
+                        isNocturia = dto.isNocturia,
                         memoCiphertext = dto.memoCiphertext,
                         memoEncryption = memoEncryption
                     )
@@ -363,6 +385,13 @@ class VoidingRepositoryImpl(
                         eventDao.upsertAll(entities)
                     }
                 }
+                val localCount = eventDao.getActiveByUserId(session.userId).size
+                repoTrace(
+                    "fetchAndSyncAll: local activeCount=$localCount after merge userId=${session.userId}"
+                )
+                Unit
+            }.onFailure { error ->
+                repoTrace("fetchAndSyncAll: failed userId=${session.userId}", error)
             }
         } finally {
             activeSyncCount.update { count -> (count - 1).coerceAtLeast(0) }
@@ -381,6 +410,7 @@ class VoidingRepositoryImpl(
             volumeMl = event.volumeMl,
             urgency = event.urgency,
             hasIncontinence = event.hasIncontinence,
+            isNocturia = event.isNocturia,
             memoCiphertext = event.memoCiphertext,
             memoEncryption = event.memoEncryption
         )
@@ -402,6 +432,7 @@ class VoidingRepositoryImpl(
         localDate: String,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -424,6 +455,7 @@ class VoidingRepositoryImpl(
             volumeMl = volumeMl.normalizedVolumeMl(),
             urgency = urgency.normalizedUrgency(),
             hasIncontinence = hasIncontinence,
+            isNocturia = isNocturia,
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption
         )
@@ -532,6 +564,7 @@ class VoidingRepositoryImpl(
         voidedAtEpochMs: Long,
         urgency: Int,
         hasIncontinence: Boolean,
+        isNocturia: Boolean,
         memo: String?,
         volumeMl: Int?
     ) {
@@ -548,6 +581,7 @@ class VoidingRepositoryImpl(
             volumeMl = volumeMl.normalizedVolumeMl(),
             urgency = urgency.normalizedUrgency(),
             hasIncontinence = hasIncontinence,
+            isNocturia = isNocturia,
             memoCiphertext = memoPayload.memoCiphertext,
             memoEncryption = memoPayload.memoEncryption,
             syncState = SyncState.PENDING_CREATE,
@@ -589,4 +623,9 @@ private fun Int?.normalizedVolumeMl(): Int? {
 
 private fun Int?.normalizedUrgency(): Int? {
     return this?.takeIf { it in 1..5 }
+}
+
+private fun repoTrace(message: String, throwable: Throwable? = null) {
+    println("[VoidingRepository] $message")
+    throwable?.printStackTrace()
 }

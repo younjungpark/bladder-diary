@@ -15,6 +15,7 @@ fun VoidingEventEntity.toDomain(): VoidingEvent {
         memo = memo,
         volumeMl = volumeMl,
         urgency = urgency,
-        hasIncontinence = hasIncontinence
+        hasIncontinence = hasIncontinence,
+        isNocturia = isNocturia
     )
 }

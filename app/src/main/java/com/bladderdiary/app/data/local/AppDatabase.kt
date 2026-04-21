@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [VoidingEventEntity::class, SyncQueueEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -19,6 +19,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncQueueDao(): SyncQueueDao
 
     companion object {
+        private const val DATABASE_NAME = "bladder_diary.db"
+
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE voiding_events ADD COLUMN memo TEXT")
@@ -51,13 +53,26 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE voiding_events ADD COLUMN is_nocturia INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun create(context: Context): AppDatabase {
             return Room.databaseBuilder(
-                context,
+                context.applicationContext,
                 AppDatabase::class.java,
-                "bladder_diary.db"
+                DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7
+                )
                 .build()
         }
     }

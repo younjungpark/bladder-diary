@@ -686,6 +686,13 @@ private fun DiaryEventCard(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                             verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
+                            if (event.isNocturia) {
+                                SmallBadge(
+                                    text = "야간뇨",
+                                    containerColor = palette.primary.copy(alpha = 0.14f),
+                                    contentColor = palette.primaryStrong
+                                )
+                            }
                             if (event.hasIncontinence) {
                                 SmallBadge(
                                     text = "요실금",

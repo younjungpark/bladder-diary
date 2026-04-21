@@ -23,6 +23,8 @@ data class VoidingEventRemoteDto(
     val urgency: Int? = null,
     @SerialName("has_incontinence")
     val hasIncontinence: Boolean = false,
+    @SerialName("is_nocturia")
+    val isNocturia: Boolean = false,
     @SerialName("memo_ciphertext")
     val memoCiphertext: String? = null,
     @SerialName("memo_encryption")

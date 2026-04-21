@@ -32,17 +32,16 @@ class SupabaseAuthClient {
     }
 
     fun buildOAuthSignInUrl(provider: SocialProvider): String {
-        val providerValue = when (provider) {
-            SocialProvider.GOOGLE -> "google"
-            SocialProvider.KAKAO -> "kakao"
-        }
         return URLBuilder("$baseUrl/auth/v1/authorize").apply {
-            parameters.append("provider", providerValue)
+            parameters.append("provider", provider.providerKey)
             parameters.append("redirect_to", redirectUri)
         }.buildString()
     }
 
-    suspend fun createSessionFromCallback(callbackUrl: String): UserSession {
+    suspend fun createSessionFromCallback(
+        callbackUrl: String,
+        fallbackProvider: String? = null
+    ): UserSession {
         val uri = android.net.Uri.parse(callbackUrl)
         val fragmentMap = uri.fragment.toParameterMap()
         val queryMap = uri.query.toParameterMap()
@@ -70,7 +69,12 @@ class SupabaseAuthClient {
         return UserSession(
             userId = user.id,
             accessToken = accessToken,
-            refreshToken = refreshToken
+            refreshToken = refreshToken,
+            email = user.email,
+            provider = resolveProvider(
+                preferredProvider = user.appMetadata?.provider,
+                fallbackProvider = fallbackProvider
+            )
         )
     }
 
@@ -79,6 +83,19 @@ class SupabaseAuthClient {
             header("apikey", anonKey)
             header(HttpHeaders.Authorization, "Bearer $accessToken")
         }.body()
+    }
+}
+
+internal fun resolveProvider(
+    preferredProvider: String?,
+    fallbackProvider: String?
+): String? {
+    val normalizedPreferred = preferredProvider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+    val normalizedFallback = fallbackProvider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+    return when {
+        normalizedPreferred == null -> normalizedFallback
+        normalizedPreferred == "email" && normalizedFallback in setOf("google", "kakao") -> normalizedFallback
+        else -> normalizedPreferred
     }
 }
 

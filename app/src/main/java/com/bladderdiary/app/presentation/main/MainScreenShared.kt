@@ -26,12 +26,14 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -78,6 +80,7 @@ internal fun ProvideFixedFontScale(content: @Composable () -> Unit) {
 internal fun MainTopBar(
     palette: HomePalette,
     syncStatus: HomeSyncStatus,
+    currentAccountLabel: String?,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
@@ -151,6 +154,7 @@ internal fun MainTopBar(
 
             MainOverflowMenu(
                 palette = palette,
+                currentAccountLabel = currentAccountLabel,
                 isPinSet = isPinSet,
                 isE2eeEnabled = isE2eeEnabled,
                 isE2eeChecking = isE2eeChecking,
@@ -170,6 +174,7 @@ internal fun MainTopBar(
 @Composable
 private fun MainOverflowMenu(
     palette: HomePalette,
+    currentAccountLabel: String?,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
@@ -194,6 +199,26 @@ private fun MainOverflowMenu(
             expanded = menuExpanded,
             onDismissRequest = onDismissMenu
         ) {
+            if (!currentAccountLabel.isNullOrBlank()) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = currentAccountLabel,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null
+                        )
+                    },
+                    enabled = false,
+                    onClick = {}
+                )
+                HorizontalDivider()
+            }
             DropdownMenuItem(
                 text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
                 leadingIcon = {
