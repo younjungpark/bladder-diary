@@ -265,6 +265,7 @@ class MainViewModel(
     }
 
     fun askDelete(localId: String) {
+        if (_uiState.value.confirmDeleteEventId != null) return
         _uiState.update { it.copy(confirmDeleteEventId = localId) }
     }
 

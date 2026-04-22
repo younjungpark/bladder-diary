@@ -637,11 +637,12 @@ private fun DiaryEventCard(
     val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
     val hasMemo = !event.memo.isNullOrBlank()
     val hasVolume = event.volumeMl != null
-    var hadDeleteDialogOpen by remember(event.localId) { mutableStateOf(false) }
+    var hasPendingDeleteRequest by remember(event.localId) { mutableStateOf(false) }
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart && !hasPendingDeleteRequest) {
+                hasPendingDeleteRequest = true
                 onDelete()
             }
             false
@@ -649,11 +650,11 @@ private fun DiaryEventCard(
     )
 
     LaunchedEffect(isDeleteDialogVisible) {
-        if (isDeleteDialogVisible) {
-            hadDeleteDialogOpen = true
-        } else if (hadDeleteDialogOpen) {
-            dismissState.reset()
-            hadDeleteDialogOpen = false
+        if (isDeleteDialogVisible && hasPendingDeleteRequest) {
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+        } else if (!isDeleteDialogVisible && hasPendingDeleteRequest) {
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+            hasPendingDeleteRequest = false
         }
     }
 

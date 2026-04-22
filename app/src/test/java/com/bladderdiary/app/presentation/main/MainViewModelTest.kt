@@ -22,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -172,6 +173,68 @@ class MainViewModelTest {
         assertEquals("기록이 업데이트되었습니다.", viewModel.uiState.value.message)
     }
 
+    @Test
+    fun `삭제 요청 시 확인 대상 기록을 저장한다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+
+        assertEquals("event-1", viewModel.uiState.value.confirmDeleteEventId)
+    }
+
+    @Test
+    fun `삭제 확인 취소 시 대상 기록이 초기화된다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+        viewModel.dismissDeleteDialog()
+
+        assertNull(viewModel.uiState.value.confirmDeleteEventId)
+    }
+
+    @Test
+    fun `기록 삭제 확정 시 저장소 호출 후 삭제 메시지를 노출한다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+        viewModel.confirmDelete()
+        advanceUntilIdle()
+
+        assertEquals("event-1", repository.lastDeletedLocalId)
+        assertNull(viewModel.uiState.value.confirmDeleteEventId)
+        assertEquals("기록을 삭제했습니다.", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `기록 삭제 실패 시 확인 상태를 해제하고 오류 메시지를 유지한다`() = runTest {
+        val repository = FakeVoidingRepository()
+        repository.deleteResult = Result.failure(IllegalStateException("삭제 실패"))
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+        viewModel.confirmDelete()
+        advanceUntilIdle()
+
+        assertEquals("event-1", repository.lastDeletedLocalId)
+        assertNull(viewModel.uiState.value.confirmDeleteEventId)
+        assertEquals("삭제 실패", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `삭제 확인이 열려 있으면 다른 삭제 요청을 무시한다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+        viewModel.askDelete("event-2")
+
+        assertEquals("event-1", viewModel.uiState.value.confirmDeleteEventId)
+        assertTrue(repository.deletedLocalIds.isEmpty())
+    }
+
     private fun createViewModel(
         repository: FakeVoidingRepository,
         exporter: FakeVoidingPdfExporter
@@ -238,6 +301,9 @@ private class FakeVoidingRepository : VoidingRepository {
     var lastUpdatedIsNocturia: Boolean? = null
     var lastUpdatedMemo: String? = null
     var lastUpdatedVolumeMl: Int? = null
+    var deleteResult: Result<Unit> = Result.success(Unit)
+    var lastDeletedLocalId: String? = null
+    val deletedLocalIds = mutableListOf<String>()
     private val events = MutableStateFlow<List<VoidingEvent>>(emptyList())
     private val count = MutableStateFlow(0)
     private val pendingCount = MutableStateFlow(0)
@@ -318,7 +384,11 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override fun observeSyncInProgress(): Flow<Boolean> = isSyncing
 
-    override suspend fun delete(localId: String): Result<Unit> = Result.success(Unit)
+    override suspend fun delete(localId: String): Result<Unit> {
+        lastDeletedLocalId = localId
+        deletedLocalIds += localId
+        return deleteResult
+    }
 
     override suspend fun fetchAndSyncAll(): Result<Unit> = Result.success(Unit)
 

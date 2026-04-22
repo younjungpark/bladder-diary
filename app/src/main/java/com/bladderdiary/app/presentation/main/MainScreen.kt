@@ -206,7 +206,7 @@ fun MainScreen(
                     openNewEventEditor(defaultRecordEditorTime(state.selectedDate, now))
                 },
                 onEditEvent = openExistingEventEditor,
-                onDeleteEvent = { viewModel.askDelete(it) }
+                onDeleteEvent = viewModel::askDelete
             )
         }
     }
