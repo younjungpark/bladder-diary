@@ -39,8 +39,12 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,6 +152,7 @@ internal fun MainContent(
                     TimelineEvents(
                         palette = palette,
                         events = sortedEvents,
+                        activeDeleteEventId = state.confirmDeleteEventId,
                         onEditEvent = onEditEvent,
                         onDeleteEvent = onDeleteEvent
                     )
@@ -501,6 +506,7 @@ private fun DiaryTimelineItem(
     intervalText: String?,
     isFirst: Boolean,
     isLast: Boolean,
+    isDeleteDialogVisible: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -521,6 +527,7 @@ private fun DiaryTimelineItem(
             palette = palette,
             event = event,
             intervalText = intervalText,
+            isDeleteDialogVisible = isDeleteDialogVisible,
             onEdit = onEdit,
             onDelete = onDelete
         )
@@ -531,27 +538,31 @@ private fun DiaryTimelineItem(
 private fun TimelineEvents(
     palette: HomePalette,
     events: List<VoidingEvent>,
+    activeDeleteEventId: String?,
     onEditEvent: (VoidingEvent) -> Unit,
     onDeleteEvent: (String) -> Unit
 ) {
     Column {
         events.forEachIndexed { index, event ->
             val previousEvent = events.getOrNull(index + 1)
-            Column {
-                DiaryTimelineItem(
-                    palette = palette,
-                    event = event,
-                    intervalText = previousEvent
-                        ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
-                        ?.takeIf { it > 0 }
-                        ?.toIntervalText(),
-                    isFirst = index == 0,
-                    isLast = index == events.lastIndex,
-                    onEdit = { onEditEvent(event) },
-                    onDelete = { onDeleteEvent(event.localId) }
-                )
-                if (index != events.lastIndex) {
-                    Spacer(modifier = Modifier.height(14.dp))
+            key(event.localId) {
+                Column {
+                    DiaryTimelineItem(
+                        palette = palette,
+                        event = event,
+                        intervalText = previousEvent
+                            ?.let { event.voidedAtEpochMs - it.voidedAtEpochMs }
+                            ?.takeIf { it > 0 }
+                            ?.toIntervalText(),
+                        isFirst = index == 0,
+                        isLast = index == events.lastIndex,
+                        isDeleteDialogVisible = activeDeleteEventId == event.localId,
+                        onEdit = { onEditEvent(event) },
+                        onDelete = { onDeleteEvent(event.localId) }
+                    )
+                    if (index != events.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
                 }
             }
         }
@@ -611,6 +622,7 @@ private fun DiaryEventCard(
     palette: HomePalette,
     event: VoidingEvent,
     intervalText: String?,
+    isDeleteDialogVisible: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -618,6 +630,7 @@ private fun DiaryEventCard(
     val (timeText, periodText) = event.voidedAtEpochMs.toTimeDisplay()
     val hasMemo = !event.memo.isNullOrBlank()
     val hasVolume = event.volumeMl != null
+    var hadDeleteDialogOpen by remember(event.localId) { mutableStateOf(false) }
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
@@ -627,6 +640,15 @@ private fun DiaryEventCard(
             false
         }
     )
+
+    LaunchedEffect(isDeleteDialogVisible) {
+        if (isDeleteDialogVisible) {
+            hadDeleteDialogOpen = true
+        } else if (hadDeleteDialogOpen) {
+            dismissState.reset()
+            hadDeleteDialogOpen = false
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
