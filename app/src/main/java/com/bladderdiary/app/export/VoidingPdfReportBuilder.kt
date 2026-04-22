@@ -1,8 +1,8 @@
 package com.bladderdiary.app.export
 
 import com.bladderdiary.app.domain.model.VoidingEvent
-import java.time.LocalDate as JavaLocalDate
 import java.time.temporal.ChronoUnit
+import java.time.LocalDate as JavaLocalDate
 
 object VoidingPdfReportBuilder {
     private const val FOOTER_NOTE =
@@ -27,7 +27,11 @@ object VoidingPdfReportBuilder {
             totalCount = totalCount,
             totalVolumeMl = volumeValues.sum().takeIf { volumeValues.isNotEmpty() },
             volumeEntryCount = volumeValues.size,
-            averageDailyCount = if (inclusiveDays <= 0) 0.0 else totalCount.toDouble() / inclusiveDays,
+            averageDailyCount = if (inclusiveDays <= 0) {
+                0.0
+            } else {
+                totalCount.toDouble() / inclusiveDays
+            },
             dailySummaries = groupedByDate.map { (localDate, dayEvents) ->
                 VoidingPdfDailySummary(
                     localDate = localDate,

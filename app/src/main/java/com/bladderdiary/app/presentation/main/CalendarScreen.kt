@@ -68,7 +68,10 @@ fun CalendarScreen(
     val secondaryGlow = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f)
     val totalCount = state.dailyCounts.values.sum()
     val activeDays = state.dailyCounts.count { it.value > 0 }
-    val daysInMonth = getDaysInMonth(state.currentYearMonth.year, state.currentYearMonth.monthNumber)
+    val daysInMonth = getDaysInMonth(
+        state.currentYearMonth.year,
+        state.currentYearMonth.monthNumber
+    )
     val average = if (daysInMonth == 0) 0.0 else totalCount.toDouble() / daysInMonth
 
     ProvideFixedFontScale {
@@ -132,7 +135,8 @@ fun CalendarScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${state.currentYearMonth.year}년 ${state.currentYearMonth.monthNumber}월",
+                            text = "${state.currentYearMonth.year}년 " +
+                                "${state.currentYearMonth.monthNumber}월",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -212,7 +216,8 @@ fun CalendarScreen(
                                 .padding(horizontal = 2.dp),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            listOf("일", "월", "화", "수", "목", "금", "토").forEachIndexed { index, dayOfWeek ->
+                            listOf("일", "월", "화", "수", "목", "금", "토")
+                                .forEachIndexed { index, dayOfWeek ->
                                 Text(
                                     text = dayOfWeek,
                                     style = MaterialTheme.typography.labelMedium,

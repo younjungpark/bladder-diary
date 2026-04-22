@@ -1,5 +1,9 @@
 package com.bladderdiary.app.data.security
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -7,10 +11,6 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 object MemoEncryptionScheme {
     const val NONE = "NONE"
@@ -77,13 +77,11 @@ object MemoCrypto {
         userId: String,
         eventId: String,
         localDate: String
-    ): String {
-        return encryptPayload(
-            plainBytes = memo.toByteArray(Charsets.UTF_8),
-            keyBytes = dekBytes,
-            aad = buildAad(userId, eventId, localDate)
-        )
-    }
+    ): String = encryptPayload(
+        plainBytes = memo.toByteArray(Charsets.UTF_8),
+        keyBytes = dekBytes,
+        aad = buildAad(userId, eventId, localDate)
+    )
 
     fun decryptMemo(
         payload: String,
@@ -100,27 +98,19 @@ object MemoCrypto {
         return plainBytes.toString(Charsets.UTF_8)
     }
 
-    fun wrapDek(dekBytes: ByteArray, kekBytes: ByteArray): String {
-        return encryptPayload(
-            plainBytes = dekBytes,
-            keyBytes = kekBytes,
-            aad = null
-        )
-    }
+    fun wrapDek(dekBytes: ByteArray, kekBytes: ByteArray): String = encryptPayload(
+        plainBytes = dekBytes,
+        keyBytes = kekBytes,
+        aad = null
+    )
 
-    fun unwrapDek(wrappedDek: String, kekBytes: ByteArray): ByteArray {
-        return decryptPayload(
-            payload = wrappedDek,
-            keyBytes = kekBytes,
-            aad = null
-        )
-    }
+    fun unwrapDek(wrappedDek: String, kekBytes: ByteArray): ByteArray = decryptPayload(
+        payload = wrappedDek,
+        keyBytes = kekBytes,
+        aad = null
+    )
 
-    private fun encryptPayload(
-        plainBytes: ByteArray,
-        keyBytes: ByteArray,
-        aad: String?
-    ): String {
+    private fun encryptPayload(plainBytes: ByteArray, keyBytes: ByteArray, aad: String?): String {
         val nonce = randomBytes(GCM_NONCE_BYTES)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val key = SecretKeySpec(keyBytes, "AES")
@@ -141,11 +131,7 @@ object MemoCrypto {
         )
     }
 
-    private fun decryptPayload(
-        payload: String,
-        keyBytes: ByteArray,
-        aad: String?
-    ): ByteArray {
+    private fun decryptPayload(payload: String, keyBytes: ByteArray, aad: String?): ByteArray {
         val envelope = json.decodeFromString<MemoCipherEnvelope>(payload)
         val nonce = decodeBase64Url(envelope.nonce)
         val cipherText = decodeBase64Url(envelope.ct)
@@ -157,13 +143,10 @@ object MemoCrypto {
         return cipher.doFinal(cipherText + tag)
     }
 
-    private fun buildAad(userId: String, eventId: String, localDate: String): String {
-        return "$userId|$eventId|$localDate"
-    }
+    private fun buildAad(userId: String, eventId: String, localDate: String): String =
+        "$userId|$eventId|$localDate"
 
-    private fun randomBytes(size: Int): ByteArray {
-        return ByteArray(size).also(secureRandom::nextBytes)
-    }
+    private fun randomBytes(size: Int): ByteArray = ByteArray(size).also(secureRandom::nextBytes)
 
     private fun randomBase64Url(size: Int): String = encodeBase64Url(randomBytes(size))
 

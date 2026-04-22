@@ -9,7 +9,6 @@ import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.E2eeState
 import com.bladderdiary.app.domain.model.MemoSyncPayload
-import java.security.GeneralSecurityException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +23,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import java.security.GeneralSecurityException
 
 class E2eeRepositoryImpl(
     private val authRepository: AuthRepository,
@@ -79,7 +79,11 @@ class E2eeRepositoryImpl(
             state.value = E2eeState(
                 isCheckingRemoteState = false,
                 isEnabled = remoteKey != null,
-                isUnlocked = remoteKey != null && unlockedUserId == session.userId && runtimeDek != null,
+                isUnlocked = (
+                    remoteKey != null &&
+                        unlockedUserId == session.userId &&
+                        runtimeDek != null
+                    ),
                 lastErrorMessage = null
             )
         }.onFailure { error ->
@@ -92,122 +96,116 @@ class E2eeRepositoryImpl(
         }
     }
 
-    override suspend fun setupPassphrase(passphrase: String): Result<Unit> {
-        return runCatching {
-            require(passphrase.length >= MIN_PASSPHRASE_LENGTH) {
-                "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다."
-            }
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            val derived = MemoCrypto.deriveKek(passphrase.toCharArray())
-            val dek = MemoCrypto.generateDek()
-            val remoteKey = UserE2eeKeyRemoteDto(
-                userId = session.userId,
-                kdf = KDF_NAME,
-                kdfSalt = derived.saltBase64,
-                kdfParams = jsonParams(
-                    iterations = derived.iterations,
-                    keyLengthBits = derived.keyLengthBits
-                ),
-                wrappedDek = MemoCrypto.wrapDek(dek, derived.keyBytes),
-                keyVersion = 1
-            )
-            withFreshAccessToken { token ->
-                api.upsertUserE2eeKey(token, remoteKey)
-            }
-            localKeyStore.saveDek(session.userId, dek)
-            cachedRemoteKey = remoteKey
-            unlockedUserId = session.userId
-            runtimeDek = dek
-            state.value = E2eeState(
-                isCheckingRemoteState = false,
-                isEnabled = true,
-                isUnlocked = true,
-                lastErrorMessage = null
-            )
+    override suspend fun setupPassphrase(passphrase: String): Result<Unit> = runCatching {
+        require(passphrase.length >= MIN_PASSPHRASE_LENGTH) {
+            "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다."
         }
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        val derived = MemoCrypto.deriveKek(passphrase.toCharArray())
+        val dek = MemoCrypto.generateDek()
+        val remoteKey = UserE2eeKeyRemoteDto(
+            userId = session.userId,
+            kdf = KDF_NAME,
+            kdfSalt = derived.saltBase64,
+            kdfParams = jsonParams(
+                iterations = derived.iterations,
+                keyLengthBits = derived.keyLengthBits
+            ),
+            wrappedDek = MemoCrypto.wrapDek(dek, derived.keyBytes),
+            keyVersion = 1
+        )
+        withFreshAccessToken { token ->
+            api.upsertUserE2eeKey(token, remoteKey)
+        }
+        localKeyStore.saveDek(session.userId, dek)
+        cachedRemoteKey = remoteKey
+        unlockedUserId = session.userId
+        runtimeDek = dek
+        state.value = E2eeState(
+            isCheckingRemoteState = false,
+            isEnabled = true,
+            isUnlocked = true,
+            lastErrorMessage = null
+        )
     }
 
-    override suspend fun changePassphrase(passphrase: String): Result<Unit> {
-        return runCatching {
-            require(passphrase.length >= MIN_PASSPHRASE_LENGTH) {
-                "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다."
-            }
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            val remoteKey = cachedRemoteKey ?: withFreshAccessToken { token ->
-                api.getUserE2eeKey(token, session.userId)
-            } ?: throw IllegalStateException("설정된 E2EE 키를 찾지 못했습니다.")
-            val dek = ensureRuntimeDek(session.userId)
-                ?: throw IllegalStateException("현재 기기에서는 비밀문구를 재설정할 수 없습니다. 기존 비밀문구로 먼저 잠금 해제해주세요.")
-
-            val derived = MemoCrypto.deriveKek(passphrase.toCharArray())
-            val updatedRemoteKey = remoteKey.copy(
-                kdf = KDF_NAME,
-                kdfSalt = derived.saltBase64,
-                kdfParams = jsonParams(
-                    iterations = derived.iterations,
-                    keyLengthBits = derived.keyLengthBits
-                ),
-                wrappedDek = MemoCrypto.wrapDek(dek, derived.keyBytes)
-            )
-            withFreshAccessToken { token ->
-                api.upsertUserE2eeKey(token, updatedRemoteKey)
-            }
-            localKeyStore.saveDek(session.userId, dek)
-            cachedRemoteKey = updatedRemoteKey
-            unlockedUserId = session.userId
-            runtimeDek = dek
-            state.value = E2eeState(
-                isCheckingRemoteState = false,
-                isEnabled = true,
-                isUnlocked = true,
-                lastErrorMessage = null
-            )
+    override suspend fun changePassphrase(passphrase: String): Result<Unit> = runCatching {
+        require(passphrase.length >= MIN_PASSPHRASE_LENGTH) {
+            "비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다."
         }
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        val remoteKey = cachedRemoteKey ?: withFreshAccessToken { token ->
+            api.getUserE2eeKey(token, session.userId)
+        } ?: throw IllegalStateException("설정된 E2EE 키를 찾지 못했습니다.")
+        val dek = ensureRuntimeDek(session.userId)
+            ?: throw IllegalStateException("현재 기기에서는 비밀문구를 재설정할 수 없습니다. 기존 비밀문구로 먼저 잠금 해제해주세요.")
+
+        val derived = MemoCrypto.deriveKek(passphrase.toCharArray())
+        val updatedRemoteKey = remoteKey.copy(
+            kdf = KDF_NAME,
+            kdfSalt = derived.saltBase64,
+            kdfParams = jsonParams(
+                iterations = derived.iterations,
+                keyLengthBits = derived.keyLengthBits
+            ),
+            wrappedDek = MemoCrypto.wrapDek(dek, derived.keyBytes)
+        )
+        withFreshAccessToken { token ->
+            api.upsertUserE2eeKey(token, updatedRemoteKey)
+        }
+        localKeyStore.saveDek(session.userId, dek)
+        cachedRemoteKey = updatedRemoteKey
+        unlockedUserId = session.userId
+        runtimeDek = dek
+        state.value = E2eeState(
+            isCheckingRemoteState = false,
+            isEnabled = true,
+            isUnlocked = true,
+            lastErrorMessage = null
+        )
     }
 
-    override suspend fun unlock(passphrase: String): Result<Unit> {
-        return runCatching {
-            require(passphrase.isNotBlank()) { "비밀문구를 입력해주세요." }
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            val remoteKey = cachedRemoteKey ?: withFreshAccessToken { token ->
-                api.getUserE2eeKey(token, session.userId)
-            } ?: throw IllegalStateException("설정된 E2EE 키를 찾지 못했습니다.")
+    override suspend fun unlock(passphrase: String): Result<Unit> = runCatching {
+        require(passphrase.isNotBlank()) { "비밀문구를 입력해주세요." }
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        val remoteKey = cachedRemoteKey ?: withFreshAccessToken { token ->
+            api.getUserE2eeKey(token, session.userId)
+        } ?: throw IllegalStateException("설정된 E2EE 키를 찾지 못했습니다.")
 
-            val iterations = remoteKey.kdfParams["iterations"]?.jsonPrimitive?.intOrNull
-                ?: MemoCrypto.DEFAULT_PBKDF2_ITERATIONS
-            val keyLengthBits = remoteKey.kdfParams["keyLengthBits"]?.jsonPrimitive?.intOrNull
-                ?: MemoCrypto.DEFAULT_PBKDF2_KEY_LENGTH_BITS
-            val derived = MemoCrypto.deriveKek(
-                passphrase = passphrase.toCharArray(),
-                saltBase64 = remoteKey.kdfSalt,
-                iterations = iterations,
-                keyLengthBits = keyLengthBits
-            )
-            val dek = try {
-                MemoCrypto.unwrapDek(remoteKey.wrappedDek, derived.keyBytes)
-            } catch (error: GeneralSecurityException) {
-                throw IllegalArgumentException("비밀문구가 올바르지 않습니다.", error)
-            }
-
-            localKeyStore.saveDek(session.userId, dek)
-            cachedRemoteKey = remoteKey
-            unlockedUserId = session.userId
-            runtimeDek = dek
-            state.value = E2eeState(
-                isCheckingRemoteState = false,
-                isEnabled = true,
-                isUnlocked = true,
-                lastErrorMessage = null
-            )
-        }.onFailure { error ->
-            val enabled = cachedRemoteKey != null
-            state.value = E2eeState(
-                isCheckingRemoteState = false,
-                isEnabled = enabled,
-                isUnlocked = false,
-                lastErrorMessage = error.message ?: "비밀문구 확인에 실패했습니다."
-            )
+        val iterations = remoteKey.kdfParams["iterations"]?.jsonPrimitive?.intOrNull
+            ?: MemoCrypto.DEFAULT_PBKDF2_ITERATIONS
+        val keyLengthBits = remoteKey.kdfParams["keyLengthBits"]?.jsonPrimitive?.intOrNull
+            ?: MemoCrypto.DEFAULT_PBKDF2_KEY_LENGTH_BITS
+        val derived = MemoCrypto.deriveKek(
+            passphrase = passphrase.toCharArray(),
+            saltBase64 = remoteKey.kdfSalt,
+            iterations = iterations,
+            keyLengthBits = keyLengthBits
+        )
+        val dek = try {
+            MemoCrypto.unwrapDek(remoteKey.wrappedDek, derived.keyBytes)
+        } catch (error: GeneralSecurityException) {
+            throw IllegalArgumentException("비밀문구가 올바르지 않습니다.", error)
         }
+
+        localKeyStore.saveDek(session.userId, dek)
+        cachedRemoteKey = remoteKey
+        unlockedUserId = session.userId
+        runtimeDek = dek
+        state.value = E2eeState(
+            isCheckingRemoteState = false,
+            isEnabled = true,
+            isUnlocked = true,
+            lastErrorMessage = null
+        )
+    }.onFailure { error ->
+        val enabled = cachedRemoteKey != null
+        state.value = E2eeState(
+            isCheckingRemoteState = false,
+            isEnabled = enabled,
+            isUnlocked = false,
+            lastErrorMessage = error.message ?: "비밀문구 확인에 실패했습니다."
+        )
     }
 
     override suspend fun prepareMemoSyncPayload(
@@ -215,34 +213,32 @@ class E2eeRepositoryImpl(
         eventId: String,
         localDate: String,
         memo: String?
-    ): Result<MemoSyncPayload> {
-        return runCatching {
-            val isEnabled = state.value.isEnabled
-            if (!isEnabled) {
+    ): Result<MemoSyncPayload> = runCatching {
+        val isEnabled = state.value.isEnabled
+        if (!isEnabled) {
+            MemoSyncPayload(
+                memoCiphertext = memo,
+                memoEncryption = MemoEncryptionScheme.NONE
+            )
+        } else {
+            val dek = ensureRuntimeDek(userId)
+            if (memo.isNullOrBlank()) {
                 MemoSyncPayload(
-                    memoCiphertext = memo,
-                    memoEncryption = MemoEncryptionScheme.NONE
+                    memoCiphertext = null,
+                    memoEncryption = MemoEncryptionScheme.E2EE_V1
                 )
             } else {
-                val dek = ensureRuntimeDek(userId)
-                if (memo.isNullOrBlank()) {
-                    MemoSyncPayload(
-                        memoCiphertext = null,
-                        memoEncryption = MemoEncryptionScheme.E2EE_V1
-                    )
-                } else {
-                    requireNotNull(dek) { "E2EE 비밀문구 잠금 해제 후 메모를 저장해주세요." }
-                    MemoSyncPayload(
-                        memoCiphertext = MemoCrypto.encryptMemo(
-                            memo = memo,
-                            dekBytes = dek,
-                            userId = userId,
-                            eventId = eventId,
-                            localDate = localDate
-                        ),
-                        memoEncryption = MemoEncryptionScheme.E2EE_V1
-                    )
-                }
+                requireNotNull(dek) { "E2EE 비밀문구 잠금 해제 후 메모를 저장해주세요." }
+                MemoSyncPayload(
+                    memoCiphertext = MemoCrypto.encryptMemo(
+                        memo = memo,
+                        dekBytes = dek,
+                        userId = userId,
+                        eventId = eventId,
+                        localDate = localDate
+                    ),
+                    memoEncryption = MemoEncryptionScheme.E2EE_V1
+                )
             }
         }
     }
@@ -257,6 +253,7 @@ class E2eeRepositoryImpl(
         return runCatching {
             when (memoEncryption) {
                 MemoEncryptionScheme.NONE -> memoCiphertext
+
                 MemoEncryptionScheme.E2EE_V1 -> {
                     if (memoCiphertext.isNullOrBlank()) {
                         null
@@ -271,6 +268,7 @@ class E2eeRepositoryImpl(
                         )
                     }
                 }
+
                 else -> null
             }
         }
@@ -333,14 +331,12 @@ class E2eeRepositoryImpl(
         }
     }
 
-    private fun jsonParams(iterations: Int, keyLengthBits: Int): JsonObject {
-        return JsonObject(
-            mapOf(
-                "iterations" to JsonPrimitive(iterations),
-                "keyLengthBits" to JsonPrimitive(keyLengthBits)
-            )
+    private fun jsonParams(iterations: Int, keyLengthBits: Int): JsonObject = JsonObject(
+        mapOf(
+            "iterations" to JsonPrimitive(iterations),
+            "keyLengthBits" to JsonPrimitive(keyLengthBits)
         )
-    }
+    )
 
     companion object {
         private const val KDF_NAME = "PBKDF2_SHA256"

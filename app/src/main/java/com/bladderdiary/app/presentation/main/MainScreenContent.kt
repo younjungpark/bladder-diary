@@ -178,7 +178,11 @@ private fun HeroDateCard(
     val cardPaddingVertical = if (compact) 10.dp else 8.dp
     val titleFontSize = if (compact) 22.sp else 26.sp
     val titleLineHeight = if (compact) 26.sp else 30.sp
-    val heroDateText = if (compact) selectedDate.toCompactHeroDateText() else selectedDate.toHeroDateText()
+    val heroDateText = if (compact) {
+        selectedDate.toCompactHeroDateText()
+    } else {
+        selectedDate.toHeroDateText()
+    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -616,7 +620,10 @@ private fun TimelineRail(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class
+)
 @Composable
 private fun DiaryEventCard(
     palette: HomePalette,
@@ -774,7 +781,9 @@ private fun DiaryEventCard(
                                     lineHeight = if (isCompactWidth) 13.sp else 14.sp
                                 ),
                                 color = palette.primary,
-                                modifier = Modifier.padding(bottom = if (isCompactWidth) 4.dp else 5.dp)
+                                modifier = Modifier.padding(
+                                    bottom = if (isCompactWidth) 4.dp else 5.dp
+                                )
                             )
                         }
                     }

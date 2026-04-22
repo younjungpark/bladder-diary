@@ -1,10 +1,10 @@
 package com.bladderdiary.app
 
 import android.app.Application
-import com.bladderdiary.app.core.AppGraph
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.bladderdiary.app.core.AppGraph
 
 class DiaryApplication : Application() {
     override fun onCreate() {

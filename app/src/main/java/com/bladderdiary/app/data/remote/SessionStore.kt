@@ -17,9 +17,7 @@ import java.io.IOException
 
 private val Context.dataStore by preferencesDataStore(name = "session_store")
 
-class SessionStore(
-    private val context: Context
-) {
+class SessionStore(private val context: Context) {
     private val userIdKey = stringPreferencesKey("user_id")
     private val accessTokenKey = stringPreferencesKey("access_token")
     private val refreshTokenKey = stringPreferencesKey("refresh_token")
@@ -64,10 +62,22 @@ class SessionStore(
     suspend fun save(session: UserSession) {
         context.dataStore.edit { prefs ->
             val rememberedUserId = prefs[rememberedUserIdKey]
-            val preservedEmail = if (rememberedUserId == session.userId) prefs[rememberedEmailKey] else null
-            val preservedProvider = if (rememberedUserId == session.userId) prefs[rememberedProviderKey] else null
+            val preservedEmail = if (rememberedUserId == session.userId) {
+                prefs[rememberedEmailKey]
+            } else {
+                null
+            }
+            val preservedProvider = if (rememberedUserId == session.userId) {
+                prefs[rememberedProviderKey]
+            } else {
+                null
+            }
             val email = session.email?.trim()?.takeIf { it.isNotEmpty() } ?: preservedEmail
-            val provider = session.provider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: preservedProvider
+            val provider = session.provider
+                ?.trim()
+                ?.lowercase()
+                ?.takeIf { it.isNotEmpty() }
+                ?: preservedProvider
 
             prefs[userIdKey] = session.userId
             prefs[accessTokenKey] = session.accessToken
@@ -132,9 +142,8 @@ class SessionStore(
         }
     }
 
-    suspend fun getPendingOAuthProvider(): String? {
-        return context.dataStore.data.first()[pendingOAuthProviderKey]
-    }
+    suspend fun getPendingOAuthProvider(): String? =
+        context.dataStore.data.first()[pendingOAuthProviderKey]
 
     suspend fun clearPendingOAuthProvider() {
         context.dataStore.edit { prefs ->

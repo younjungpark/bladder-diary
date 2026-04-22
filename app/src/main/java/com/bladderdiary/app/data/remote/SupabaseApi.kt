@@ -83,13 +83,26 @@ class SupabaseApi {
             header("Prefer", "resolution=merge-duplicates,return=minimal")
             setBody(listOf(event))
         }
-        if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.NoContent)) {
+        if (
+            response.status !in listOf(
+                HttpStatusCode.OK,
+                HttpStatusCode.Created,
+                HttpStatusCode.NoContent
+            )
+        ) {
             throw IllegalStateException("이벤트 업로드 실패: ${response.bodyAsText()}")
         }
     }
 
-    suspend fun softDeleteVoidingEvent(accessToken: String, id: String, userId: String, deletedAtIso: String) {
-        val response = client.patch("$baseUrl/rest/v1/voiding_events?id=eq.$id&user_id=eq.$userId") {
+    suspend fun softDeleteVoidingEvent(
+        accessToken: String,
+        id: String,
+        userId: String,
+        deletedAtIso: String
+    ) {
+        val response = client.patch(
+            "$baseUrl/rest/v1/voiding_events?id=eq.$id&user_id=eq.$userId"
+        ) {
             contentType(ContentType.Application.Json)
             header("apikey", anonKey)
             header(HttpHeaders.Authorization, "Bearer $accessToken")
@@ -121,7 +134,13 @@ class SupabaseApi {
             header("Prefer", "resolution=merge-duplicates,return=minimal")
             setBody(listOf(key))
         }
-        if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.NoContent)) {
+        if (
+            response.status !in listOf(
+                HttpStatusCode.OK,
+                HttpStatusCode.Created,
+                HttpStatusCode.NoContent
+            )
+        ) {
             throw IllegalStateException("E2EE 키 저장 실패: ${response.bodyAsText()}")
         }
     }

@@ -51,7 +51,7 @@ app/src/main/java/com/bladderdiary/app
 
 - Android Studio 최신 안정 버전 권장
 - JDK 17
-- Android SDK 34
+- Android SDK 35
 - 최소 SDK 26
 
 ## 시작하기
@@ -74,6 +74,7 @@ cd bladder-diary
 003_add_volume_ml.sql
 004_add_urgency.sql
 005_add_has_incontinence.sql
+006_add_is_nocturia.sql
 ```
 
 3. Authentication에서 Google, Kakao provider를 활성화합니다.
@@ -132,6 +133,8 @@ app/build/outputs/apk/release/app-release.apk
 
 ## 관련 문서
 
+- [docs/README.md](docs/README.md)
+- [docs/CODING_RULES.md](docs/CODING_RULES.md)
 - [LICENSE](LICENSE)
 - [TRADEMARK_POLICY.md](TRADEMARK_POLICY.md)
 - [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

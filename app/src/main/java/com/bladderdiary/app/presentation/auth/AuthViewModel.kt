@@ -241,13 +241,13 @@ class AuthViewModel(
     }
 
     companion object {
-        fun factory(authRepository: AuthRepository, voidingRepository: VoidingRepository): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AuthViewModel(authRepository, voidingRepository) as T
-                }
-            }
+        fun factory(
+            authRepository: AuthRepository,
+            voidingRepository: VoidingRepository
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                AuthViewModel(authRepository, voidingRepository) as T
         }
     }
 }

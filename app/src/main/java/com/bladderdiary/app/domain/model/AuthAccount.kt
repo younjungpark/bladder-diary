@@ -17,7 +17,11 @@ data class AuthAccount(
         }
 
     val summary: String
-        get() = email?.trim()?.takeIf { it.isNotEmpty() }?.let { "$providerLabel · $it" } ?: providerLabel
+        get() = email
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { "$providerLabel · $it" }
+            ?: providerLabel
 }
 
 fun UserSession.toAuthAccount(): AuthAccount = AuthAccount(

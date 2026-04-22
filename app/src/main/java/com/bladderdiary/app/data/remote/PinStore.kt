@@ -32,9 +32,7 @@ interface PinStoreDataSource {
     suspend fun clearUser(userId: String)
 }
 
-class PinStore(
-    private val context: Context
-) : PinStoreDataSource {
+class PinStore(private val context: Context) : PinStoreDataSource {
     override fun observe(userId: String): Flow<PinStoredState> = context.pinDataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -45,9 +43,8 @@ class PinStore(
         }
         .map { prefs -> prefs.toPinStoredState(userId) }
 
-    override suspend fun read(userId: String): PinStoredState {
-        return context.pinDataStore.data.first().toPinStoredState(userId)
-    }
+    override suspend fun read(userId: String): PinStoredState =
+        context.pinDataStore.data.first().toPinStoredState(userId)
 
     override suspend fun savePin(userId: String, pinHash: String, pinSalt: String) {
         context.pinDataStore.edit { prefs ->
@@ -58,7 +55,11 @@ class PinStore(
         }
     }
 
-    override suspend fun updateFailedAttempts(userId: String, failedAttempts: Int, lockedUntilEpochMs: Long?) {
+    override suspend fun updateFailedAttempts(
+        userId: String,
+        failedAttempts: Int,
+        lockedUntilEpochMs: Long?
+    ) {
         context.pinDataStore.edit { prefs ->
             prefs[failedAttemptsKey(userId)] = failedAttempts
             if (lockedUntilEpochMs == null) {
@@ -85,14 +86,12 @@ class PinStore(
         }
     }
 
-    private fun Preferences.toPinStoredState(userId: String): PinStoredState {
-        return PinStoredState(
-            pinHash = this[pinHashKey(userId)],
-            pinSalt = this[pinSaltKey(userId)],
-            failedAttempts = this[failedAttemptsKey(userId)] ?: 0,
-            lockedUntilEpochMs = this[lockedUntilKey(userId)]
-        )
-    }
+    private fun Preferences.toPinStoredState(userId: String): PinStoredState = PinStoredState(
+        pinHash = this[pinHashKey(userId)],
+        pinSalt = this[pinSaltKey(userId)],
+        failedAttempts = this[failedAttemptsKey(userId)] ?: 0,
+        lockedUntilEpochMs = this[lockedUntilKey(userId)]
+    )
 
     private fun pinHashKey(userId: String) = stringPreferencesKey("pin_hash_$userId")
     private fun pinSaltKey(userId: String) = stringPreferencesKey("pin_salt_$userId")

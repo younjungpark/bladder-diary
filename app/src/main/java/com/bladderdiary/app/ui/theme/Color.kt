@@ -2,7 +2,7 @@ package com.bladderdiary.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme
+// 라이트 테마
 val PrimaryLight = Color(0xFF006767)
 val OnPrimaryLight = Color(0xFFFFFFFF)
 val PrimaryContainerLight = Color(0xFF1E8181)
@@ -25,7 +25,7 @@ val OutlineLight = Color(0xFFBDC9C8)
 val ErrorLight = Color(0xFFB3261E)
 val OnErrorLight = Color(0xFFFFFFFF)
 
-// Dark Theme
+// 다크 테마
 val PrimaryDark = Color(0xFF80D6D5)
 val OnPrimaryDark = Color(0xFF003737)
 val PrimaryContainerDark = Color(0xFF005050)

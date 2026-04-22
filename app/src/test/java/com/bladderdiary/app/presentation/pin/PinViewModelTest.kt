@@ -68,9 +68,7 @@ class PinViewModelTest {
     }
 }
 
-private class FakeLockRepository(
-    initial: LockState
-) : LockRepository {
+private class FakeLockRepository(initial: LockState) : LockRepository {
     private val lockState = MutableStateFlow(initial)
     var verifyResult: Result<Boolean> = Result.success(true)
     var setPinResult: Result<Unit> = Result.success(Unit)
@@ -94,15 +92,23 @@ private class FakeAuthRepository : AuthRepository {
     override val rememberedAccountFlow: Flow<AuthAccount?> = MutableStateFlow(AuthAccount("user-1"))
     override val accountSwitchArmedFlow: Flow<Boolean> = MutableStateFlow(false)
 
-    override suspend fun signUp(email: String, password: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
-    override suspend fun signIn(email: String, password: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
-    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> = Result.success(Unit)
-    override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> = Result.success(AuthResult("user-1"))
+    override suspend fun signUp(email: String, password: String): Result<AuthResult> =
+        Result.success(AuthResult("user-1"))
+
+    override suspend fun signIn(email: String, password: String): Result<AuthResult> =
+        Result.success(AuthResult("user-1"))
+
+    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> =
+        Result.success(Unit)
+
+    override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> =
+        Result.success(AuthResult("user-1"))
     override suspend fun armAccountSwitch() = Unit
     override suspend fun clearPendingAccountSwitch() = Unit
     override suspend fun signOut() {
         sessionState.value = null
     }
     override suspend fun getSession(): UserSession? = sessionState.value
-    override suspend fun refreshSession(): Result<UserSession> = Result.success(sessionState.value!!)
+    override suspend fun refreshSession(): Result<UserSession> =
+        Result.success(sessionState.value!!)
 }

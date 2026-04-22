@@ -191,7 +191,10 @@ fun AuthScreen(
                         )
 
                     SocialLoginButton(
-                        text = if (state.pendingProvider == SocialProvider.GOOGLE && state.isOAuthLoading) {
+                        text = if (
+                            state.pendingProvider == SocialProvider.GOOGLE &&
+                            state.isOAuthLoading
+                        ) {
                             if (isCompactWidth) "Google 로그인 중" else "Google 로그인 진행 중"
                         } else {
                             if (isCompactWidth) "Google 로그인" else "Google 계정으로 계속"
@@ -200,14 +203,18 @@ fun AuthScreen(
                         backgroundColor = Color.White,
                         contentColor = Color(0xFF171D1D),
                         borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
-                        loading = state.pendingProvider == SocialProvider.GOOGLE && state.isOAuthLoading,
+                        loading = state.pendingProvider == SocialProvider.GOOGLE &&
+                            state.isOAuthLoading,
                         enabled = isGoogleEnabled,
                         compact = isCompactWidth,
                         onClick = { viewModel.signInWithSocial(SocialProvider.GOOGLE) }
                     )
 
                     SocialLoginButton(
-                        text = if (state.pendingProvider == SocialProvider.KAKAO && state.isOAuthLoading) {
+                        text = if (
+                            state.pendingProvider == SocialProvider.KAKAO &&
+                            state.isOAuthLoading
+                        ) {
                             if (isCompactWidth) "카카오 로그인 중" else "카카오 로그인 진행 중"
                         } else {
                             if (isCompactWidth) "카카오 로그인" else "카카오 계정으로 계속"
@@ -215,7 +222,8 @@ fun AuthScreen(
                         icon = Icons.Default.Person,
                         backgroundColor = Color(0xFFFEE500),
                         contentColor = Color(0xFF171D1D),
-                        loading = state.pendingProvider == SocialProvider.KAKAO && state.isOAuthLoading,
+                        loading = state.pendingProvider == SocialProvider.KAKAO &&
+                            state.isOAuthLoading,
                         enabled = isKakaoEnabled,
                         compact = isCompactWidth,
                         onClick = { viewModel.signInWithSocial(SocialProvider.KAKAO) }
@@ -224,20 +232,23 @@ fun AuthScreen(
                     AuthMessageCard(
                         message = state.oauthErrorMessage ?: state.errorMessage,
                         icon = Icons.Default.ErrorOutline,
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f),
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                            .copy(alpha = 0.92f),
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     )
 
                     AuthMessageCard(
                         message = state.infoMessage,
                         icon = Icons.Default.Info,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            .copy(alpha = 0.92f),
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
 
                     if (state.isOAuthLoading) {
                         Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                                .copy(alpha = 0.55f),
                             shape = RoundedCornerShape(18.dp)
                         ) {
                             Text(

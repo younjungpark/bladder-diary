@@ -28,7 +28,10 @@ android {
 
         val supabaseUrl = localProps.getProperty("SUPABASE_URL", "")
         val supabaseAnonKey = localProps.getProperty("SUPABASE_ANON_KEY", "")
-        val supabaseRedirectUri = localProps.getProperty("SUPABASE_REDIRECT_URI", "bladderdiary://auth/callback")
+        val supabaseRedirectUri = localProps.getProperty(
+            "SUPABASE_REDIRECT_URI",
+            "bladderdiary://auth/callback"
+        )
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
@@ -110,7 +113,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.browser:browser:1.8.0")
-    
+
     // Splash Screen API
     implementation("androidx.core:core-splashscreen:1.0.1")
 

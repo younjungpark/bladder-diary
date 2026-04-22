@@ -31,12 +31,11 @@ class SupabaseAuthClient {
         }
     }
 
-    fun buildOAuthSignInUrl(provider: SocialProvider): String {
-        return URLBuilder("$baseUrl/auth/v1/authorize").apply {
+    fun buildOAuthSignInUrl(provider: SocialProvider): String =
+        URLBuilder("$baseUrl/auth/v1/authorize").apply {
             parameters.append("provider", provider.providerKey)
             parameters.append("redirect_to", redirectUri)
         }.buildString()
-    }
 
     suspend fun createSessionFromCallback(
         callbackUrl: String,
@@ -78,23 +77,22 @@ class SupabaseAuthClient {
         )
     }
 
-    private suspend fun fetchUser(accessToken: String): AuthUserDto {
-        return client.get("$baseUrl/auth/v1/user") {
+    private suspend fun fetchUser(accessToken: String): AuthUserDto =
+        client.get("$baseUrl/auth/v1/user") {
             header("apikey", anonKey)
             header(HttpHeaders.Authorization, "Bearer $accessToken")
         }.body()
-    }
 }
 
-internal fun resolveProvider(
-    preferredProvider: String?,
-    fallbackProvider: String?
-): String? {
+internal fun resolveProvider(preferredProvider: String?, fallbackProvider: String?): String? {
     val normalizedPreferred = preferredProvider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
     val normalizedFallback = fallbackProvider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
     return when {
         normalizedPreferred == null -> normalizedFallback
-        normalizedPreferred == "email" && normalizedFallback in setOf("google", "kakao") -> normalizedFallback
+
+        normalizedPreferred == "email" &&
+            normalizedFallback in setOf("google", "kakao") -> normalizedFallback
+
         else -> normalizedPreferred
     }
 }

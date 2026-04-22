@@ -223,7 +223,11 @@ private fun MainOverflowMenu(
                 text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
                 leadingIcon = {
                     Icon(
-                        imageVector = if (isE2eeEnabled) Icons.Filled.VpnKey else Icons.Outlined.VpnKey,
+                        imageVector = if (isE2eeEnabled) {
+                            Icons.Filled.VpnKey
+                        } else {
+                            Icons.Outlined.VpnKey
+                        },
                         contentDescription = null
                     )
                 },
@@ -390,7 +394,10 @@ internal fun Long.toTimeDisplay(): Pair<String, String> {
         else -> normalized
     }
 
-    return displayHour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0') to meridiem
+    val timeText = displayHour.toString().padStart(2, '0') +
+        ":" +
+        minute.toString().padStart(2, '0')
+    return timeText to meridiem
 }
 
 internal fun Long.toIntervalText(): String {

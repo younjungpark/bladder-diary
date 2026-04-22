@@ -3,9 +3,9 @@ package com.bladderdiary.app.data.repository
 import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
-import com.bladderdiary.app.data.remote.SupabaseAuthClient
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
+import com.bladderdiary.app.data.remote.SupabaseAuthClient
 import com.bladderdiary.app.data.remote.resolveProvider
 import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
@@ -25,42 +25,36 @@ class AuthRepositoryImpl(
     override val rememberedAccountFlow: Flow<AuthAccount?> = sessionStore.rememberedAccountFlow
     override val accountSwitchArmedFlow: Flow<Boolean> = sessionStore.accountSwitchArmedFlow
 
-    override suspend fun signUp(email: String, password: String): Result<AuthResult> {
-        return runCatching {
-            val response = api.signUp(email, password)
-            AuthResult(userId = response.user?.id ?: "pending_email_confirmation")
-        }
+    override suspend fun signUp(email: String, password: String): Result<AuthResult> = runCatching {
+        val response = api.signUp(email, password)
+        AuthResult(userId = response.user?.id ?: "pending_email_confirmation")
     }
 
-    override suspend fun signIn(email: String, password: String): Result<AuthResult> {
-        return runCatching {
-            val response = api.signIn(email, password)
-            val session = response.toSession(
-                fallbackEmail = email.trim(),
-                fallbackProvider = "email"
-            )
-            val persistedSession = persistApprovedSession(session)
-            AuthResult(userId = persistedSession.userId)
-        }
+    override suspend fun signIn(email: String, password: String): Result<AuthResult> = runCatching {
+        val response = api.signIn(email, password)
+        val session = response.toSession(
+            fallbackEmail = email.trim(),
+            fallbackProvider = "email"
+        )
+        val persistedSession = persistApprovedSession(session)
+        AuthResult(userId = persistedSession.userId)
     }
 
-    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> {
-        return runCatching {
-            sessionStore.savePendingOAuthProvider(provider.providerKey)
-            val authUri = Uri.parse(authClient.buildOAuthSignInUrl(provider))
-            val customTabsIntent = CustomTabsIntent.Builder().build()
-            customTabsIntent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (isChromeAvailable()) {
-                customTabsIntent.intent.setPackage(CHROME_PACKAGE)
-            }
-            customTabsIntent.launchUrl(appContext, authUri)
-        }.onFailure {
-            sessionStore.clearPendingOAuthProvider()
+    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> = runCatching {
+        sessionStore.savePendingOAuthProvider(provider.providerKey)
+        val authUri = Uri.parse(authClient.buildOAuthSignInUrl(provider))
+        val customTabsIntent = CustomTabsIntent.Builder().build()
+        customTabsIntent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (isChromeAvailable()) {
+            customTabsIntent.intent.setPackage(CHROME_PACKAGE)
         }
+        customTabsIntent.launchUrl(appContext, authUri)
+    }.onFailure {
+        sessionStore.clearPendingOAuthProvider()
     }
 
-    override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> {
-        return runCatching {
+    override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> =
+        runCatching {
             val pendingProvider = sessionStore.getPendingOAuthProvider()
             val session = authClient.createSessionFromCallback(
                 callbackUrl = callbackUrl,
@@ -71,7 +65,6 @@ class AuthRepositoryImpl(
         }.also {
             sessionStore.clearPendingOAuthProvider()
         }
-    }
 
     override suspend fun armAccountSwitch() {
         sessionStore.armAccountSwitch()
@@ -118,7 +111,10 @@ class AuthRepositoryImpl(
     }
 
     private fun isChromeAvailable(): Boolean {
-        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            Uri.parse("https://www.google.com")
+        )
         intent.`package` = CHROME_PACKAGE
         return intent.resolveActivity(appContext.packageManager) != null
     }

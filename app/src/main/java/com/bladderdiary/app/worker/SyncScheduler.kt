@@ -9,9 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
-class SyncScheduler(
-    context: Context
-) {
+class SyncScheduler(context: Context) {
     private val workManager = WorkManager.getInstance(context)
 
     fun request() {

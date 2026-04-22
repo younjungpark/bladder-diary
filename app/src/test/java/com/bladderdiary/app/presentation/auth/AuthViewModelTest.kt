@@ -109,9 +109,8 @@ private class FakeAuthRepository(
     override val rememberedAccountFlow: Flow<AuthAccount?> = rememberedAccountState
     override val accountSwitchArmedFlow: Flow<Boolean> = accountSwitchArmedState
 
-    override suspend fun signUp(email: String, password: String): Result<AuthResult> {
-        return Result.success(AuthResult("user-1"))
-    }
+    override suspend fun signUp(email: String, password: String): Result<AuthResult> =
+        Result.success(AuthResult("user-1"))
 
     override suspend fun signIn(email: String, password: String): Result<AuthResult> {
         sessionState.value = UserSession("user-1", "access", "refresh")
@@ -142,9 +141,8 @@ private class FakeAuthRepository(
 
     override suspend fun getSession(): UserSession? = sessionState.value
 
-    override suspend fun refreshSession(): Result<UserSession> {
-        return Result.success(sessionState.value ?: UserSession("user-1", "access", "refresh"))
-    }
+    override suspend fun refreshSession(): Result<UserSession> =
+        Result.success(sessionState.value ?: UserSession("user-1", "access", "refresh"))
 
     fun emitSession(session: UserSession?) {
         sessionState.value = session
@@ -184,15 +182,18 @@ private class FakeVoidingRepository : VoidingRepository {
         volumeMl: Int?
     ): Result<Unit> = Result.success(Unit)
 
-    override suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>> {
-        return Result.success(emptyList())
-    }
+    override suspend fun getByDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Result<List<VoidingEvent>> = Result.success(emptyList())
 
-    override fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>> = MutableStateFlow(emptyList())
+    override fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>> =
+        MutableStateFlow(emptyList())
 
     override fun observeDailyCount(date: LocalDate): Flow<Int> = MutableStateFlow(0)
 
-    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<LocalDate, Int>> = MutableStateFlow(emptyMap())
+    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<LocalDate, Int>> =
+        MutableStateFlow(emptyMap())
 
     override fun observePendingSyncCount(): Flow<Int> = MutableStateFlow(0)
 

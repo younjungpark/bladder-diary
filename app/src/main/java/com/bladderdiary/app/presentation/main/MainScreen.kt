@@ -53,7 +53,9 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val palette = rememberHomePalette()
     val syncStatus = state.toHomeSyncStatus(palette)
-    val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+    val today = remember {
+        Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    }
 
     var menuExpanded by remember { mutableStateOf(false) }
     var showEventEditorDialog by rememberSaveable { mutableStateOf(false) }
@@ -370,5 +372,6 @@ private fun Int.toRecordTimeLabel(minute: Int): String {
         0 -> 12
         else -> normalized
     }
-    return "$meridiem ${displayHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+    val displayMinute = minute.toString().padStart(2, '0')
+    return "$meridiem ${displayHour.toString().padStart(2, '0')}:$displayMinute"
 }

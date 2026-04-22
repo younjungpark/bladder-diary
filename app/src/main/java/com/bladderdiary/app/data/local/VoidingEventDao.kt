@@ -64,7 +64,11 @@ interface VoidingEventDao {
         ORDER BY local_date ASC, voided_at_epoch_ms ASC
         """
     )
-    suspend fun getByDateRange(userId: String, startDate: String, endDate: String): List<VoidingEventEntity>
+    suspend fun getByDateRange(
+        userId: String,
+        startDate: String,
+        endDate: String
+    ): List<VoidingEventEntity>
 
     @Query(
         """

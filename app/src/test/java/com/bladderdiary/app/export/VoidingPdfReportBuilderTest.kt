@@ -47,37 +47,35 @@ class VoidingPdfReportBuilderTest {
         assertEquals(300, report.dailySummaries.last().totalVolumeMl)
     }
 
-    private fun sampleEvents(): List<VoidingEvent> {
-        return listOf(
-            event(
-                localId = "a",
-                voidedAtEpochMs = 1_000L,
-                localDate = "2026-03-01",
-                memo = "첫 메모",
-                volumeMl = 250,
-                urgency = 1,
-                hasIncontinence = true
-            ),
-            event(
-                localId = "b",
-                voidedAtEpochMs = 2_000L,
-                localDate = "2026-03-03",
-                memo = "둘째 메모",
-                volumeMl = 300,
-                urgency = 4,
-                hasIncontinence = false
-            ),
-            event(
-                localId = "c",
-                voidedAtEpochMs = 3_000L,
-                localDate = "2026-03-03",
-                memo = null,
-                volumeMl = null,
-                urgency = null,
-                hasIncontinence = false
-            )
+    private fun sampleEvents(): List<VoidingEvent> = listOf(
+        event(
+            localId = "a",
+            voidedAtEpochMs = 1_000L,
+            localDate = "2026-03-01",
+            memo = "첫 메모",
+            volumeMl = 250,
+            urgency = 1,
+            hasIncontinence = true
+        ),
+        event(
+            localId = "b",
+            voidedAtEpochMs = 2_000L,
+            localDate = "2026-03-03",
+            memo = "둘째 메모",
+            volumeMl = 300,
+            urgency = 4,
+            hasIncontinence = false
+        ),
+        event(
+            localId = "c",
+            voidedAtEpochMs = 3_000L,
+            localDate = "2026-03-03",
+            memo = null,
+            volumeMl = null,
+            urgency = null,
+            hasIncontinence = false
         )
-    }
+    )
 
     private fun event(
         localId: String,
@@ -87,19 +85,17 @@ class VoidingPdfReportBuilderTest {
         volumeMl: Int?,
         urgency: Int?,
         hasIncontinence: Boolean
-    ): VoidingEvent {
-        return VoidingEvent(
-            localId = localId,
-            userId = "user-1",
-            voidedAtEpochMs = voidedAtEpochMs,
-            localDate = localDate,
-            isDeleted = false,
-            syncState = SyncState.SYNCED,
-            updatedAtEpochMs = voidedAtEpochMs,
-            memo = memo,
-            volumeMl = volumeMl,
-            urgency = urgency,
-            hasIncontinence = hasIncontinence
-        )
-    }
+    ): VoidingEvent = VoidingEvent(
+        localId = localId,
+        userId = "user-1",
+        voidedAtEpochMs = voidedAtEpochMs,
+        localDate = localDate,
+        isDeleted = false,
+        syncState = SyncState.SYNCED,
+        updatedAtEpochMs = voidedAtEpochMs,
+        memo = memo,
+        volumeMl = volumeMl,
+        urgency = urgency,
+        hasIncontinence = hasIncontinence
+    )
 }

@@ -6,11 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.E2eeState
 import com.bladderdiary.app.domain.model.VoidingRepository
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -113,7 +113,9 @@ class E2eePassphraseViewModel(
         if (current.isCheckingRemoteState || current.isSubmitting) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, infoMessage = null) }
+            _uiState.update {
+                it.copy(isSubmitting = true, errorMessage = null, infoMessage = null)
+            }
             when (current.mode) {
                 E2eeMode.SETUP -> submitSetup()
                 E2eeMode.UNLOCK -> submitUnlock()
@@ -179,7 +181,10 @@ class E2eePassphraseViewModel(
         val changeResult = e2eeRepository.changePassphrase(current.passphrase)
         if (changeResult.isFailure) {
             _uiState.update {
-                it.copy(errorMessage = changeResult.exceptionOrNull()?.message ?: "메모 암호화 비밀문구 변경에 실패했습니다.")
+                it.copy(
+                    errorMessage = changeResult.exceptionOrNull()?.message
+                        ?: "메모 암호화 비밀문구 변경에 실패했습니다."
+                )
             }
             return
         }
@@ -199,7 +204,10 @@ class E2eePassphraseViewModel(
         val unlockResult = e2eeRepository.unlock(_uiState.value.passphrase)
         if (unlockResult.isFailure) {
             _uiState.update {
-                it.copy(errorMessage = unlockResult.exceptionOrNull()?.message ?: "메모 암호화 비밀문구 확인에 실패했습니다.")
+                it.copy(
+                    errorMessage = unlockResult.exceptionOrNull()?.message
+                        ?: "메모 암호화 비밀문구 확인에 실패했습니다."
+                )
             }
             return
         }
@@ -243,25 +251,20 @@ class E2eePassphraseViewModel(
         }
     }
 
-    private fun resolveMode(state: E2eeState, requestedMode: E2eeEntryMode): E2eeMode {
-        return when {
-            !state.isEnabled -> E2eeMode.SETUP
-            requestedMode == E2eeEntryMode.MANAGE && state.isUnlocked -> E2eeMode.CHANGE
-            else -> E2eeMode.UNLOCK
-        }
+    private fun resolveMode(state: E2eeState, requestedMode: E2eeEntryMode): E2eeMode = when {
+        !state.isEnabled -> E2eeMode.SETUP
+        requestedMode == E2eeEntryMode.MANAGE && state.isUnlocked -> E2eeMode.CHANGE
+        else -> E2eeMode.UNLOCK
     }
 
     companion object {
         fun factory(
             e2eeRepository: E2eeRepository,
             voidingRepository: VoidingRepository
-        ): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return E2eePassphraseViewModel(e2eeRepository, voidingRepository) as T
-                }
-            }
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                E2eePassphraseViewModel(e2eeRepository, voidingRepository) as T
         }
     }
 }

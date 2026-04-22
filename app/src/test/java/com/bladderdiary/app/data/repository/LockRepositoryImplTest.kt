@@ -83,23 +83,23 @@ class LockRepositoryImplTest {
 }
 
 private class FakeAuthRepository : AuthRepository {
-    private val sessionState = MutableStateFlow<UserSession?>(UserSession("user-1", "access", "refresh"))
+    private val sessionState = MutableStateFlow<UserSession?>(
+        UserSession("user-1", "access", "refresh")
+    )
     override val sessionFlow: Flow<UserSession?> = sessionState
     override val rememberedAccountFlow: Flow<AuthAccount?> = MutableStateFlow(AuthAccount("user-1"))
     override val accountSwitchArmedFlow: Flow<Boolean> = MutableStateFlow(false)
 
-    override suspend fun signUp(email: String, password: String): Result<AuthResult> {
-        return Result.success(AuthResult(userId = "user-1"))
-    }
+    override suspend fun signUp(email: String, password: String): Result<AuthResult> =
+        Result.success(AuthResult(userId = "user-1"))
 
     override suspend fun signIn(email: String, password: String): Result<AuthResult> {
         sessionState.value = UserSession("user-1", "access", "refresh")
         return Result.success(AuthResult(userId = "user-1"))
     }
 
-    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> {
-        return Result.success(Unit)
-    }
+    override suspend fun signInWithSocial(provider: SocialProvider): Result<Unit> =
+        Result.success(Unit)
 
     override suspend fun handleOAuthCallback(callbackUrl: String): Result<AuthResult> {
         sessionState.value = UserSession("user-1", "access", "refresh")
@@ -116,10 +116,10 @@ private class FakeAuthRepository : AuthRepository {
 
     override suspend fun getSession(): UserSession? = sessionState.value
 
-    override suspend fun refreshSession(): Result<UserSession> {
-        return sessionState.value?.let { Result.success(it) }
-            ?: Result.failure(IllegalStateException("로그인이 필요합니다."))
+    override suspend fun refreshSession(): Result<UserSession> = sessionState.value?.let {
+        Result.success(it)
     }
+        ?: Result.failure(IllegalStateException("로그인이 필요합니다."))
 }
 
 private class FakePinStore : PinStoreDataSource {
@@ -129,9 +129,7 @@ private class FakePinStore : PinStoreDataSource {
         emit(read(userId))
     }
 
-    override suspend fun read(userId: String): PinStoredState {
-        return map[userId] ?: PinStoredState()
-    }
+    override suspend fun read(userId: String): PinStoredState = map[userId] ?: PinStoredState()
 
     override suspend fun savePin(userId: String, pinHash: String, pinSalt: String) {
         map[userId] = read(userId).copy(
@@ -142,7 +140,11 @@ private class FakePinStore : PinStoreDataSource {
         )
     }
 
-    override suspend fun updateFailedAttempts(userId: String, failedAttempts: Int, lockedUntilEpochMs: Long?) {
+    override suspend fun updateFailedAttempts(
+        userId: String,
+        failedAttempts: Int,
+        lockedUntilEpochMs: Long?
+    ) {
         map[userId] = read(userId).copy(
             failedAttempts = failedAttempts,
             lockedUntilEpochMs = lockedUntilEpochMs

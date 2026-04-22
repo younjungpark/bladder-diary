@@ -18,8 +18,8 @@ class LockRepositoryImpl(
 ) : LockRepository {
     private val unlockedUserId = MutableStateFlow<String?>(null)
 
-    override fun observeLockState(): Flow<LockState> {
-        return authRepository.sessionFlow.flatMapLatest { session ->
+    override fun observeLockState(): Flow<LockState> =
+        authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
                 flowOf(LockState())
             } else {
@@ -28,9 +28,13 @@ class LockRepositoryImpl(
                     unlockedUserId
                 ) { persisted, unlockedId ->
                     val now = System.currentTimeMillis()
-                    val isPinSet = !persisted.pinHash.isNullOrEmpty() && !persisted.pinSalt.isNullOrEmpty()
+                    val isPinSet = !persisted.pinHash.isNullOrEmpty() &&
+                        !persisted.pinSalt.isNullOrEmpty()
                     val stillLockedUntil = persisted.lockedUntilEpochMs?.takeIf { it > now }
-                    val failedAttempts = if (persisted.lockedUntilEpochMs != null && stillLockedUntil == null) {
+                    val failedAttempts = if (
+                        persisted.lockedUntilEpochMs != null &&
+                        stillLockedUntil == null
+                    ) {
                         0
                     } else {
                         persisted.failedAttempts
@@ -45,17 +49,14 @@ class LockRepositoryImpl(
                 }
             }
         }
-    }
 
-    override suspend fun setPin(pin: String): Result<Unit> {
-        return runCatching {
-            require(pin.matches(PIN_REGEX)) { "PIN은 4자리 숫자여야 합니다." }
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            val salt = PinCrypto.generateSaltBase64()
-            val hash = PinCrypto.hashPinBase64(pin, salt)
-            pinStore.savePin(session.userId, hash, salt)
-            unlockedUserId.value = session.userId
-        }
+    override suspend fun setPin(pin: String): Result<Unit> = runCatching {
+        require(pin.matches(PIN_REGEX)) { "PIN은 4자리 숫자여야 합니다." }
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        val salt = PinCrypto.generateSaltBase64()
+        val hash = PinCrypto.hashPinBase64(pin, salt)
+        pinStore.savePin(session.userId, hash, salt)
+        unlockedUserId.value = session.userId
     }
 
     override suspend fun verifyPin(pin: String): Result<Boolean> {
@@ -72,7 +73,10 @@ class LockRepositoryImpl(
                 return@runCatching false
             }
 
-            val normalizedAttempts = if (stored.lockedUntilEpochMs != null && stored.lockedUntilEpochMs <= now) {
+            val normalizedAttempts = if (
+                stored.lockedUntilEpochMs != null &&
+                stored.lockedUntilEpochMs <= now
+            ) {
                 pinStore.clearFailedAttempts(userId)
                 0
             } else {
@@ -99,20 +103,16 @@ class LockRepositoryImpl(
         }
     }
 
-    override suspend fun resetForForgotPin(): Result<Unit> {
-        return runCatching {
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            pinStore.clearUser(session.userId)
-            unlockedUserId.value = null
-        }
+    override suspend fun resetForForgotPin(): Result<Unit> = runCatching {
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        pinStore.clearUser(session.userId)
+        unlockedUserId.value = null
     }
 
-    override suspend fun removePin(): Result<Unit> {
-        return runCatching {
-            val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
-            pinStore.clearUser(session.userId)
-            unlockedUserId.value = null
-        }
+    override suspend fun removePin(): Result<Unit> = runCatching {
+        val session = authRepository.getSession() ?: throw IllegalStateException("로그인이 필요합니다.")
+        pinStore.clearUser(session.userId)
+        unlockedUserId.value = null
     }
 
     override fun clearRuntimeUnlock() {

@@ -23,45 +23,44 @@ data class CalendarUiState(
     val dailyCounts: Map<LocalDate, Int> = emptyMap()
 )
 
-class CalendarViewModel(
-    private val getMonthlyCountsUseCase: GetMonthlyCountsUseCase
-) : ViewModel() {
+class CalendarViewModel(private val getMonthlyCountsUseCase: GetMonthlyCountsUseCase) :
+    ViewModel() {
 
     private val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    
+
     // Day는 1일로 고정하여 연월 관리
-    private val _currentYearMonth = MutableStateFlow(LocalDate(today.year, today.month, 1))
-    
+    private val currentYearMonthState = MutableStateFlow(LocalDate(today.year, today.month, 1))
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<CalendarUiState> = _currentYearMonth.flatMapLatest { yearMonth ->
-        val yearMonthString = "${yearMonth.year}-${yearMonth.monthNumber.toString().padStart(2, '0')}"
+    val uiState: StateFlow<CalendarUiState> = currentYearMonthState.flatMapLatest { yearMonth ->
+        val yearMonthString = buildString {
+            append(yearMonth.year)
+            append('-')
+            append(yearMonth.monthNumber.toString().padStart(2, '0'))
+        }
         getMonthlyCountsUseCase(yearMonthString).flatMapLatest { countsMap ->
             MutableStateFlow(CalendarUiState(yearMonth, countsMap))
         }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = CalendarUiState(_currentYearMonth.value)
+        initialValue = CalendarUiState(currentYearMonthState.value)
     )
 
     fun goPreviousMonth() {
-        _currentYearMonth.value = _currentYearMonth.value.plus(-1, DateTimeUnit.MONTH)
+        currentYearMonthState.value = currentYearMonthState.value.plus(-1, DateTimeUnit.MONTH)
     }
 
     fun goNextMonth() {
-        _currentYearMonth.value = _currentYearMonth.value.plus(1, DateTimeUnit.MONTH)
+        currentYearMonthState.value = currentYearMonthState.value.plus(1, DateTimeUnit.MONTH)
     }
 
     companion object {
-        fun factory(
-            getMonthlyCountsUseCase: GetMonthlyCountsUseCase
-        ): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
+        fun factory(getMonthlyCountsUseCase: GetMonthlyCountsUseCase): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return CalendarViewModel(getMonthlyCountsUseCase) as T
-                }
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    CalendarViewModel(getMonthlyCountsUseCase) as T
             }
-        }
     }
 }

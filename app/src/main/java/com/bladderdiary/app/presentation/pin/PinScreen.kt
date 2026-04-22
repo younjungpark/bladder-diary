@@ -62,7 +62,13 @@ fun PinScreen(
     val primaryGlow = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
     val secondaryGlow = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f)
 
-    LaunchedEffect(state.mode, state.pin.length, state.confirmPin.length, state.isLocked, state.isSubmitting) {
+    LaunchedEffect(
+        state.mode,
+        state.pin.length,
+        state.confirmPin.length,
+        state.isLocked,
+        state.isSubmitting
+    ) {
         if (state.isLocked || state.isSubmitting) return@LaunchedEffect
         if (state.mode == PinMode.SETUP) {
             if (state.pin.length < 4) {
@@ -163,8 +169,10 @@ fun PinScreen(
                         )
                     } else {
                         MessageBanner(
-                            text = "PIN 4자리를 입력하면 자동으로 잠금이 해제됩니다. 남은 시도 ${state.remainingAttempts}회",
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            text = "PIN 4자리를 입력하면 자동으로 잠금이 해제됩니다. " +
+                                "남은 시도 ${state.remainingAttempts}회",
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                .copy(alpha = 0.35f),
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -319,7 +327,8 @@ private fun PinSlotsField(
                             Text(
                                 text = "•",
                                 style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    .copy(alpha = 0.28f)
                             )
                         }
                     }
@@ -337,7 +346,9 @@ private fun PinSlotsField(
             ),
             keyboardActions = KeyboardActions(onDone = { onDone() }),
             visualTransformation = PasswordVisualTransformation(),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxSize()

@@ -9,10 +9,7 @@ data class VoidingPdfExportParams(
     val includeMemo: Boolean
 )
 
-data class VoidingPdfShareFile(
-    val uriString: String,
-    val fileName: String
-)
+data class VoidingPdfShareFile(val uriString: String, val fileName: String)
 
 data class VoidingPdfReport(
     val startDate: LocalDate,
@@ -28,11 +25,7 @@ data class VoidingPdfReport(
     val footerNote: String
 )
 
-data class VoidingPdfDailySummary(
-    val localDate: String,
-    val count: Int,
-    val totalVolumeMl: Int?
-)
+data class VoidingPdfDailySummary(val localDate: String, val count: Int, val totalVolumeMl: Int?)
 
 data class VoidingPdfDetail(
     val localDate: String,

@@ -5,14 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.domain.model.VoidingRepository
-import com.bladderdiary.app.export.VoidingPdfExportParams
-import com.bladderdiary.app.export.VoidingPdfExporter
-import com.bladderdiary.app.export.VoidingPdfShareFile
 import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.DeleteVoidingEventUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyCountUseCase
 import com.bladderdiary.app.domain.usecase.GetDailyEventsUseCase
 import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
+import com.bladderdiary.app.export.VoidingPdfExportParams
+import com.bladderdiary.app.export.VoidingPdfExporter
+import com.bladderdiary.app.export.VoidingPdfShareFile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +27,9 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
 data class MainUiState(
-    val selectedDate: kotlinx.datetime.LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
+    val selectedDate: kotlinx.datetime.LocalDate = Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .date,
     val dailyCount: Int = 0,
     val dailyVolumeMl: Int? = null,
     val events: List<VoidingEvent> = emptyList(),
@@ -76,7 +78,9 @@ class MainViewModel(
                     selectedDate = date,
                     events = events,
                     dailyCount = count,
-                    dailyVolumeMl = events.mapNotNull { it.volumeMl }.takeIf { it.isNotEmpty() }?.sum(),
+                    dailyVolumeMl = events.mapNotNull { it.volumeMl }
+                        .takeIf { it.isNotEmpty() }
+                        ?.sum(),
                     pendingSyncCount = pending,
                     pendingSyncError = pendingError,
                     isSyncing = isSyncing,
@@ -101,11 +105,21 @@ class MainViewModel(
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(urgency, hasIncontinence, isNocturia, memo, volumeMl)
+            val result = addVoidingEventUseCase(
+                urgency,
+                hasIncontinence,
+                isNocturia,
+                memo,
+                volumeMl
+            )
             _uiState.update {
                 it.copy(
                     isAdding = false,
-                    message = if (result.isSuccess) "배뇨 기록이 저장되었습니다." else result.exceptionOrNull()?.message
+                    message = if (result.isSuccess) {
+                        "배뇨 기록이 저장되었습니다."
+                    } else {
+                        result.exceptionOrNull()?.message
+                    }
                 )
             }
         }
@@ -123,11 +137,24 @@ class MainViewModel(
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             _uiState.update { it.copy(isAdding = true, message = null) }
-            val result = addVoidingEventUseCase(date, hour, minute, urgency, hasIncontinence, isNocturia, memo, volumeMl)
+            val result = addVoidingEventUseCase(
+                date,
+                hour,
+                minute,
+                urgency,
+                hasIncontinence,
+                isNocturia,
+                memo,
+                volumeMl
+            )
             _uiState.update {
                 it.copy(
                     isAdding = false,
-                    message = if (result.isSuccess) "지정한 시간으로 저장되었습니다." else result.exceptionOrNull()?.message
+                    message = if (result.isSuccess) {
+                        "지정한 시간으로 저장되었습니다."
+                    } else {
+                        result.exceptionOrNull()?.message
+                    }
                 )
             }
         }
@@ -156,7 +183,11 @@ class MainViewModel(
             )
             _uiState.update {
                 it.copy(
-                    message = if (result.isSuccess) "기록이 업데이트되었습니다." else result.exceptionOrNull()?.message
+                    message = if (result.isSuccess) {
+                        "기록이 업데이트되었습니다."
+                    } else {
+                        result.exceptionOrNull()?.message
+                    }
                 )
             }
         }
@@ -173,7 +204,9 @@ class MainViewModel(
                 return@launch
             }
 
-            _uiState.update { it.copy(isExportingPdf = true, message = null, pendingPdfShareFile = null) }
+            _uiState.update {
+                it.copy(isExportingPdf = true, message = null, pendingPdfShareFile = null)
+            }
             val eventsResult = voidingRepository.getByDateRange(startDate, endDate)
             val events = eventsResult.getOrNull()
 
@@ -246,7 +279,11 @@ class MainViewModel(
             _uiState.update {
                 it.copy(
                     confirmDeleteEventId = null,
-                    message = if (result.isSuccess) "기록을 삭제했습니다." else result.exceptionOrNull()?.message
+                    message = if (result.isSuccess) {
+                        "기록을 삭제했습니다."
+                    } else {
+                        result.exceptionOrNull()?.message
+                    }
                 )
             }
         }
@@ -265,21 +302,17 @@ class MainViewModel(
             updateVoidingEventUseCase: UpdateVoidingEventUseCase,
             voidingPdfExporter: VoidingPdfExporter,
             voidingRepository: VoidingRepository
-        ): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return MainViewModel(
-                        addVoidingEventUseCase = addVoidingEventUseCase,
-                        getDailyEventsUseCase = getDailyEventsUseCase,
-                        getDailyCountUseCase = getDailyCountUseCase,
-                        deleteVoidingEventUseCase = deleteVoidingEventUseCase,
-                        updateVoidingEventUseCase = updateVoidingEventUseCase,
-                        voidingPdfExporter = voidingPdfExporter,
-                        voidingRepository = voidingRepository
-                    ) as T
-                }
-            }
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(
+                addVoidingEventUseCase = addVoidingEventUseCase,
+                getDailyEventsUseCase = getDailyEventsUseCase,
+                getDailyCountUseCase = getDailyCountUseCase,
+                deleteVoidingEventUseCase = deleteVoidingEventUseCase,
+                updateVoidingEventUseCase = updateVoidingEventUseCase,
+                voidingPdfExporter = voidingPdfExporter,
+                voidingRepository = voidingRepository
+            ) as T
         }
     }
 }

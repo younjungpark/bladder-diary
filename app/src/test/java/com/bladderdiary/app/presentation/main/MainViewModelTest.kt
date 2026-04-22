@@ -175,34 +175,30 @@ class MainViewModelTest {
     private fun createViewModel(
         repository: FakeVoidingRepository,
         exporter: FakeVoidingPdfExporter
-    ): MainViewModel {
-        return MainViewModel(
-            addVoidingEventUseCase = AddVoidingEventUseCase(repository),
-            getDailyEventsUseCase = GetDailyEventsUseCase(repository),
-            getDailyCountUseCase = GetDailyCountUseCase(repository),
-            deleteVoidingEventUseCase = DeleteVoidingEventUseCase(repository),
-            updateVoidingEventUseCase = UpdateVoidingEventUseCase(repository),
-            voidingPdfExporter = exporter,
-            voidingRepository = repository
-        )
-    }
+    ): MainViewModel = MainViewModel(
+        addVoidingEventUseCase = AddVoidingEventUseCase(repository),
+        getDailyEventsUseCase = GetDailyEventsUseCase(repository),
+        getDailyCountUseCase = GetDailyCountUseCase(repository),
+        deleteVoidingEventUseCase = DeleteVoidingEventUseCase(repository),
+        updateVoidingEventUseCase = UpdateVoidingEventUseCase(repository),
+        voidingPdfExporter = exporter,
+        voidingRepository = repository
+    )
 
-    private fun sampleEvent(): VoidingEvent {
-        return VoidingEvent(
-            localId = "event-1",
-            userId = "user-1",
-            voidedAtEpochMs = 1_000L,
-            localDate = "2026-03-01",
-            isDeleted = false,
-            syncState = SyncState.SYNCED,
-            updatedAtEpochMs = 1_000L,
-            memo = "메모",
-            volumeMl = 250,
-            urgency = 3,
-            hasIncontinence = true,
-            isNocturia = true
-        )
-    }
+    private fun sampleEvent(): VoidingEvent = VoidingEvent(
+        localId = "event-1",
+        userId = "user-1",
+        voidedAtEpochMs = 1_000L,
+        localDate = "2026-03-01",
+        isDeleted = false,
+        syncState = SyncState.SYNCED,
+        updatedAtEpochMs = 1_000L,
+        memo = "메모",
+        volumeMl = 250,
+        urgency = 3,
+        hasIncontinence = true,
+        isNocturia = true
+    )
 }
 
 private class FakeVoidingPdfExporter : VoidingPdfExporter {
@@ -304,17 +300,17 @@ private class FakeVoidingRepository : VoidingRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>> {
-        return rangeResult
-    }
+    override suspend fun getByDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Result<List<VoidingEvent>> = rangeResult
 
     override fun observeByDate(date: LocalDate): Flow<List<VoidingEvent>> = events
 
     override fun observeDailyCount(date: LocalDate): Flow<Int> = count
 
-    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<LocalDate, Int>> {
-        return MutableStateFlow(emptyMap())
-    }
+    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<LocalDate, Int>> =
+        MutableStateFlow(emptyMap())
 
     override fun observePendingSyncCount(): Flow<Int> = pendingCount
 

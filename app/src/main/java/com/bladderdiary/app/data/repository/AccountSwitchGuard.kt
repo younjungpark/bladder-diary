@@ -10,7 +10,11 @@ internal object AccountSwitchGuard {
         candidateSession: UserSession,
         isAccountSwitchArmed: Boolean
     ) {
-        if (rememberedAccount == null || rememberedAccount.userId == candidateSession.userId || isAccountSwitchArmed) {
+        if (
+            rememberedAccount == null ||
+            rememberedAccount.userId == candidateSession.userId ||
+            isAccountSwitchArmed
+        ) {
             return
         }
 

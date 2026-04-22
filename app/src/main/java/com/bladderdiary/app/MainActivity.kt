@@ -4,13 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.view.WindowCompat
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import com.bladderdiary.app.core.AppGraph
 import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.navigation.AppNavGraph
 import com.bladderdiary.app.ui.theme.BladderDiaryTheme
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -64,7 +64,8 @@ class MainActivity : ComponentActivity() {
         @Synchronized
         private fun isDuplicateCallback(url: String): Boolean {
             val now = System.currentTimeMillis()
-            val isDuplicate = lastCallbackUrl == url && (now - lastCallbackHandledAtMs) <= OAUTH_CALLBACK_DEDUPE_WINDOW_MS
+            val isDuplicate = lastCallbackUrl == url &&
+                (now - lastCallbackHandledAtMs) <= OAUTH_CALLBACK_DEDUPE_WINDOW_MS
             lastCallbackUrl = url
             lastCallbackHandledAtMs = now
             return isDuplicate
@@ -72,11 +73,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun android.net.Uri.isCustomSchemeOAuthCallback(): Boolean {
-    return scheme.equals("bladderdiary", ignoreCase = true) &&
+private fun android.net.Uri.isCustomSchemeOAuthCallback(): Boolean =
+    scheme.equals("bladderdiary", ignoreCase = true) &&
         host.equals("auth", ignoreCase = true) &&
         normalizedPathStartsWith("/callback")
-}
 
 private fun android.net.Uri.normalizedPathStartsWith(prefix: String): Boolean {
     val normalizedPath = (path ?: "").lowercase()

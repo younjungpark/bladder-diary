@@ -18,8 +18,8 @@ import com.bladderdiary.app.worker.SyncScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.Clock
@@ -112,8 +112,8 @@ class VoidingRepositoryImpl(
         }
     }
 
-    override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<VoidingEvent>> {
-        return authRepository.sessionFlow.flatMapLatest { session ->
+    override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<VoidingEvent>> =
+        authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
                 flowOf(emptyList())
             } else {
@@ -122,9 +122,11 @@ class VoidingRepositoryImpl(
                 }
             }
         }
-    }
 
-    override suspend fun getByDateRange(startDate: LocalDate, endDate: LocalDate): Result<List<VoidingEvent>> {
+    override suspend fun getByDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Result<List<VoidingEvent>> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
@@ -142,18 +144,19 @@ class VoidingRepositoryImpl(
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> {
-        return authRepository.sessionFlow.flatMapLatest { session ->
+    override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> =
+        authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
                 flowOf(0)
             } else {
                 eventDao.observeDailyCount(session.userId, date.toString())
             }
         }
-    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<kotlinx.datetime.LocalDate, Int>> {
+    override fun observeMonthlyCounts(
+        yearMonth: String
+    ): Flow<Map<kotlinx.datetime.LocalDate, Int>> {
         val pattern = "$yearMonth-%"
         return authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
@@ -169,25 +172,23 @@ class VoidingRepositoryImpl(
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override fun observePendingSyncCount(): Flow<Int> {
-        return authRepository.sessionFlow.flatMapLatest { session ->
+    override fun observePendingSyncCount(): Flow<Int> =
+        authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
                 flowOf(0)
             } else {
                 eventDao.observePendingCount(session.userId)
             }
         }
-    }
 
-    override fun observePendingSyncError(): Flow<String?> {
-        return authRepository.sessionFlow.flatMapLatest { session ->
+    override fun observePendingSyncError(): Flow<String?> =
+        authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
                 flowOf(null)
             } else {
                 queueDao.observeLastPendingError(session.userId)
             }
         }
-    }
 
     override fun observeSyncInProgress(): Flow<Boolean> = activeSyncCount.map { it > 0 }
 
@@ -313,28 +314,38 @@ class VoidingRepositoryImpl(
             } else {
                 val report = uploadResult.getOrNull()
                 repoTrace(
-                    "fetchAndSyncAll: syncPending success successCount=${report?.successCount} failCount=${report?.failCount}"
+                    "fetchAndSyncAll: syncPending success " +
+                        "successCount=${report?.successCount} " +
+                        "failCount=${report?.failCount}"
                 )
             }
 
-            val session = authRepository.getSession() ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
+            val session = authRepository.getSession()
+                ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
             return runCatching {
                 var accessToken = session.accessToken
-                var remoteEventsResult = runCatching { api.getVoidingEvents(accessToken, session.userId) }
-                
-                if (remoteEventsResult.isFailure && remoteEventsResult.exceptionOrNull().isJwtExpired()) {
+                var remoteEventsResult = runCatching {
+                    api.getVoidingEvents(accessToken, session.userId)
+                }
+
+                if (
+                    remoteEventsResult.isFailure &&
+                    remoteEventsResult.exceptionOrNull().isJwtExpired()
+                ) {
                     val refreshed = authRepository.refreshSession()
                     if (refreshed.isSuccess) {
                         accessToken = refreshed.getOrThrow().accessToken
-                        remoteEventsResult = runCatching { api.getVoidingEvents(accessToken, session.userId) }
+                        remoteEventsResult = runCatching {
+                            api.getVoidingEvents(accessToken, session.userId)
+                        }
                     }
                 }
-                
+
                 val dtos = remoteEventsResult.getOrThrow()
                 repoTrace(
                     "fetchAndSyncAll: downloaded remoteCount=${dtos.size} userId=${session.userId}"
                 )
-                
+
                 // 2. Dto를 Entity로 변환하며 다운로드 반영
                 val entities = dtos.map { dto ->
                     val isDeleted = dto.deletedAt != null
@@ -378,7 +389,7 @@ class VoidingRepositoryImpl(
                         memoEncryption = memoEncryption
                     )
                 }
-                
+
                 // 3. 내부 DB 갱신
                 if (entities.isNotEmpty()) {
                     db.withTransaction {
@@ -387,7 +398,8 @@ class VoidingRepositoryImpl(
                 }
                 val localCount = eventDao.getActiveByUserId(session.userId).size
                 repoTrace(
-                    "fetchAndSyncAll: local activeCount=$localCount after merge userId=${session.userId}"
+                    "fetchAndSyncAll: local activeCount=$localCount " +
+                        "after merge userId=${session.userId}"
                 )
                 Unit
             }.onFailure { error ->
@@ -474,7 +486,8 @@ class VoidingRepositoryImpl(
 
     private suspend fun syncNowOrSchedule() {
         val syncResult = syncPending()
-        val shouldScheduleRetry = syncResult.isFailure || (syncResult.getOrNull()?.failCount ?: 0) > 0
+        val shouldScheduleRetry = syncResult.isFailure ||
+            (syncResult.getOrNull()?.failCount ?: 0) > 0
         if (shouldScheduleRetry) {
             syncScheduler.request()
         }
@@ -536,12 +549,15 @@ class VoidingRepositoryImpl(
 
         val firstError = first.exceptionOrNull()
         if (!firstError.isJwtExpired()) {
-            return Result.failure<Unit>(firstError ?: IllegalStateException("동기화 실패")) to accessToken
+            return Result.failure<Unit>(
+                firstError ?: IllegalStateException("동기화 실패")
+            ) to accessToken
         }
 
         val refreshedSession = authRepository.refreshSession()
         if (refreshedSession.isFailure) {
-            val refreshError = refreshedSession.exceptionOrNull() ?: IllegalStateException("세션 갱신 실패")
+            val refreshError = refreshedSession.exceptionOrNull()
+                ?: IllegalStateException("세션 갱신 실패")
             return Result.failure<Unit>(refreshError) to accessToken
         }
 
@@ -555,7 +571,9 @@ class VoidingRepositoryImpl(
         return if (retry.isSuccess) {
             Result.success(Unit) to refreshedAccessToken
         } else {
-            Result.failure<Unit>(retry.exceptionOrNull() ?: IllegalStateException("동기화 재시도 실패")) to refreshedAccessToken
+            Result.failure<Unit>(
+                retry.exceptionOrNull() ?: IllegalStateException("동기화 재시도 실패")
+            ) to refreshedAccessToken
         }
     }
 
@@ -602,28 +620,22 @@ class VoidingRepositoryImpl(
     }
 }
 
-private fun Instant.toLocalDate(): String {
-    return this.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-}
+private fun Instant.toLocalDate(): String =
+    this.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
 
-private fun LocalDate.toEpochMilliseconds(hour: Int, minute: Int): Long {
-    return LocalDateTime(this, LocalTime(hour = hour, minute = minute))
+private fun LocalDate.toEpochMilliseconds(hour: Int, minute: Int): Long =
+    LocalDateTime(this, LocalTime(hour = hour, minute = minute))
         .toInstant(TimeZone.currentSystemDefault())
         .toEpochMilliseconds()
-}
 
 private fun Throwable?.isJwtExpired(): Boolean {
     val text = this?.message?.lowercase() ?: return false
     return text.contains("jwt expired") || text.contains("pgrst303")
 }
 
-private fun Int?.normalizedVolumeMl(): Int? {
-    return this?.takeIf { it > 0 }
-}
+private fun Int?.normalizedVolumeMl(): Int? = this?.takeIf { it > 0 }
 
-private fun Int?.normalizedUrgency(): Int? {
-    return this?.takeIf { it in 1..5 }
-}
+private fun Int?.normalizedUrgency(): Int? = this?.takeIf { it in 1..5 }
 
 private fun repoTrace(message: String, throwable: Throwable? = null) {
     println("[VoidingRepository] $message")

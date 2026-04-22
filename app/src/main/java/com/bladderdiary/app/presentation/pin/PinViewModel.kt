@@ -6,13 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.LockRepository
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class PinMode {
@@ -43,7 +43,10 @@ data class PinUiState(
         get() = lockedUntilEpochMs != null && lockedUntilEpochMs > nowEpochMs
 
     val submitEnabled: Boolean
-        get() = !isSubmitting && !isLocked && pin.length == 4 && (mode == PinMode.UNLOCK || confirmPin.length == 4)
+        get() = !isSubmitting &&
+            !isLocked &&
+            pin.length == 4 &&
+            (mode == PinMode.UNLOCK || confirmPin.length == 4)
 
     companion object {
         const val MAX_FAILED_ATTEMPTS = 5
@@ -65,7 +68,7 @@ class PinViewModel(
                     val newMode = if (lockState.isPinSet) PinMode.UNLOCK else PinMode.SETUP
                     // 새로운 모드로 전환될 때 입력되어 있던 PIN 데이터 초기화
                     val shouldClearPins = current.mode != newMode
-                    
+
                     current.copy(
                         mode = newMode,
                         pin = if (shouldClearPins) "" else current.pin,
@@ -142,7 +145,9 @@ class PinViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, infoMessage = null) }
+            _uiState.update {
+                it.copy(isSubmitting = true, errorMessage = null, infoMessage = null)
+            }
             when (current.mode) {
                 PinMode.SETUP -> submitSetup()
                 PinMode.UNLOCK -> submitUnlock()
@@ -173,7 +178,11 @@ class PinViewModel(
                 )
             }
         } else {
-            _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "PIN 설정에 실패했습니다.") }
+            _uiState.update {
+                it.copy(
+                    errorMessage = result.exceptionOrNull()?.message ?: "PIN 설정에 실패했습니다."
+                )
+            }
         }
     }
 
@@ -195,20 +204,29 @@ class PinViewModel(
                 )
             }
         } else {
-            _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "PIN 확인에 실패했습니다.") }
+            _uiState.update {
+                it.copy(
+                    errorMessage = result.exceptionOrNull()?.message ?: "PIN 확인에 실패했습니다."
+                )
+            }
         }
     }
 
     fun forgotPin() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, infoMessage = null) }
+            _uiState.update {
+                it.copy(isSubmitting = true, errorMessage = null, infoMessage = null)
+            }
             val resetResult = lockRepository.resetForForgotPin()
             if (resetResult.isSuccess) {
                 lockRepository.clearRuntimeUnlock()
                 authRepository.signOut()
             } else {
                 _uiState.update {
-                    it.copy(errorMessage = resetResult.exceptionOrNull()?.message ?: "PIN 초기화에 실패했습니다.")
+                    it.copy(
+                        errorMessage = resetResult.exceptionOrNull()?.message
+                            ?: "PIN 초기화에 실패했습니다."
+                    )
                 }
             }
             _uiState.update { it.copy(isSubmitting = false) }
@@ -234,13 +252,10 @@ class PinViewModel(
         fun factory(
             authRepository: AuthRepository,
             lockRepository: LockRepository
-        ): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return PinViewModel(authRepository, lockRepository) as T
-                }
-            }
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                PinViewModel(authRepository, lockRepository) as T
         }
     }
 }

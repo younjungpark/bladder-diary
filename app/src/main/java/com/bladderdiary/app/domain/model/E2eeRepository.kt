@@ -9,10 +9,7 @@ data class E2eeState(
     val lastErrorMessage: String? = null
 )
 
-data class MemoSyncPayload(
-    val memoCiphertext: String?,
-    val memoEncryption: String
-)
+data class MemoSyncPayload(val memoCiphertext: String?, val memoEncryption: String)
 
 interface E2eeRepository {
     fun observeState(): Flow<E2eeState>

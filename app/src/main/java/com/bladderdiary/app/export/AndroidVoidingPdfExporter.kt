@@ -13,15 +13,13 @@ import com.bladderdiary.app.domain.model.VoidingEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.math.ceil
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.ceil
 
-class AndroidVoidingPdfExporter(
-    private val context: Context
-) : VoidingPdfExporter {
+class AndroidVoidingPdfExporter(private val context: Context) : VoidingPdfExporter {
     override suspend fun export(
         params: VoidingPdfExportParams,
         events: List<VoidingEvent>
@@ -66,9 +64,7 @@ class AndroidVoidingPdfExporter(
     }
 }
 
-private class VoidingPdfRenderer(
-    private val appName: String
-) {
+private class VoidingPdfRenderer(private val appName: String) {
     private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 18f
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -140,7 +136,7 @@ private class VoidingPdfRenderer(
         ensureSpace(108f)
         drawSectionTitle("요약")
         drawMetricRow("총 배뇨 횟수", "${report.totalCount}회")
-        drawMetricRow("총 배뇨량", report.totalVolumeMl?.let { "${it} mL" }.orEmpty())
+        drawMetricRow("총 배뇨량", report.totalVolumeMl?.let { "$it mL" }.orEmpty())
         drawMetricRow("배뇨량 입력 건수", "${report.volumeEntryCount}건")
         drawMetricRow(
             "1일 평균 횟수",
@@ -161,7 +157,7 @@ private class VoidingPdfRenderer(
                 values = listOf(
                     row.localDate,
                     "${row.count}회",
-                    row.totalVolumeMl?.let { "${it} mL" }.orEmpty()
+                    row.totalVolumeMl?.let { "$it mL" }.orEmpty()
                 ),
                 widths = listOf(230f, 90f, 155f)
             )
@@ -245,15 +241,29 @@ private class VoidingPdfRenderer(
         val dateX = PAGE_MARGIN + 4f
         val timeX = PAGE_MARGIN + columns[0].second + 4f
         val urgencyX = PAGE_MARGIN + columns[0].second + columns[1].second + 4f
-        val incontinenceX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + 4f
-        val volumeX = PAGE_MARGIN + columns[0].second + columns[1].second + columns[2].second + columns[3].second + 4f
+        val incontinenceX = PAGE_MARGIN +
+            columns[0].second +
+            columns[1].second +
+            columns[2].second +
+            4f
+        val volumeX = PAGE_MARGIN +
+            columns[0].second +
+            columns[1].second +
+            columns[2].second +
+            columns[3].second +
+            4f
         val topY = cursorY
 
         drawText(row.localDate, dateX, topY, bodyPaint)
         drawText(row.voidedAtEpochMs.toTimeLabel(), timeX, topY, bodyPaint)
         drawText(row.urgency?.toString().orEmpty().ifBlank { "-" }, urgencyX, topY, bodyPaint)
         drawText(if (row.hasIncontinence) "있음" else "없음", incontinenceX, topY, bodyPaint)
-        drawText(row.volumeMl?.let { "${it} mL" }.orEmpty().ifBlank { "-" }, volumeX, topY, bodyPaint)
+        drawText(
+            row.volumeMl?.let { "$it mL" }.orEmpty().ifBlank { "-" },
+            volumeX,
+            topY,
+            bodyPaint
+        )
 
         if (includeMemo && !row.memo.isNullOrBlank()) {
             drawWrappedText(
@@ -271,10 +281,7 @@ private class VoidingPdfRenderer(
         cursorY += 12f
     }
 
-    private fun measureDetailRowHeight(
-        row: VoidingPdfDetail,
-        includeMemo: Boolean
-    ): Float {
+    private fun measureDetailRowHeight(row: VoidingPdfDetail, includeMemo: Boolean): Float {
         if (!includeMemo || row.memo.isNullOrBlank()) return 24f
 
         val memoHeight = measureWrappedTextHeight(
@@ -296,7 +303,11 @@ private class VoidingPdfRenderer(
     private fun startNewPage() {
         pageNumber += 1
         page = document.startPage(
-            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), pageNumber).create()
+            PdfDocument.PageInfo.Builder(
+                PAGE_WIDTH.toInt(),
+                PAGE_HEIGHT.toInt(),
+                pageNumber
+            ).create()
         )
         canvas = page.canvas
         cursorY = PAGE_MARGIN
@@ -415,15 +426,11 @@ private class VoidingPdfRenderer(
     }
 }
 
-private fun Long.toDateTimeLabel(): String {
-    return Instant.ofEpochMilli(this)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.KOREA))
-}
+private fun Long.toDateTimeLabel(): String = Instant.ofEpochMilli(this)
+    .atZone(ZoneId.systemDefault())
+    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.KOREA))
 
-private fun Long.toTimeLabel(): String {
-    return Instant.ofEpochMilli(this)
-        .atZone(ZoneId.systemDefault())
-        .toLocalTime()
-        .format(DateTimeFormatter.ofPattern("HH:mm", Locale.KOREA))
-}
+private fun Long.toTimeLabel(): String = Instant.ofEpochMilli(this)
+    .atZone(ZoneId.systemDefault())
+    .toLocalTime()
+    .format(DateTimeFormatter.ofPattern("HH:mm", Locale.KOREA))

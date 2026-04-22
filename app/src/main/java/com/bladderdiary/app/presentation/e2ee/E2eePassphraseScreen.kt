@@ -197,7 +197,8 @@ fun E2eePassphraseScreen(
                         state.errorMessage?.let {
                             MessageCard(
                                 text = it,
-                                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                                containerColor = MaterialTheme.colorScheme.error
+                                    .copy(alpha = 0.12f),
                                 contentColor = MaterialTheme.colorScheme.error
                             )
                         }

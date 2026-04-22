@@ -8,15 +8,15 @@ import com.bladderdiary.app.domain.model.MemoSyncPayload
 import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.VoidingRepository
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -116,9 +116,7 @@ class E2eePassphraseViewModelTest {
     }
 }
 
-private class FakeE2eeRepository(
-    initial: E2eeState
-) : E2eeRepository {
+private class FakeE2eeRepository(initial: E2eeState) : E2eeRepository {
     private val state = MutableStateFlow(initial)
     var unlockCalled = false
     var changeCalled = false
@@ -149,9 +147,7 @@ private class FakeE2eeRepository(
         eventId: String,
         localDate: String,
         memo: String?
-    ): Result<MemoSyncPayload> {
-        return Result.success(MemoSyncPayload(memo, MemoEncryptionScheme.NONE))
-    }
+    ): Result<MemoSyncPayload> = Result.success(MemoSyncPayload(memo, MemoEncryptionScheme.NONE))
 
     override suspend fun decryptMemo(
         userId: String,
@@ -202,15 +198,16 @@ private class FakeVoidingRepository : VoidingRepository {
         endDate: kotlinx.datetime.LocalDate
     ): Result<List<com.bladderdiary.app.domain.model.VoidingEvent>> = Result.success(emptyList())
 
-    override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<com.bladderdiary.app.domain.model.VoidingEvent>> {
-        return MutableStateFlow(emptyList())
-    }
+    override fun observeByDate(
+        date: kotlinx.datetime.LocalDate
+    ): Flow<List<com.bladderdiary.app.domain.model.VoidingEvent>> = MutableStateFlow(emptyList())
 
-    override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> = MutableStateFlow(0)
+    override fun observeDailyCount(date: kotlinx.datetime.LocalDate): Flow<Int> =
+        MutableStateFlow(0)
 
-    override fun observeMonthlyCounts(yearMonth: String): Flow<Map<kotlinx.datetime.LocalDate, Int>> {
-        return MutableStateFlow(emptyMap())
-    }
+    override fun observeMonthlyCounts(
+        yearMonth: String
+    ): Flow<Map<kotlinx.datetime.LocalDate, Int>> = MutableStateFlow(emptyMap())
 
     override fun observePendingSyncCount(): Flow<Int> = MutableStateFlow(0)
 
