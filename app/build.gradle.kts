@@ -18,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.bladderdiary.app"
+        applicationId = "com.chausoft.bladderdiary"
         minSdk = 26
         targetSdk = 35
         versionCode = 11
