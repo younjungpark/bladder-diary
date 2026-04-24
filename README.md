@@ -77,8 +77,8 @@ cd bladder-diary
 006_add_is_nocturia.sql
 ```
 
-3. Authentication에서 Google, Kakao provider를 활성화합니다.
-4. Redirect URL에 `bladderdiary://auth/callback`를 추가합니다.
+3. Authentication에서 Google, Kakao provider를 활성화합니다. OAuth는 앱에서 Google/Kakao SDK를 직접 붙이지 않고 Supabase Auth Providers를 통해 처리합니다.
+4. Redirect URL에 `bladderdiary://auth/callback`를 추가합니다. 상세 설정은 [docs/product-specs/oauth-configuration.md](docs/product-specs/oauth-configuration.md)를 따릅니다.
 5. 프로젝트 루트의 `local.properties`에 아래 값을 설정합니다.
 
 ```properties
@@ -135,6 +135,7 @@ app/build/outputs/apk/release/app-release.apk
 
 - [docs/README.md](docs/README.md)
 - [docs/CODING_RULES.md](docs/CODING_RULES.md)
+- [docs/product-specs/oauth-configuration.md](docs/product-specs/oauth-configuration.md)
 - [LICENSE](LICENSE)
 - [TRADEMARK_POLICY.md](TRADEMARK_POLICY.md)
 - [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

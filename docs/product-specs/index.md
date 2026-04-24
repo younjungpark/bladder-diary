@@ -6,6 +6,8 @@
 
 - `configuration-reference.md`
   개발/빌드 설정, `local.properties`, Supabase SQL 초기화, 릴리즈 서명
+- `oauth-configuration.md`
+  Supabase Auth Providers 기반 Google/Kakao OAuth 설정, 딥링크, 검증 절차
 - `sync-behavior.md`
   로컬 우선 저장, 큐 적재, 재시도, 날짜 경계, soft delete
 - `export-contract.md`

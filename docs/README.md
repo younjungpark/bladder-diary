@@ -26,6 +26,7 @@
 - `SMOKE_TEST.md`
 - `TEST_COVERAGE.md`
 - `product-specs/index.md`
+- `product-specs/oauth-configuration.md`
 - `testing/README.md`
 
 ## 운영 원칙

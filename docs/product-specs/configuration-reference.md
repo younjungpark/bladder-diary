@@ -8,7 +8,7 @@
 
 ## `local.properties`
 
-아래 값은 개인 환경 전용이므로 버전 관리에 포함하지 않는다.
+아래 값은 개인 환경 전용이므로 버전 관리에 포함하지 않는다. OAuth 세부 설정 기준은 `oauth-configuration.md`를 따른다.
 
 ```properties
 sdk.dir=C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk
@@ -44,5 +44,5 @@ RELEASE_KEY_PASSWORD=your_key_password
 ## 갱신 규칙
 
 - Gradle, SDK, 서명 방식이 바뀌면 이 문서를 갱신한다.
-- 리다이렉트 URI나 Supabase 설정 키가 바뀌면 README와 이 문서를 함께 갱신한다.
+- 리다이렉트 URI나 Supabase 설정 키가 바뀌면 README, 이 문서, `oauth-configuration.md`를 함께 갱신한다.
 - 릴리즈 체크리스트가 바뀌면 `../../doc/store_release_checklist.md`도 함께 점검한다.

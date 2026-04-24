@@ -14,8 +14,9 @@
 1. `../README.md`
 2. `design-docs/security-and-lock-flow.md`
 3. `product-specs/configuration-reference.md`
-4. `../PRIVACY_POLICY.md`
-5. `../MEDICAL_DISCLAIMER.md`
+4. `product-specs/oauth-configuration.md`
+5. `../PRIVACY_POLICY.md`
+6. `../MEDICAL_DISCLAIMER.md`
 
 ## 현재 저장소 안의 관련 코드
 
@@ -32,14 +33,14 @@
 
 ## 문서 갱신 규칙
 
-- 로그인 제공자, 콜백 URI, 세션 저장 방식이 바뀌면 설정 문서와 이 문서를 함께 갱신한다.
+- 로그인 제공자, 콜백 URI, 세션 저장 방식이 바뀌면 `product-specs/oauth-configuration.md`와 이 문서를 함께 갱신한다.
 - PIN 정책, 잠금 해제 흐름, 계정 전환 보호 로직이 바뀌면 설계 문서와 테스트 범위를 함께 갱신한다.
 - E2EE 비밀문구, 원격 키 저장, 로컬 키 보관 방식이 바뀌면 관련 설계 문서와 사용자-facing 고지 문구를 함께 점검한다.
 - 비밀값 저장 위치나 릴리즈 서명 방식이 바뀌면 `product-specs/configuration-reference.md`도 함께 갱신한다.
 
 ## 현재 방향
 
-- 소셜 로그인은 Supabase Auth를 기준으로 동작한다.
+- 소셜 로그인은 Supabase Auth Providers를 통해 Google/Kakao를 연동한다.
 - PIN은 로컬 잠금 기능이며, 계정 비밀번호를 대체하지 않는다.
 - 메모 암호화는 선택 기능이며, 비밀문구를 잊어버리면 복구가 불가능하다.
 - `local.properties`와 개인 SDK/서명 정보는 버전 관리에 포함하지 않는다.
