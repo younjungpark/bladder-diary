@@ -57,12 +57,12 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.Instant
-import java.time.ZoneId
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
+import java.time.Instant
+import java.time.ZoneId
 
 @Composable
 internal fun ProvideFixedFontScale(content: @Composable () -> Unit) {
@@ -298,10 +298,7 @@ internal fun GlassIconButton(
 }
 
 @Composable
-internal fun HomeBackground(
-    palette: HomePalette,
-    modifier: Modifier = Modifier
-) {
+internal fun HomeBackground(palette: HomePalette, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .background(
@@ -334,52 +331,41 @@ internal fun Long?.toMetricValue(): String {
     val totalMinutes = this / (1000 * 60)
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
-    return "${hours}:${minutes.toString().padStart(2, '0')}"
+    return "$hours:${minutes.toString().padStart(2, '0')}"
 }
 
-internal fun LocalDate.toHeroDateText(): String {
-    return "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanLabel()}"
+internal fun LocalDate.toHeroDateText(): String =
+    "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanLabel()}"
+
+internal fun LocalDate.toCompactHeroDateText(): String =
+    "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanShortLabel()}"
+
+internal fun LocalDate.toHeroCaption(today: LocalDate): String =
+    if (this == today) "오늘" else "${year}년 ${monthNumber}월 ${dayOfMonth}일"
+
+private fun DayOfWeek.toKoreanLabel(): String = when (value) {
+    1 -> "월요일"
+    2 -> "화요일"
+    3 -> "수요일"
+    4 -> "목요일"
+    5 -> "금요일"
+    6 -> "토요일"
+    else -> "일요일"
 }
 
-internal fun LocalDate.toCompactHeroDateText(): String {
-    return "${monthNumber}월 ${dayOfMonth}일 ${dayOfWeek.toKoreanShortLabel()}"
+private fun DayOfWeek.toKoreanShortLabel(): String = when (value) {
+    1 -> "월"
+    2 -> "화"
+    3 -> "수"
+    4 -> "목"
+    5 -> "금"
+    6 -> "토"
+    else -> "일"
 }
 
-internal fun LocalDate.toHeroCaption(today: LocalDate): String {
-    return if (this == today) "오늘" else "${year}년 ${monthNumber}월 ${dayOfMonth}일"
-}
+internal fun LocalDate.toKoreanShortDate(): String = "${year}년 ${monthNumber}월 ${dayOfMonth}일"
 
-private fun DayOfWeek.toKoreanLabel(): String {
-    return when (value) {
-        1 -> "월요일"
-        2 -> "화요일"
-        3 -> "수요일"
-        4 -> "목요일"
-        5 -> "금요일"
-        6 -> "토요일"
-        else -> "일요일"
-    }
-}
-
-private fun DayOfWeek.toKoreanShortLabel(): String {
-    return when (value) {
-        1 -> "월"
-        2 -> "화"
-        3 -> "수"
-        4 -> "목"
-        5 -> "금"
-        6 -> "토"
-        else -> "일"
-    }
-}
-
-internal fun LocalDate.toKoreanShortDate(): String {
-    return "${year}년 ${monthNumber}월 ${dayOfMonth}일"
-}
-
-internal fun LocalDate.plusDays(days: Int): LocalDate {
-    return plus(DatePeriod(days = days))
-}
+internal fun LocalDate.plusDays(days: Int): LocalDate = plus(DatePeriod(days = days))
 
 internal fun Long.toTimeDisplay(): Pair<String, String> {
     val localTime = Instant.ofEpochMilli(this)
@@ -440,31 +426,23 @@ internal fun String.toVolumeMlOrNull(): Int? {
     return toIntOrNull()?.takeIf { it > 0 }
 }
 
-internal fun Int.toVolumeLabel(): String {
-    return "$this mL"
-}
+internal fun Int.toVolumeLabel(): String = "$this mL"
 
-internal fun Int.toUrgencyLabel(): String {
-    return toString()
-}
+internal fun Int.toUrgencyLabel(): String = toString()
 
-internal fun Int.toUrgencyDescription(): String {
-    return when (this) {
-        1 -> "절박감 없음"
-        2 -> "절박감 약함"
-        3 -> "절박감 보통"
-        4 -> "절박감 강함"
-        else -> "절박감 매우 강함"
-    }
+internal fun Int.toUrgencyDescription(): String = when (this) {
+    1 -> "절박감 없음"
+    2 -> "절박감 약함"
+    3 -> "절박감 보통"
+    4 -> "절박감 강함"
+    else -> "절박감 매우 강함"
 }
 
 @Composable
-internal fun rememberHomePalette(): HomePalette {
-    return if (isSystemInDarkTheme()) {
-        DarkHomePalette
-    } else {
-        LightHomePalette
-    }
+internal fun rememberHomePalette(): HomePalette = if (isSystemInDarkTheme()) {
+    DarkHomePalette
+} else {
+    LightHomePalette
 }
 
 internal data class HomeSyncStatus(
@@ -474,39 +452,36 @@ internal data class HomeSyncStatus(
     val tint: Color
 )
 
-internal data class UrgencyTone(
-    val container: Color,
-    val content: Color,
-    val border: Color
-)
+internal data class UrgencyTone(val container: Color, val content: Color, val border: Color)
 
-internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus {
-    return when {
-        isSyncing -> HomeSyncStatus(
-            icon = Icons.Default.CloudUpload,
-            label = "동기화 중",
-            message = "클라우드에 기록을 동기화하는 중입니다.",
-            tint = palette.syncPendingTint
-        )
-        pendingSyncError != null && pendingSyncCount > 0 -> HomeSyncStatus(
-            icon = Icons.Default.CloudOff,
-            label = "동기화 오류",
-            message = "동기화에 문제가 있어 ${pendingSyncCount}건을 기기에 안전하게 보관 중입니다.",
-            tint = palette.syncErrorTint
-        )
-        pendingSyncCount > 0 -> HomeSyncStatus(
-            icon = Icons.Default.CloudUpload,
-            label = "동기화 대기 ${pendingSyncCount}건",
-            message = "${pendingSyncCount}건의 기록이 동기화를 기다리고 있습니다.",
-            tint = palette.syncPendingTint
-        )
-        else -> HomeSyncStatus(
-            icon = Icons.Default.CloudDone,
-            label = "동기화 완료",
-            message = "클라우드 동기화가 완료되었습니다.",
-            tint = palette.syncReadyTint
-        )
-    }
+internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus = when {
+    isSyncing -> HomeSyncStatus(
+        icon = Icons.Default.CloudUpload,
+        label = "동기화 중",
+        message = "클라우드에 기록을 동기화하는 중입니다.",
+        tint = palette.syncPendingTint
+    )
+
+    pendingSyncError != null && pendingSyncCount > 0 -> HomeSyncStatus(
+        icon = Icons.Default.CloudOff,
+        label = "동기화 오류",
+        message = "동기화에 문제가 있어 ${pendingSyncCount}건을 기기에 안전하게 보관 중입니다.",
+        tint = palette.syncErrorTint
+    )
+
+    pendingSyncCount > 0 -> HomeSyncStatus(
+        icon = Icons.Default.CloudUpload,
+        label = "동기화 대기 ${pendingSyncCount}건",
+        message = "${pendingSyncCount}건의 기록이 동기화를 기다리고 있습니다.",
+        tint = palette.syncPendingTint
+    )
+
+    else -> HomeSyncStatus(
+        icon = Icons.Default.CloudDone,
+        label = "동기화 완료",
+        message = "클라우드 동기화가 완료되었습니다.",
+        tint = palette.syncReadyTint
+    )
 }
 
 internal data class HomePalette(

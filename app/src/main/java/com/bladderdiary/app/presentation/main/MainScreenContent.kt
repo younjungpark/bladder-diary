@@ -812,11 +812,7 @@ private fun DiaryEventCard(
 }
 
 @Composable
-private fun SmallBadge(
-    text: String,
-    containerColor: Color,
-    contentColor: Color
-) {
+private fun SmallBadge(text: String, containerColor: Color, contentColor: Color) {
     Surface(
         color = containerColor,
         shape = RoundedCornerShape(9.dp)
@@ -836,13 +832,8 @@ private fun SmallBadge(
     }
 }
 
-
-
 @Composable
-private fun InlineNotice(
-    palette: HomePalette,
-    text: String
-) {
+private fun InlineNotice(palette: HomePalette, text: String) {
     Surface(
         color = palette.warningBackground,
         shape = RoundedCornerShape(20.dp)
@@ -857,11 +848,7 @@ private fun InlineNotice(
 }
 
 @Composable
-private fun RecordsEmptyState(
-    palette: HomePalette,
-    selectedDate: LocalDate,
-    today: LocalDate
-) {
+private fun RecordsEmptyState(palette: HomePalette, selectedDate: LocalDate, today: LocalDate) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = palette.surfaceStrong,

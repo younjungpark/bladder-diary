@@ -247,11 +247,7 @@ fun E2eePassphraseScreen(
 }
 
 @Composable
-private fun PassphraseField(
-    value: String,
-    label: String,
-    onValueChange: (String) -> Unit
-) {
+private fun PassphraseField(value: String, label: String, onValueChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,

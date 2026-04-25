@@ -33,6 +33,7 @@ data class VoidingPdfDetail(
     val volumeMl: Int?,
     val urgency: Int?,
     val hasIncontinence: Boolean,
+    val isNocturia: Boolean,
     val memo: String?
 )
 

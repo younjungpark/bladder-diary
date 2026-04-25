@@ -51,10 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.ui.theme.appExtraColors
 
 @Composable
-fun PinScreen(
-    viewModel: PinViewModel,
-    onCancel: (() -> Unit)? = null
-) {
+fun PinScreen(viewModel: PinViewModel, onCancel: (() -> Unit)? = null) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pinFocusRequester = remember { FocusRequester() }
     val confirmFocusRequester = remember { FocusRequester() }
@@ -237,10 +234,7 @@ fun PinScreen(
 }
 
 @Composable
-private fun SecurityHeader(
-    title: String,
-    description: String
-) {
+private fun SecurityHeader(title: String, description: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)

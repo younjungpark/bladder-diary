@@ -387,11 +387,7 @@ internal fun EventEditorDialog(
 }
 
 @Composable
-private fun EditorSection(
-    palette: HomePalette,
-    label: String,
-    content: @Composable () -> Unit
-) {
+private fun EditorSection(palette: HomePalette, label: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = label,
@@ -614,4 +610,3 @@ internal fun DeleteDialog(
         }
     )
 }
-

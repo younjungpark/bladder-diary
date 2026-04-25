@@ -1,5 +1,6 @@
 package com.bladderdiary.app.presentation.main
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +22,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -218,18 +218,18 @@ fun CalendarScreen(
                         ) {
                             listOf("일", "월", "화", "수", "목", "금", "토")
                                 .forEachIndexed { index, dayOfWeek ->
-                                Text(
-                                    text = dayOfWeek,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (index == 0) {
-                                        MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                                    Text(
+                                        text = dayOfWeek,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (index == 0) {
+                                            MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                         }
 
                         val days = generateCalendarDays(state.currentYearMonth)
@@ -265,11 +265,7 @@ fun CalendarScreen(
 }
 
 @Composable
-private fun CalendarMetric(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String
-) {
+private fun CalendarMetric(modifier: Modifier = Modifier, label: String, value: String) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -479,15 +475,13 @@ private const val CALENDAR_DAY_CELL_ASPECT_RATIO = 0.74f
 private val CALENDAR_DAY_CELL_MIN_HEIGHT = 64.dp
 private val CALENDAR_DAY_CELL_CORNER_RADIUS = 18.dp
 
-private fun calendarHeatLevel(count: Int): Int {
-    return when (count) {
-        0 -> 0
-        in 1..2 -> 1
-        in 3..4 -> 2
-        in 5..6 -> 3
-        in 7..9 -> 4
-        else -> 5
-    }
+private fun calendarHeatLevel(count: Int): Int = when (count) {
+    0 -> 0
+    in 1..2 -> 1
+    in 3..4 -> 2
+    in 5..6 -> 3
+    in 7..9 -> 4
+    else -> 5
 }
 
 private fun calendarCellBackgroundColor(
@@ -513,40 +507,32 @@ private fun calendarCellBorder(
     palette: HomePalette,
     heatLevel: Int,
     isToday: Boolean
-): BorderStroke? {
-    return when {
-        isToday -> BorderStroke(1.5.dp, palette.primaryStrong.copy(alpha = 0.96f))
-        heatLevel >= 5 -> BorderStroke(1.dp, palette.primaryStrong.copy(alpha = 0.26f))
-        else -> null
-    }
+): BorderStroke? = when {
+    isToday -> BorderStroke(1.5.dp, palette.primaryStrong.copy(alpha = 0.96f))
+    heatLevel >= 5 -> BorderStroke(1.dp, palette.primaryStrong.copy(alpha = 0.26f))
+    else -> null
 }
 
 private fun calendarCountBadgeContainerColor(
     palette: HomePalette,
     heatLevel: Int,
     isToday: Boolean
-): Color {
-    return when {
-        isToday || heatLevel >= 4 -> Color.White.copy(alpha = 0.18f)
-        heatLevel >= 2 -> palette.surfaceStrong.copy(alpha = 0.82f)
-        else -> palette.surfaceStrong.copy(alpha = 0.9f)
-    }
+): Color = when {
+    isToday || heatLevel >= 4 -> Color.White.copy(alpha = 0.18f)
+    heatLevel >= 2 -> palette.surfaceStrong.copy(alpha = 0.82f)
+    else -> palette.surfaceStrong.copy(alpha = 0.9f)
 }
 
 private fun calendarCountBadgeContentColor(
     palette: HomePalette,
     heatLevel: Int,
     isToday: Boolean
-): Color {
-    return when {
-        isToday || heatLevel >= 4 -> palette.primaryButtonText
-        else -> palette.mutedText
-    }
+): Color = when {
+    isToday || heatLevel >= 4 -> palette.primaryButtonText
+    else -> palette.mutedText
 }
 
-private fun calendarCountLabel(count: Int): String {
-    return if (count >= 10) "10+" else "${count}회"
-}
+private fun calendarCountLabel(count: Int): String = if (count >= 10) "10+" else "${count}회"
 
 private fun generateCalendarDays(yearMonth: LocalDate): List<LocalDate?> {
     val firstDayOfMonth = LocalDate(yearMonth.year, yearMonth.month, 1)
@@ -562,14 +548,10 @@ private fun generateCalendarDays(yearMonth: LocalDate): List<LocalDate?> {
     return days
 }
 
-private fun getDaysInMonth(year: Int, month: Int): Int {
-    return when (month) {
-        2 -> if (isLeapYear(year)) 29 else 28
-        4, 6, 9, 11 -> 30
-        else -> 31
-    }
+private fun getDaysInMonth(year: Int, month: Int): Int = when (month) {
+    2 -> if (isLeapYear(year)) 29 else 28
+    4, 6, 9, 11 -> 30
+    else -> 31
 }
 
-private fun isLeapYear(year: Int): Boolean {
-    return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-}
+private fun isLeapYear(year: Int): Boolean = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)

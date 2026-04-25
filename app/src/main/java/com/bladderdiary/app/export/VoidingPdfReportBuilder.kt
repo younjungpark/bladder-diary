@@ -48,6 +48,7 @@ object VoidingPdfReportBuilder {
                     volumeMl = event.volumeMl,
                     urgency = event.urgency,
                     hasIncontinence = event.hasIncontinence,
+                    isNocturia = event.isNocturia,
                     memo = if (params.includeMemo) event.memo else null
                 )
             },

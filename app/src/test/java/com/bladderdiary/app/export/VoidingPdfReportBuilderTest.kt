@@ -43,6 +43,8 @@ class VoidingPdfReportBuilderTest {
         assertEquals("첫 메모", report.details.first().memo)
         assertEquals(1, report.details.first().urgency)
         assertEquals(true, report.details.first().hasIncontinence)
+        assertEquals(true, report.details.first().isNocturia)
+        assertEquals(false, report.details[1].isNocturia)
         assertEquals(250, report.dailySummaries.first().totalVolumeMl)
         assertEquals(300, report.dailySummaries.last().totalVolumeMl)
     }
@@ -55,7 +57,8 @@ class VoidingPdfReportBuilderTest {
             memo = "첫 메모",
             volumeMl = 250,
             urgency = 1,
-            hasIncontinence = true
+            hasIncontinence = true,
+            isNocturia = true
         ),
         event(
             localId = "b",
@@ -64,7 +67,8 @@ class VoidingPdfReportBuilderTest {
             memo = "둘째 메모",
             volumeMl = 300,
             urgency = 4,
-            hasIncontinence = false
+            hasIncontinence = false,
+            isNocturia = false
         ),
         event(
             localId = "c",
@@ -73,7 +77,8 @@ class VoidingPdfReportBuilderTest {
             memo = null,
             volumeMl = null,
             urgency = null,
-            hasIncontinence = false
+            hasIncontinence = false,
+            isNocturia = false
         )
     )
 
@@ -84,7 +89,8 @@ class VoidingPdfReportBuilderTest {
         memo: String?,
         volumeMl: Int?,
         urgency: Int?,
-        hasIncontinence: Boolean
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
     ): VoidingEvent = VoidingEvent(
         localId = localId,
         userId = "user-1",
@@ -96,6 +102,7 @@ class VoidingPdfReportBuilderTest {
         memo = memo,
         volumeMl = volumeMl,
         urgency = urgency,
-        hasIncontinence = hasIncontinence
+        hasIncontinence = hasIncontinence,
+        isNocturia = isNocturia
     )
 }

@@ -167,7 +167,14 @@ private class VoidingPdfRenderer(private val appName: String) {
 
     private fun drawDetailsTable(report: VoidingPdfReport) {
         drawSectionTitle("상세 기록")
-        val columns = listOf("날짜" to 150f, "시각" to 80f, "절박감" to 70f, "요실금" to 70f, "배뇨량" to 145f)
+        val columns = listOf(
+            "날짜" to 120f,
+            "시각" to 55f,
+            "절박감" to 60f,
+            "야간뇨" to 70f,
+            "요실금" to 70f,
+            "배뇨량" to 140f
+        )
         drawTableHeader(columns)
 
         report.details.forEach { row ->
@@ -238,32 +245,20 @@ private class VoidingPdfRenderer(private val appName: String) {
         columns: List<Pair<String, Float>>,
         rowHeight: Float
     ) {
-        val dateX = PAGE_MARGIN + 4f
-        val timeX = PAGE_MARGIN + columns[0].second + 4f
-        val urgencyX = PAGE_MARGIN + columns[0].second + columns[1].second + 4f
-        val incontinenceX = PAGE_MARGIN +
-            columns[0].second +
-            columns[1].second +
-            columns[2].second +
-            4f
-        val volumeX = PAGE_MARGIN +
-            columns[0].second +
-            columns[1].second +
-            columns[2].second +
-            columns[3].second +
-            4f
         val topY = cursorY
-
-        drawText(row.localDate, dateX, topY, bodyPaint)
-        drawText(row.voidedAtEpochMs.toTimeLabel(), timeX, topY, bodyPaint)
-        drawText(row.urgency?.toString().orEmpty().ifBlank { "-" }, urgencyX, topY, bodyPaint)
-        drawText(if (row.hasIncontinence) "있음" else "없음", incontinenceX, topY, bodyPaint)
-        drawText(
-            row.volumeMl?.let { "$it mL" }.orEmpty().ifBlank { "-" },
-            volumeX,
-            topY,
-            bodyPaint
+        val values = listOf(
+            row.localDate,
+            row.voidedAtEpochMs.toTimeLabel(),
+            row.urgency?.toString().orEmpty().ifBlank { "-" },
+            if (row.isNocturia) "있음" else "없음",
+            if (row.hasIncontinence) "있음" else "없음",
+            row.volumeMl?.let { "$it mL" }.orEmpty().ifBlank { "-" }
         )
+        var currentX = PAGE_MARGIN
+        values.zip(columns).forEach { (value, column) ->
+            drawText(value, currentX + 4f, topY, bodyPaint)
+            currentX += column.second
+        }
 
         if (includeMemo && !row.memo.isNullOrBlank()) {
             drawWrappedText(

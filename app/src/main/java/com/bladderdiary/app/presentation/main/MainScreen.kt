@@ -25,13 +25,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.VoidingEvent
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -332,11 +332,7 @@ fun MainScreen(
     )
 }
 
-internal data class RecordEditorTimeState(
-    val hour: Int,
-    val minute: Int,
-    val label: String
-)
+internal data class RecordEditorTimeState(val hour: Int, val minute: Int, val label: String)
 
 internal fun defaultRecordEditorTime(
     selectedDate: LocalDate,
