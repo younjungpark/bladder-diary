@@ -56,14 +56,7 @@ app/src/main/java/com/bladderdiary/app
 
 ## 시작하기
 
-### 1. 저장소 준비
-
-```bash
-git clone https://github.com/younjungpark/bladder-diary.git
-cd bladder-diary
-```
-
-### 2. Supabase 초기 설정
+### 1. Supabase 초기 설정
 
 1. Supabase 프로젝트를 생성합니다.
 2. `supabase/sql` 아래 SQL 파일을 번호 순서대로 실행합니다.
@@ -87,7 +80,7 @@ SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_REDIRECT_URI=bladderdiary://auth/callback
 ```
 
-### 3. 앱 실행
+### 2. 앱 실행
 
 - Android Studio에서 프로젝트를 연 뒤 Gradle Sync를 수행합니다.
 - 에뮬레이터 또는 실기기에서 `app` 모듈을 실행합니다.
