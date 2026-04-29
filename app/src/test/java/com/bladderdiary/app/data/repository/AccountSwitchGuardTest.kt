@@ -12,14 +12,14 @@ class AccountSwitchGuardTest {
             AccountSwitchGuard.ensureAllowed(
                 rememberedAccount = AuthAccount(
                     userId = "trusted",
-                    email = "evashinji1@naver.com",
+                    email = "trusted@example.com",
                     provider = "kakao"
                 ),
                 candidateSession = UserSession(
                     userId = "other",
                     accessToken = "access",
                     refreshToken = "refresh",
-                    email = "shamino925@gmail.com",
+                    email = "other@example.com",
                     provider = "google"
                 ),
                 isAccountSwitchArmed = false
@@ -36,14 +36,14 @@ class AccountSwitchGuardTest {
             AccountSwitchGuard.ensureAllowed(
                 rememberedAccount = AuthAccount(
                     userId = "trusted",
-                    email = "evashinji1@naver.com",
+                    email = "trusted@example.com",
                     provider = "kakao"
                 ),
                 candidateSession = UserSession(
                     userId = "other",
                     accessToken = "access",
                     refreshToken = "refresh",
-                    email = "shamino925@gmail.com",
+                    email = "other@example.com",
                     provider = "google"
                 ),
                 isAccountSwitchArmed = true

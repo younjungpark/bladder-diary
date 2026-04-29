@@ -3,6 +3,8 @@
 /local.properties
 /.idea
 /.vscode
+/.playwright-mcp/
+/altibuddy_mcp.log
 /build
 /captures
 .externalNativeBuild

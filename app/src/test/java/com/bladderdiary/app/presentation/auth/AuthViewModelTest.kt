@@ -52,7 +52,7 @@ class AuthViewModelTest {
             initialSession = null,
             initialRememberedAccount = AuthAccount(
                 userId = "user-1",
-                email = "evashinji1@naver.com",
+                email = "trusted@example.com",
                 provider = "kakao"
             )
         )
@@ -75,7 +75,7 @@ class AuthViewModelTest {
             initialSession = null,
             initialRememberedAccount = AuthAccount(
                 userId = "user-1",
-                email = "evashinji1@naver.com",
+                email = "trusted@example.com",
                 provider = "kakao"
             )
         )
