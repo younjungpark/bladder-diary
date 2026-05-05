@@ -14,6 +14,8 @@ interface AuthRepository {
     suspend fun armAccountSwitch()
     suspend fun clearPendingAccountSwitch()
     suspend fun signOut()
+    suspend fun deleteAccountData(): Result<Unit> =
+        Result.failure(IllegalStateException("회원탈퇴를 지원하지 않습니다."))
     suspend fun getSession(): UserSession?
     suspend fun refreshSession(): Result<UserSession>
 }

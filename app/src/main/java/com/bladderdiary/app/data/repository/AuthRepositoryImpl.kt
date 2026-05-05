@@ -3,23 +3,35 @@ package com.bladderdiary.app.data.repository
 import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import com.bladderdiary.app.data.local.AppDatabase
+import com.bladderdiary.app.data.remote.PinStoreDataSource
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
 import com.bladderdiary.app.data.remote.SupabaseAuthClient
+import com.bladderdiary.app.data.remote.dto.AccountDeletionRequestDto
 import com.bladderdiary.app.data.remote.resolveProvider
+import com.bladderdiary.app.data.security.E2eeLocalKeyStoreDataSource
 import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.AuthResult
 import com.bladderdiary.app.domain.model.SocialProvider
 import com.bladderdiary.app.domain.model.UserSession
+import com.bladderdiary.app.domain.model.toAuthAccount
+import com.bladderdiary.app.worker.SyncScheduler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 class AuthRepositoryImpl(
     private val appContext: Context,
     private val api: SupabaseApi,
     private val authClient: SupabaseAuthClient,
-    private val sessionStore: SessionStore
+    private val sessionStore: SessionStore,
+    private val db: AppDatabase,
+    private val pinStore: PinStoreDataSource,
+    private val localKeyStore: E2eeLocalKeyStoreDataSource,
+    private val syncScheduler: SyncScheduler
 ) : AuthRepository {
     override val sessionFlow: Flow<UserSession?> = sessionStore.sessionFlow
     override val rememberedAccountFlow: Flow<AuthAccount?> = sessionStore.rememberedAccountFlow
@@ -79,6 +91,29 @@ class AuthRepositoryImpl(
         sessionStore.clear()
     }
 
+    override suspend fun deleteAccountData(): Result<Unit> {
+        val session = getSession() ?: return Result.failure(
+            IllegalStateException("로그인이 필요합니다.")
+        )
+
+        return runCatching {
+            withFreshAccessToken(session) { token ->
+                api.createAccountDeletionRequest(
+                    accessToken = token,
+                    request = session.toAccountDeletionRequest()
+                )
+                api.deleteAccountData(token, session.userId)
+            }
+            syncScheduler.cancel()
+            withContext(Dispatchers.IO) {
+                db.clearAllTables()
+                pinStore.clearUser(session.userId)
+                localKeyStore.clearDek(session.userId)
+                sessionStore.clearAll()
+            }
+        }
+    }
+
     override suspend fun getSession(): UserSession? = sessionFlow.first()
 
     override suspend fun refreshSession(): Result<UserSession> {
@@ -110,6 +145,19 @@ class AuthRepositoryImpl(
         return enrichedSession
     }
 
+    private suspend fun <T> withFreshAccessToken(
+        session: UserSession,
+        block: suspend (String) -> T
+    ): T = try {
+        block(session.accessToken)
+    } catch (error: Throwable) {
+        if (!error.isJwtExpiredForAuth()) {
+            throw error
+        }
+        val refreshed = refreshSession().getOrThrow()
+        block(refreshed.accessToken)
+    }
+
     private fun isChromeAvailable(): Boolean {
         val intent = android.content.Intent(
             android.content.Intent.ACTION_VIEW,
@@ -122,6 +170,21 @@ class AuthRepositoryImpl(
     companion object {
         private const val CHROME_PACKAGE = "com.android.chrome"
     }
+}
+
+private fun Throwable.isJwtExpiredForAuth(): Boolean {
+    val text = message?.lowercase() ?: return false
+    return text.contains("jwt expired") || text.contains("pgrst303")
+}
+
+private fun UserSession.toAccountDeletionRequest(): AccountDeletionRequestDto {
+    val account = toAuthAccount()
+    return AccountDeletionRequestDto(
+        userId = userId,
+        email = email?.trim()?.takeIf { it.isNotEmpty() },
+        provider = provider?.trim()?.lowercase()?.takeIf { it.isNotEmpty() },
+        accountSummary = account.summary
+    )
 }
 
 private fun com.bladderdiary.app.data.remote.dto.AuthResponseDto.toSession(

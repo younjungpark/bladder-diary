@@ -33,6 +33,7 @@ object AppGraph {
     private lateinit var supabaseApi: SupabaseApi
     private lateinit var supabaseAuthClient: SupabaseAuthClient
     private lateinit var syncScheduler: SyncScheduler
+    private lateinit var e2eeLocalKeyStore: E2eeLocalKeyStore
 
     lateinit var authRepository: AuthRepository
         private set
@@ -67,18 +68,23 @@ object AppGraph {
         supabaseApi = SupabaseApi()
         supabaseAuthClient = SupabaseAuthClient()
         syncScheduler = SyncScheduler(context)
+        e2eeLocalKeyStore = E2eeLocalKeyStore(context.applicationContext)
         voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
 
         authRepository = AuthRepositoryImpl(
             appContext = context.applicationContext,
             api = supabaseApi,
             authClient = supabaseAuthClient,
-            sessionStore = sessionStore
+            sessionStore = sessionStore,
+            db = db,
+            pinStore = pinStore,
+            localKeyStore = e2eeLocalKeyStore,
+            syncScheduler = syncScheduler
         )
         e2eeRepository = E2eeRepositoryImpl(
             authRepository = authRepository,
             api = supabaseApi,
-            localKeyStore = E2eeLocalKeyStore(context.applicationContext)
+            localKeyStore = e2eeLocalKeyStore
         )
         voidingRepository = VoidingRepositoryImpl(
             db = db,

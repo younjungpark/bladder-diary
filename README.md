@@ -13,6 +13,7 @@ BladderDiary는 배뇨 기록을 빠르게 남기고, 날짜별 패턴을 확인
 - 오프라인 로컬 저장 후 온라인 복구 시 자동 동기화
 - 메모 선택형 종단간 암호화(E2EE) 비밀문구 설정 / 변경 / 잠금 해제
 - 기간 선택 기반 PDF 내보내기
+- 설정 메뉴에서 경고 확인 후 회원탈퇴 및 앱 데이터 초기화
 
 ## 화면 구성
 
@@ -68,6 +69,8 @@ app/src/main/java/com/bladderdiary/app
 004_add_urgency.sql
 005_add_has_incontinence.sql
 006_add_is_nocturia.sql
+007_account_data_deletion.sql
+008_account_deletion_requests.sql
 ```
 
 3. Authentication에서 Google, Kakao provider를 활성화합니다. OAuth는 앱에서 Google/Kakao SDK를 직접 붙이지 않고 Supabase Auth Providers를 통해 처리합니다.
@@ -122,6 +125,7 @@ app/build/outputs/apk/release/app-release.apk
 - 암호화가 꺼진 메모는 평문 상태로 동기화됩니다.
 - 삭제는 소프트 삭제 기반으로 원격 반영됩니다.
 - 오프라인 상태에서 저장한 기록은 로컬에 보관되며, 연결이 복구되면 다시 동기화됩니다.
+- 회원탈퇴는 운영자 수동 Auth 삭제를 위한 탈퇴 요청을 먼저 기록하고, 클라우드 앱 기록과 E2EE 키를 삭제한 뒤 기기 로컬 DB, PIN, 세션 정보를 초기화합니다.
 - PDF는 개인 참고용 기록이며 의료적 진단이나 치료 판단을 대체하지 않습니다.
 
 ## 관련 문서

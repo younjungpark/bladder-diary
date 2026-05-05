@@ -93,6 +93,58 @@ class AuthViewModelTest {
         assertEquals(1, authRepository.signInWithSocialCallCount)
         assertTrue(viewModel.uiState.value.isOAuthLoading)
     }
+
+    @Test
+    fun `회원탈퇴 성공 시 저장소를 호출하고 로그아웃 상태가 된다`() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = UserSession(
+                userId = "user-1",
+                accessToken = "access",
+                refreshToken = "refresh"
+            )
+        )
+        val viewModel = AuthViewModel(
+            authRepository = authRepository,
+            voidingRepository = FakeVoidingRepository()
+        )
+
+        advanceUntilIdle()
+        viewModel.deleteAccountData()
+        advanceUntilIdle()
+
+        assertEquals(1, authRepository.deleteAccountDataCallCount)
+        assertTrue(!viewModel.uiState.value.isLoggedIn)
+        assertTrue(!viewModel.uiState.value.isDeletingAccount)
+    }
+
+    @Test
+    fun `회원탈퇴 실패 시 오류 메시지를 노출하고 로그인 상태를 유지한다`() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = UserSession(
+                userId = "user-1",
+                accessToken = "access",
+                refreshToken = "refresh"
+            )
+        )
+        authRepository.deleteAccountDataResult = Result.failure(
+            IllegalStateException("클라우드 기록 삭제 실패")
+        )
+        val viewModel = AuthViewModel(
+            authRepository = authRepository,
+            voidingRepository = FakeVoidingRepository()
+        )
+
+        advanceUntilIdle()
+        viewModel.deleteAccountData()
+        advanceUntilIdle()
+
+        assertEquals(1, authRepository.deleteAccountDataCallCount)
+        assertTrue(viewModel.uiState.value.isLoggedIn)
+        assertEquals(
+            "클라우드 기록 삭제 실패",
+            viewModel.uiState.value.accountDeletionErrorMessage
+        )
+    }
 }
 
 private class FakeAuthRepository(
@@ -104,6 +156,8 @@ private class FakeAuthRepository(
     private val rememberedAccountState = MutableStateFlow(initialRememberedAccount)
     private val accountSwitchArmedState = MutableStateFlow(initialAccountSwitchArmed)
     var signInWithSocialCallCount: Int = 0
+    var deleteAccountDataCallCount: Int = 0
+    var deleteAccountDataResult: Result<Unit> = Result.success(Unit)
 
     override val sessionFlow: Flow<UserSession?> = sessionState
     override val rememberedAccountFlow: Flow<AuthAccount?> = rememberedAccountState
@@ -137,6 +191,14 @@ private class FakeAuthRepository(
 
     override suspend fun signOut() {
         sessionState.value = null
+    }
+
+    override suspend fun deleteAccountData(): Result<Unit> {
+        deleteAccountDataCallCount += 1
+        if (deleteAccountDataResult.isSuccess) {
+            sessionState.value = null
+        }
+        return deleteAccountDataResult
     }
 
     override suspend fun getSession(): UserSession? = sessionState.value

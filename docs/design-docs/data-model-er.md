@@ -13,6 +13,7 @@
 - 원격 DB
   - `public.voiding_events`
   - `public.user_e2ee_keys`
+  - `public.account_deletion_requests`
   - 외부 참조 `auth.users`
 
 ## 로컬 DB ER
@@ -82,8 +83,21 @@ erDiagram
         timestamptz updated_at
     }
 
+    ACCOUNT_DELETION_REQUESTS {
+        uuid request_id PK
+        uuid user_id
+        text email
+        text provider
+        text account_summary
+        text status
+        text operator_note
+        timestamptz requested_at
+        timestamptz processed_at
+    }
+
     AUTH_USERS ||--o{ VOIDING_EVENTS_REMOTE : "owns"
     AUTH_USERS ||--o| USER_E2EE_KEYS : "has at most one"
+    AUTH_USERS ||--o{ ACCOUNT_DELETION_REQUESTS : "requests deletion"
 ```
 
 ## 로컬-원격 매핑 메모
@@ -93,6 +107,8 @@ erDiagram
 - 로컬 `sync_queue.event_local_id`는 로컬 `voiding_events.local_id`를 참조하는 논리적 FK다.
 - 로컬 `memo`는 앱에서 사용하는 평문 또는 복호화 결과 캐시 성격이고, 원격에는 `memo_ciphertext`와 `memo_encryption`이 저장된다.
 - 원격 `user_e2ee_keys`는 사용자별 E2EE 메타데이터와 wrapped DEK를 1건만 유지한다.
+- 원격 `account_deletion_requests`는 운영자가 Supabase Auth 계정 삭제 대상을 확인하기 위한 요청 큐다.
+- 회원탈퇴는 `voiding_events`와 `user_e2ee_keys`의 사용자 본인 행을 물리 삭제한다.
 
 ## 참고 기준 파일
 
@@ -107,3 +123,5 @@ erDiagram
 - `supabase/sql/004_add_urgency.sql`
 - `supabase/sql/005_add_has_incontinence.sql`
 - `supabase/sql/006_add_is_nocturia.sql`
+- `supabase/sql/007_account_data_deletion.sql`
+- `supabase/sql/008_account_deletion_requests.sql`

@@ -150,6 +150,8 @@ fun AppNavGraph() {
             isE2eeEnabled = e2eeState.isEnabled,
             isE2eeChecking = e2eeState.isCheckingRemoteState,
             e2eeNoticeMessage = mainE2eeNotice,
+            isDeletingAccount = authState.isDeletingAccount,
+            accountDeletionErrorMessage = authState.accountDeletionErrorMessage,
             onShowCalendar = { showCalendar = true },
             onTogglePin = {
                 if (pinState.isPinSet) {
@@ -163,6 +165,8 @@ fun AppNavGraph() {
                 e2eeSettingsOpenedForSetup = !e2eeState.isEnabled
             },
             onConsumeE2eeNotice = { mainE2eeNotice = null },
+            onConsumeAccountDeletionError = authViewModel::consumeAccountDeletionError,
+            onDeleteAccount = authViewModel::deleteAccountData,
             onSignOut = {
                 pinViewModel.clearRuntimeUnlock()
                 e2eeViewModel.clearRuntimeUnlock()

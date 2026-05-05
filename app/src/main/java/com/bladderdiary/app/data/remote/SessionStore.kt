@@ -120,6 +120,12 @@ class SessionStore(private val context: Context) {
         }
     }
 
+    suspend fun clearAll() {
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+        }
+    }
+
     suspend fun getRememberedAccount(): AuthAccount? = rememberedAccountFlow.first()
 
     suspend fun isAccountSwitchArmed(): Boolean = accountSwitchArmedFlow.first()

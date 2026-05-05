@@ -27,8 +27,10 @@ data class AuthUiState(
     val currentAccount: AuthAccount? = null,
     val rememberedAccount: AuthAccount? = null,
     val isAccountSwitchArmed: Boolean = false,
+    val isDeletingAccount: Boolean = false,
     val errorMessage: String? = null,
     val oauthErrorMessage: String? = null,
+    val accountDeletionErrorMessage: String? = null,
     val infoMessage: String? = null
 )
 
@@ -45,7 +47,12 @@ class AuthViewModel(
             .onEach { session ->
                 _uiState.value = _uiState.value.copy(
                     isLoggedIn = session != null,
-                    currentAccount = session?.toAuthAccount()
+                    currentAccount = session?.toAuthAccount(),
+                    isDeletingAccount = if (session == null) {
+                        false
+                    } else {
+                        _uiState.value.isDeletingAccount
+                    }
                 )
                 if (session == null) {
                     debugTrace("sessionFlow: no active session")
@@ -238,6 +245,38 @@ class AuthViewModel(
         viewModelScope.launch {
             authRepository.signOut()
         }
+    }
+
+    fun deleteAccountData() {
+        if (_uiState.value.isDeletingAccount) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isDeletingAccount = true,
+                accountDeletionErrorMessage = null,
+                errorMessage = null,
+                oauthErrorMessage = null,
+                infoMessage = null
+            )
+
+            val result = authRepository.deleteAccountData()
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    isDeletingAccount = false,
+                    accountDeletionErrorMessage = null
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isDeletingAccount = false,
+                    accountDeletionErrorMessage = result.exceptionOrNull()?.message
+                        ?: "회원탈퇴 처리에 실패했습니다."
+                )
+            }
+        }
+    }
+
+    fun consumeAccountDeletionError() {
+        _uiState.value = _uiState.value.copy(accountDeletionErrorMessage = null)
     }
 
     companion object {

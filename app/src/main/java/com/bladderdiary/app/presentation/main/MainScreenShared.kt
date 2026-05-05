@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
@@ -92,6 +93,8 @@ internal fun MainTopBar(
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
+    isDeletingAccount: Boolean,
+    onOpenAccountDeletion: () -> Unit,
     onSignOut: () -> Unit
 ) {
     Row(
@@ -165,6 +168,8 @@ internal fun MainTopBar(
                 onOpenE2eeSettings = onOpenE2eeSettings,
                 onOpenPdfExport = onOpenPdfExport,
                 isExportingPdf = isExportingPdf,
+                isDeletingAccount = isDeletingAccount,
+                onOpenAccountDeletion = onOpenAccountDeletion,
                 onSignOut = onSignOut
             )
         }
@@ -185,6 +190,8 @@ private fun MainOverflowMenu(
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
+    isDeletingAccount: Boolean,
+    onOpenAccountDeletion: () -> Unit,
     onSignOut: () -> Unit
 ) {
     Box {
@@ -254,6 +261,18 @@ private fun MainOverflowMenu(
                     )
                 },
                 onClick = onTogglePin
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(if (isDeletingAccount) "회원탈퇴 처리 중" else "회원탈퇴") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null
+                    )
+                },
+                onClick = onOpenAccountDeletion,
+                enabled = !isDeletingAccount
             )
             DropdownMenuItem(
                 text = { Text("로그아웃") },

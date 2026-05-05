@@ -41,10 +41,14 @@ fun MainScreen(
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
     e2eeNoticeMessage: String?,
+    isDeletingAccount: Boolean,
+    accountDeletionErrorMessage: String?,
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onConsumeE2eeNotice: () -> Unit,
+    onConsumeAccountDeletionError: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,6 +76,7 @@ fun MainScreen(
     var pdfStartDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfEndDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfIncludeMemo by remember { mutableStateOf(false) }
+    var showAccountDeletionDialog by rememberSaveable { mutableStateOf(false) }
 
     val clearEditorState = {
         showEventEditorDialog = false
@@ -121,6 +126,13 @@ fun MainScreen(
         val msg = e2eeNoticeMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
         onConsumeE2eeNotice()
+    }
+
+    LaunchedEffect(accountDeletionErrorMessage) {
+        val msg = accountDeletionErrorMessage ?: return@LaunchedEffect
+        showAccountDeletionDialog = false
+        snackbarHostState.showSnackbar(msg)
+        onConsumeAccountDeletionError()
     }
 
     LaunchedEffect(state.pendingPdfShareFile) {
@@ -185,6 +197,11 @@ fun MainScreen(
                         showPdfExportDialog = true
                     },
                     isExportingPdf = state.isExportingPdf,
+                    isDeletingAccount = isDeletingAccount,
+                    onOpenAccountDeletion = {
+                        menuExpanded = false
+                        showAccountDeletionDialog = true
+                    },
                     onSignOut = {
                         menuExpanded = false
                         onSignOut()
@@ -329,6 +346,17 @@ fun MainScreen(
                 includeMemo = pdfIncludeMemo
             )
         }
+    )
+
+    AccountDeletionDialog(
+        isVisible = showAccountDeletionDialog,
+        isDeleting = isDeletingAccount,
+        onDismiss = {
+            if (!isDeletingAccount) {
+                showAccountDeletionDialog = false
+            }
+        },
+        onConfirm = onDeleteAccount
     )
 }
 

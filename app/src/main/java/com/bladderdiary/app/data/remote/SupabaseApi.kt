@@ -1,6 +1,7 @@
 package com.bladderdiary.app.data.remote
 
 import com.bladderdiary.app.BuildConfig
+import com.bladderdiary.app.data.remote.dto.AccountDeletionRequestDto
 import com.bladderdiary.app.data.remote.dto.AuthRequest
 import com.bladderdiary.app.data.remote.dto.AuthResponseDto
 import com.bladderdiary.app.data.remote.dto.RefreshTokenRequest
@@ -11,6 +12,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
@@ -126,6 +128,43 @@ class SupabaseApi {
         return response.body()
     }
 
+    suspend fun deleteAccountData(accessToken: String, userId: String) {
+        deleteOwnRows(
+            tableName = "voiding_events",
+            accessToken = accessToken,
+            userId = userId,
+            failureMessage = "클라우드 기록 삭제 실패"
+        )
+        deleteOwnRows(
+            tableName = "user_e2ee_keys",
+            accessToken = accessToken,
+            userId = userId,
+            failureMessage = "클라우드 E2EE 키 삭제 실패"
+        )
+    }
+
+    suspend fun createAccountDeletionRequest(
+        accessToken: String,
+        request: AccountDeletionRequestDto
+    ) {
+        val response = client.post("$baseUrl/rest/v1/account_deletion_requests") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+            header("Prefer", "return=minimal")
+            setBody(request)
+        }
+        if (
+            response.status !in listOf(
+                HttpStatusCode.OK,
+                HttpStatusCode.Created,
+                HttpStatusCode.NoContent
+            )
+        ) {
+            throw IllegalStateException("탈퇴 요청 기록 실패: ${response.bodyAsText()}")
+        }
+    }
+
     suspend fun upsertUserE2eeKey(accessToken: String, key: UserE2eeKeyRemoteDto) {
         val response = client.post("$baseUrl/rest/v1/user_e2ee_keys?on_conflict=user_id") {
             contentType(ContentType.Application.Json)
@@ -155,5 +194,22 @@ class SupabaseApi {
             throw IllegalStateException("E2EE 키 조회 실패: ${response.bodyAsText()}")
         }
         return response.body<List<UserE2eeKeyRemoteDto>>().firstOrNull()
+    }
+
+    private suspend fun deleteOwnRows(
+        tableName: String,
+        accessToken: String,
+        userId: String,
+        failureMessage: String
+    ) {
+        val response = client.delete("$baseUrl/rest/v1/$tableName?user_id=eq.$userId") {
+            contentType(ContentType.Application.Json)
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+            header("Prefer", "return=minimal")
+        }
+        if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.NoContent)) {
+            throw IllegalStateException("$failureMessage: ${response.bodyAsText()}")
+        }
     }
 }

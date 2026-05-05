@@ -610,3 +610,50 @@ internal fun DeleteDialog(
         }
     )
 }
+
+@Composable
+internal fun AccountDeletionDialog(
+    isVisible: Boolean,
+    isDeleting: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (!isVisible) return
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isDeleting) {
+                onDismiss()
+            }
+        },
+        title = { Text("회원탈퇴") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("로그인 계정 삭제는 운영자 확인을 거쳐 수동으로 처리되므로 완료까지 시간이 다소 소요될 수 있습니다.")
+                Text(
+                    "다만, 클라우드에 저장된 앱 기록과 메모 암호화 키, 그리고 이 기기의 로컬 데이터(DB, PIN 설정, 로그인 정보)는 즉시 초기화됩니다."
+                )
+                Text(
+                    text = "이 작업은 되돌릴 수 없습니다. 계속 진행하시려면 'OK'를 눌러주세요.",
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isDeleting
+            ) {
+                Text(if (isDeleting) "처리 중" else "OK")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isDeleting
+            ) {
+                Text("취소")
+            }
+        }
+    )
+}
