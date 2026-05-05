@@ -1,7 +1,6 @@
-# BladderDiary
+# 배뇨일기 BladderDiary
 
-BladderDiary는 배뇨 기록을 빠르게 남기고, 날짜별 패턴을 확인하며, 필요 시 PDF로 내보낼 수 있는 안드로이드 앱입니다.  
-로컬 우선 저장 구조를 기반으로 동작하며, 온라인 상태에서는 Supabase와 자동 동기화를 수행합니다.
+배뇨일기(BladderDiary)는 배뇨 기록을 빠르게 남기고, 날짜별 패턴을 확인하며, 필요 시 PDF로 내보낼 수 있는 안드로이드 앱입니다. 로컬 우선 저장 구조를 기반으로 동작하며, 온라인 상태에서는 Supabase와 자동 동기화를 수행합니다.
 
 ## 주요 기능
 
@@ -141,4 +140,4 @@ app/build/outputs/apk/release/app-release.apk
 ## 라이선스
 
 이 프로젝트는 Apache License 2.0을 따릅니다.  
-단, `BladderDiary` 이름, 로고, 아이콘 등 브랜드 자산은 별도 정책의 적용을 받을 수 있습니다.
+단, `배뇨일기`, `BladderDiary` 이름, 로고, 아이콘 등 브랜드 자산은 별도 정책의 적용을 받을 수 있습니다.

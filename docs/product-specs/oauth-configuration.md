@@ -2,7 +2,7 @@
 
 ## 목적
 
-이 문서는 BladderDiary의 Google/Kakao OAuth 설정 기준을 한곳에 고정한다. OAuth 기능은 Android 앱이 Google/Kakao SDK를 직접 붙이는 방식이 아니라 Supabase Auth Providers를 통해 동작한다.
+이 문서는 배뇨일기(BladderDiary)의 Google/Kakao OAuth 설정 기준을 한곳에 고정한다. OAuth 기능은 Android 앱이 Google/Kakao SDK를 직접 붙이는 방식이 아니라 Supabase Auth Providers를 통해 동작한다.
 
 ## 현재 기준
 
