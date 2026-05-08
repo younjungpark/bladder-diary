@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,9 +21,12 @@ import com.bladderdiary.app.presentation.main.MainScreen
 import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.pin.PinScreen
 import com.bladderdiary.app.presentation.pin.PinViewModel
+import com.bladderdiary.app.presentation.privacy.SensitiveCloudNoticeDialog
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph() {
+    val coroutineScope = rememberCoroutineScope()
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.factory(
             AppGraph.authRepository,
@@ -60,12 +64,21 @@ fun AppNavGraph() {
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
     val e2eeState by e2eeViewModel.uiState.collectAsStateWithLifecycle()
+    val isCloudDataNoticeAcknowledged by AppGraph.cloudDataNoticeStore.isAcknowledgedFlow
+        .collectAsStateWithLifecycle(initialValue = null)
 
     var showCalendar by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
     var showE2eeSettings by remember { mutableStateOf(false) }
     var e2eeSettingsOpenedForSetup by remember { mutableStateOf(false) }
     var mainE2eeNotice by remember { mutableStateOf<String?>(null) }
+    var showCloudDataNoticeDetails by remember { mutableStateOf(false) }
+
+    val acknowledgeCloudDataNotice: () -> Unit = {
+        coroutineScope.launch {
+            AppGraph.cloudDataNoticeStore.acknowledgeCurrentNotice()
+        }
+    }
 
     // 로그인 화면으로 돌아가거나 재로그인 직후에는 PIN 설정 화면 자동 진입 상태를 초기화합니다.
     LaunchedEffect(authState.isLoggedIn) {
@@ -75,6 +88,7 @@ fun AppNavGraph() {
             showE2eeSettings = false
             e2eeSettingsOpenedForSetup = false
             mainE2eeNotice = null
+            showCloudDataNoticeDetails = false
         }
     }
 
@@ -99,7 +113,12 @@ fun AppNavGraph() {
     }
 
     if (!authState.isLoggedIn) {
-        AuthScreen(viewModel = authViewModel)
+        AuthScreen(
+            viewModel = authViewModel,
+            isCloudDataNoticeAcknowledged = isCloudDataNoticeAcknowledged == true,
+            onAcknowledgeCloudDataNotice = acknowledgeCloudDataNotice,
+            onShowCloudDataNotice = { showCloudDataNoticeDetails = true }
+        )
     } else if (pinState.isPinSet && !pinState.isUnlocked) {
         // 이미 PIN이 설정되어 있고 잠긴 상태 (앱 시작/백그라운드 복귀 등)
         PinScreen(viewModel = pinViewModel)
@@ -172,6 +191,27 @@ fun AppNavGraph() {
                 e2eeViewModel.clearRuntimeUnlock()
                 authViewModel.signOut()
             }
+        )
+    }
+
+    val canShowRequiredCloudDataNotice = authState.isLoggedIn &&
+        isCloudDataNoticeAcknowledged == false &&
+        !(pinState.isPinSet && !pinState.isUnlocked) &&
+        !(!e2eeState.isCheckingRemoteState && e2eeState.isEnabled && !e2eeState.isUnlocked)
+
+    if (canShowRequiredCloudDataNotice) {
+        SensitiveCloudNoticeDialog(
+            onConfirm = acknowledgeCloudDataNotice,
+            confirmLabel = "확인했습니다"
+        )
+    } else if (showCloudDataNoticeDetails) {
+        SensitiveCloudNoticeDialog(
+            onConfirm = {
+                showCloudDataNoticeDetails = false
+                acknowledgeCloudDataNotice()
+            },
+            onDismiss = { showCloudDataNoticeDetails = false },
+            confirmLabel = "확인했습니다"
         )
     }
 }

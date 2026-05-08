@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
@@ -92,6 +93,7 @@ internal fun MainTopBar(
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
+    onOpenCloudDataNotice: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
@@ -167,6 +169,7 @@ internal fun MainTopBar(
                 onOpenMenu = onOpenMenu,
                 onDismissMenu = onDismissMenu,
                 onTogglePin = onTogglePin,
+                onOpenCloudDataNotice = onOpenCloudDataNotice,
                 onOpenE2eeSettings = onOpenE2eeSettings,
                 onOpenPdfExport = onOpenPdfExport,
                 isExportingPdf = isExportingPdf,
@@ -189,6 +192,7 @@ private fun MainOverflowMenu(
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
+    onOpenCloudDataNotice: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
@@ -228,6 +232,16 @@ private fun MainOverflowMenu(
                 )
                 HorizontalDivider()
             }
+            DropdownMenuItem(
+                text = { Text("개인정보/클라우드 저장 안내") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null
+                    )
+                },
+                onClick = onOpenCloudDataNotice
+            )
             DropdownMenuItem(
                 text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
                 leadingIcon = {

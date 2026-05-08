@@ -2,6 +2,7 @@ package com.bladderdiary.app.core
 
 import android.content.Context
 import com.bladderdiary.app.data.local.AppDatabase
+import com.bladderdiary.app.data.local.CloudDataNoticeStore
 import com.bladderdiary.app.data.remote.PinStore
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
@@ -45,6 +46,8 @@ object AppGraph {
         private set
     lateinit var voidingPdfExporter: VoidingPdfExporter
         private set
+    lateinit var cloudDataNoticeStore: CloudDataNoticeStore
+        private set
 
     lateinit var addVoidingEventUseCase: AddVoidingEventUseCase
         private set
@@ -70,6 +73,7 @@ object AppGraph {
         syncScheduler = SyncScheduler(context)
         e2eeLocalKeyStore = E2eeLocalKeyStore(context.applicationContext)
         voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
+        cloudDataNoticeStore = CloudDataNoticeStore(context.applicationContext)
 
         authRepository = AuthRepositoryImpl(
             appContext = context.applicationContext,

@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.VoidingEvent
+import com.bladderdiary.app.presentation.privacy.SensitiveCloudNoticeDialog
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -77,6 +78,7 @@ fun MainScreen(
     var pdfEndDate by remember(state.selectedDate) { mutableStateOf(state.selectedDate) }
     var pdfIncludeMemo by remember { mutableStateOf(false) }
     var showAccountDeletionDialog by rememberSaveable { mutableStateOf(false) }
+    var showCloudDataNoticeDialog by rememberSaveable { mutableStateOf(false) }
 
     val clearEditorState = {
         showEventEditorDialog = false
@@ -184,6 +186,10 @@ fun MainScreen(
                     onTogglePin = {
                         menuExpanded = false
                         onTogglePin()
+                    },
+                    onOpenCloudDataNotice = {
+                        menuExpanded = false
+                        showCloudDataNoticeDialog = true
                     },
                     onOpenE2eeSettings = {
                         menuExpanded = false
@@ -358,6 +364,14 @@ fun MainScreen(
         },
         onConfirm = onDeleteAccount
     )
+
+    if (showCloudDataNoticeDialog) {
+        SensitiveCloudNoticeDialog(
+            onConfirm = { showCloudDataNoticeDialog = false },
+            onDismiss = { showCloudDataNoticeDialog = false },
+            confirmLabel = "확인"
+        )
+    }
 }
 
 internal data class RecordEditorTimeState(val hour: Int, val minute: Int, val label: String)

@@ -52,9 +52,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.SocialProvider
+import com.bladderdiary.app.presentation.privacy.SensitiveCloudNoticeAcknowledgementBlock
 
 @Composable
-fun AuthScreen(viewModel: AuthViewModel) {
+fun AuthScreen(
+    viewModel: AuthViewModel,
+    isCloudDataNoticeAcknowledged: Boolean,
+    onAcknowledgeCloudDataNotice: () -> Unit,
+    onShowCloudDataNotice: () -> Unit
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val configuration = LocalConfiguration.current
     val isCompactWidth = configuration.screenWidthDp <= 390
@@ -176,13 +182,21 @@ fun AuthScreen(viewModel: AuthViewModel) {
                         onCancelAccountSwitch = viewModel::cancelPendingAccountSwitch
                     )
 
+                    SensitiveCloudNoticeAcknowledgementBlock(
+                        isAcknowledged = isCloudDataNoticeAcknowledged,
+                        isEnabled = !state.isOAuthLoading,
+                        onAcknowledge = onAcknowledgeCloudDataNotice,
+                        onShowDetails = onShowCloudDataNotice
+                    )
+
                     val rememberedProvider = state.rememberedAccount?.normalizedProvider
-                    val isGoogleEnabled = !state.isOAuthLoading && (
+                    val canStartLogin = !state.isOAuthLoading && isCloudDataNoticeAcknowledged
+                    val isGoogleEnabled = canStartLogin && (
                         state.isAccountSwitchArmed ||
                             rememberedProvider == null ||
                             rememberedProvider == SocialProvider.GOOGLE.providerKey
                         )
-                    val isKakaoEnabled = !state.isOAuthLoading && (
+                    val isKakaoEnabled = canStartLogin && (
                         state.isAccountSwitchArmed ||
                             rememberedProvider == null ||
                             rememberedProvider == SocialProvider.KAKAO.providerKey
