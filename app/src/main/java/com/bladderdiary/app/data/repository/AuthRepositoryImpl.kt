@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import com.bladderdiary.app.data.local.AppDatabase
+import com.bladderdiary.app.data.local.CloudSyncPreferenceStore
 import com.bladderdiary.app.data.remote.PinStoreDataSource
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
@@ -31,7 +32,8 @@ class AuthRepositoryImpl(
     private val db: AppDatabase,
     private val pinStore: PinStoreDataSource,
     private val localKeyStore: E2eeLocalKeyStoreDataSource,
-    private val syncScheduler: SyncScheduler
+    private val syncScheduler: SyncScheduler,
+    private val cloudSyncPreferenceStore: CloudSyncPreferenceStore
 ) : AuthRepository {
     override val sessionFlow: Flow<UserSession?> = sessionStore.sessionFlow
     override val rememberedAccountFlow: Flow<AuthAccount?> = sessionStore.rememberedAccountFlow
@@ -109,6 +111,7 @@ class AuthRepositoryImpl(
                 db.clearAllTables()
                 pinStore.clearUser(session.userId)
                 localKeyStore.clearDek(session.userId)
+                cloudSyncPreferenceStore.clearUser(session.userId)
                 sessionStore.clearAll()
             }
         }

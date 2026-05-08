@@ -38,8 +38,10 @@ interface VoidingRepository {
     fun observePendingSyncCount(): Flow<Int>
     fun observePendingSyncError(): Flow<String?>
     fun observeSyncInProgress(): Flow<Boolean>
+    fun observeCloudSyncPreference(): Flow<CloudSyncPreference>
     suspend fun delete(localId: String): Result<Unit>
     suspend fun fetchAndSyncAll(): Result<Unit>
     suspend fun syncPending(): Result<SyncReport>
     suspend fun requeueAllForUpload(): Result<Unit>
+    suspend fun setCloudSyncEnabled(isEnabled: Boolean): Result<Unit>
 }

@@ -1,6 +1,7 @@
 package com.bladderdiary.app.presentation.main
 
 import com.bladderdiary.app.MainDispatcherRule
+import com.bladderdiary.app.domain.model.CloudSyncPreference
 import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.SyncState
 import com.bladderdiary.app.domain.model.VoidingEvent
@@ -13,6 +14,7 @@ import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
 import com.bladderdiary.app.export.VoidingPdfExportParams
 import com.bladderdiary.app.export.VoidingPdfExporter
 import com.bladderdiary.app.export.VoidingPdfShareFile
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -26,6 +28,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -235,6 +238,19 @@ class MainViewModelTest {
         assertTrue(repository.deletedLocalIds.isEmpty())
     }
 
+    @Test
+    fun `클라우드 동기화 설정 변경 시 저장소를 호출하고 상태를 갱신한다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.setCloudSyncEnabled(true)
+        advanceUntilIdle()
+
+        assertEquals(true, repository.cloudSyncPreference.value.isEnabled)
+        assertEquals(true, repository.cloudSyncPreference.value.hasUserChoice)
+        assertEquals("클라우드 동기화를 켰습니다.", viewModel.uiState.value.message)
+    }
+
     private fun createViewModel(
         repository: FakeVoidingRepository,
         exporter: FakeVoidingPdfExporter
@@ -304,6 +320,12 @@ private class FakeVoidingRepository : VoidingRepository {
     var deleteResult: Result<Unit> = Result.success(Unit)
     var lastDeletedLocalId: String? = null
     val deletedLocalIds = mutableListOf<String>()
+    val cloudSyncPreference = MutableStateFlow(
+        CloudSyncPreference(
+            isEnabled = false,
+            hasUserChoice = true
+        )
+    )
     private val events = MutableStateFlow<List<VoidingEvent>>(emptyList())
     private val count = MutableStateFlow(0)
     private val pendingCount = MutableStateFlow(0)
@@ -384,6 +406,8 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override fun observeSyncInProgress(): Flow<Boolean> = isSyncing
 
+    override fun observeCloudSyncPreference(): Flow<CloudSyncPreference> = cloudSyncPreference
+
     override suspend fun delete(localId: String): Result<Unit> {
         lastDeletedLocalId = localId
         deletedLocalIds += localId
@@ -395,4 +419,12 @@ private class FakeVoidingRepository : VoidingRepository {
     override suspend fun syncPending(): Result<SyncReport> = Result.success(SyncReport(0, 0))
 
     override suspend fun requeueAllForUpload(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun setCloudSyncEnabled(isEnabled: Boolean): Result<Unit> {
+        cloudSyncPreference.value = CloudSyncPreference(
+            isEnabled = isEnabled,
+            hasUserChoice = true
+        )
+        return Result.success(Unit)
+    }
 }

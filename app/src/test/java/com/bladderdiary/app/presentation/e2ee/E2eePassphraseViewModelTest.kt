@@ -2,6 +2,7 @@ package com.bladderdiary.app.presentation.e2ee
 
 import com.bladderdiary.app.MainDispatcherRule
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
+import com.bladderdiary.app.domain.model.CloudSyncPreference
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.E2eeState
 import com.bladderdiary.app.domain.model.MemoSyncPayload
@@ -162,6 +163,12 @@ private class FakeE2eeRepository(initial: E2eeState) : E2eeRepository {
 
 private class FakeVoidingRepository : VoidingRepository {
     var fetchCalled = false
+    private val cloudSyncPreference = MutableStateFlow(
+        CloudSyncPreference(
+            isEnabled = true,
+            hasUserChoice = true
+        )
+    )
 
     override suspend fun addNow(
         urgency: Int,
@@ -215,6 +222,8 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override fun observeSyncInProgress(): Flow<Boolean> = MutableStateFlow(false)
 
+    override fun observeCloudSyncPreference(): Flow<CloudSyncPreference> = cloudSyncPreference
+
     override suspend fun delete(localId: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun fetchAndSyncAll(): Result<Unit> {
@@ -225,4 +234,12 @@ private class FakeVoidingRepository : VoidingRepository {
     override suspend fun syncPending(): Result<SyncReport> = Result.success(SyncReport(0, 0))
 
     override suspend fun requeueAllForUpload(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun setCloudSyncEnabled(isEnabled: Boolean): Result<Unit> {
+        cloudSyncPreference.value = CloudSyncPreference(
+            isEnabled = isEnabled,
+            hasUserChoice = true
+        )
+        return Result.success(Unit)
+    }
 }

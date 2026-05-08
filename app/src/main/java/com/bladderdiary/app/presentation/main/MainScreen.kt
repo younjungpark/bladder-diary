@@ -79,6 +79,7 @@ fun MainScreen(
     var pdfIncludeMemo by remember { mutableStateOf(false) }
     var showAccountDeletionDialog by rememberSaveable { mutableStateOf(false) }
     var showCloudDataNoticeDialog by rememberSaveable { mutableStateOf(false) }
+    var showCloudSyncDialog by rememberSaveable { mutableStateOf(false) }
 
     val clearEditorState = {
         showEventEditorDialog = false
@@ -174,6 +175,8 @@ fun MainScreen(
                     isPinSet = isPinSet,
                     isE2eeEnabled = isE2eeEnabled,
                     isE2eeChecking = isE2eeChecking,
+                    isCloudSyncEnabled = state.isCloudSyncEnabled,
+                    isCloudSyncChanging = state.isCloudSyncChanging,
                     menuExpanded = menuExpanded,
                     onShowSyncStatus = {
                         coroutineScope.launch {
@@ -190,6 +193,10 @@ fun MainScreen(
                     onOpenCloudDataNotice = {
                         menuExpanded = false
                         showCloudDataNoticeDialog = true
+                    },
+                    onOpenCloudSyncSettings = {
+                        menuExpanded = false
+                        showCloudSyncDialog = true
                     },
                     onOpenE2eeSettings = {
                         menuExpanded = false
@@ -372,6 +379,21 @@ fun MainScreen(
             confirmLabel = "확인"
         )
     }
+
+    CloudSyncToggleDialog(
+        isVisible = showCloudSyncDialog,
+        isEnabled = state.isCloudSyncEnabled,
+        isChanging = state.isCloudSyncChanging,
+        onDismiss = {
+            if (!state.isCloudSyncChanging) {
+                showCloudSyncDialog = false
+            }
+        },
+        onConfirm = {
+            showCloudSyncDialog = false
+            viewModel.setCloudSyncEnabled(!state.isCloudSyncEnabled)
+        }
+    )
 }
 
 internal data class RecordEditorTimeState(val hour: Int, val minute: Int, val label: String)

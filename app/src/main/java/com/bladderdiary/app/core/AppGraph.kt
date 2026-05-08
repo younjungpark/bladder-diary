@@ -3,6 +3,7 @@ package com.bladderdiary.app.core
 import android.content.Context
 import com.bladderdiary.app.data.local.AppDatabase
 import com.bladderdiary.app.data.local.CloudDataNoticeStore
+import com.bladderdiary.app.data.local.CloudSyncPreferenceStore
 import com.bladderdiary.app.data.remote.PinStore
 import com.bladderdiary.app.data.remote.SessionStore
 import com.bladderdiary.app.data.remote.SupabaseApi
@@ -35,6 +36,7 @@ object AppGraph {
     private lateinit var supabaseAuthClient: SupabaseAuthClient
     private lateinit var syncScheduler: SyncScheduler
     private lateinit var e2eeLocalKeyStore: E2eeLocalKeyStore
+    private lateinit var cloudSyncPreferenceStore: CloudSyncPreferenceStore
 
     lateinit var authRepository: AuthRepository
         private set
@@ -74,6 +76,7 @@ object AppGraph {
         e2eeLocalKeyStore = E2eeLocalKeyStore(context.applicationContext)
         voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
         cloudDataNoticeStore = CloudDataNoticeStore(context.applicationContext)
+        cloudSyncPreferenceStore = CloudSyncPreferenceStore(context.applicationContext)
 
         authRepository = AuthRepositoryImpl(
             appContext = context.applicationContext,
@@ -83,7 +86,8 @@ object AppGraph {
             db = db,
             pinStore = pinStore,
             localKeyStore = e2eeLocalKeyStore,
-            syncScheduler = syncScheduler
+            syncScheduler = syncScheduler,
+            cloudSyncPreferenceStore = cloudSyncPreferenceStore
         )
         e2eeRepository = E2eeRepositoryImpl(
             authRepository = authRepository,
@@ -95,7 +99,8 @@ object AppGraph {
             authRepository = authRepository,
             api = supabaseApi,
             syncScheduler = syncScheduler,
-            e2eeRepository = e2eeRepository
+            e2eeRepository = e2eeRepository,
+            cloudSyncPreferenceStore = cloudSyncPreferenceStore
         )
         lockRepository = LockRepositoryImpl(
             authRepository = authRepository,

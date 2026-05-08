@@ -13,6 +13,7 @@ import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
 import com.bladderdiary.app.export.VoidingPdfExportParams
 import com.bladderdiary.app.export.VoidingPdfExporter
 import com.bladderdiary.app.export.VoidingPdfShareFile
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,9 @@ data class MainUiState(
     val pendingSyncCount: Int = 0,
     val pendingSyncError: String? = null,
     val isSyncing: Boolean = false,
+    val isCloudSyncEnabled: Boolean = false,
+    val hasCloudSyncChoice: Boolean = false,
+    val isCloudSyncChanging: Boolean = false,
     val isAdding: Boolean = false,
     val isExportingPdf: Boolean = false,
     val pendingPdfShareFile: VoidingPdfShareFile? = null,
@@ -43,6 +47,7 @@ data class MainUiState(
     val message: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(
     private val addVoidingEventUseCase: AddVoidingEventUseCase,
     private val getDailyEventsUseCase: GetDailyEventsUseCase,
@@ -63,9 +68,16 @@ class MainViewModel(
             val syncStateFlow = combine(
                 voidingRepository.observePendingSyncCount(),
                 voidingRepository.observePendingSyncError(),
-                voidingRepository.observeSyncInProgress()
-            ) { pending, pendingError, isSyncing ->
-                Triple(pending, pendingError, isSyncing)
+                voidingRepository.observeSyncInProgress(),
+                voidingRepository.observeCloudSyncPreference()
+            ) { pending, pendingError, isSyncing, cloudSyncPreference ->
+                SyncUiSnapshot(
+                    pendingSyncCount = if (cloudSyncPreference.isEnabled) pending else 0,
+                    pendingSyncError = if (cloudSyncPreference.isEnabled) pendingError else null,
+                    isSyncing = isSyncing,
+                    isCloudSyncEnabled = cloudSyncPreference.isEnabled,
+                    hasCloudSyncChoice = cloudSyncPreference.hasUserChoice
+                )
             }
             combine(
                 selectedDate,
@@ -73,7 +85,6 @@ class MainViewModel(
                 selectedDate.flatMapLatest { date -> getDailyCountUseCase(date) },
                 syncStateFlow
             ) { date, events, count, syncState ->
-                val (pending, pendingError, isSyncing) = syncState
                 MainUiState(
                     selectedDate = date,
                     events = events,
@@ -81,9 +92,12 @@ class MainViewModel(
                     dailyVolumeMl = events.mapNotNull { it.volumeMl }
                         .takeIf { it.isNotEmpty() }
                         ?.sum(),
-                    pendingSyncCount = pending,
-                    pendingSyncError = pendingError,
-                    isSyncing = isSyncing,
+                    pendingSyncCount = syncState.pendingSyncCount,
+                    pendingSyncError = syncState.pendingSyncError,
+                    isSyncing = syncState.isSyncing,
+                    isCloudSyncEnabled = syncState.isCloudSyncEnabled,
+                    hasCloudSyncChoice = syncState.hasCloudSyncChoice,
+                    isCloudSyncChanging = _uiState.value.isCloudSyncChanging,
                     isAdding = _uiState.value.isAdding,
                     isExportingPdf = _uiState.value.isExportingPdf,
                     pendingPdfShareFile = _uiState.value.pendingPdfShareFile,
@@ -294,6 +308,29 @@ class MainViewModel(
         _uiState.update { it.copy(message = null) }
     }
 
+    fun setCloudSyncEnabled(isEnabled: Boolean) {
+        if (_uiState.value.isCloudSyncChanging) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudSyncChanging = true, message = null) }
+            val result = voidingRepository.setCloudSyncEnabled(isEnabled)
+            _uiState.update {
+                it.copy(
+                    isCloudSyncChanging = false,
+                    message = if (result.isSuccess) {
+                        if (isEnabled) {
+                            "클라우드 동기화를 켰습니다."
+                        } else {
+                            "클라우드 동기화를 껐습니다. 기존 클라우드 데이터는 삭제되지 않습니다."
+                        }
+                    } else {
+                        result.exceptionOrNull()?.message ?: "동기화 설정을 변경하지 못했습니다."
+                    }
+                )
+            }
+        }
+    }
+
     companion object {
         fun factory(
             addVoidingEventUseCase: AddVoidingEventUseCase,
@@ -317,3 +354,11 @@ class MainViewModel(
         }
     }
 }
+
+private data class SyncUiSnapshot(
+    val pendingSyncCount: Int,
+    val pendingSyncError: String?,
+    val isSyncing: Boolean,
+    val isCloudSyncEnabled: Boolean,
+    val hasCloudSyncChoice: Boolean
+)

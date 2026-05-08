@@ -2,12 +2,14 @@ package com.bladderdiary.app.data.repository
 
 import androidx.room.withTransaction
 import com.bladderdiary.app.data.local.AppDatabase
+import com.bladderdiary.app.data.local.CloudSyncPreferenceStore
 import com.bladderdiary.app.data.local.SyncQueueEntity
 import com.bladderdiary.app.data.local.VoidingEventEntity
 import com.bladderdiary.app.data.remote.SupabaseApi
 import com.bladderdiary.app.data.remote.dto.VoidingEventRemoteDto
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.CloudSyncPreference
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.SyncAction
 import com.bladderdiary.app.domain.model.SyncReport
@@ -37,7 +39,8 @@ class VoidingRepositoryImpl(
     private val authRepository: AuthRepository,
     private val api: SupabaseApi,
     private val syncScheduler: SyncScheduler,
-    private val e2eeRepository: E2eeRepository
+    private val e2eeRepository: E2eeRepository,
+    private val cloudSyncPreferenceStore: CloudSyncPreferenceStore
 ) : VoidingRepository {
     private companion object {
         const val TAG = "VoidingRepository"
@@ -112,6 +115,7 @@ class VoidingRepositoryImpl(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observeByDate(date: kotlinx.datetime.LocalDate): Flow<List<VoidingEvent>> =
         authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
@@ -181,6 +185,7 @@ class VoidingRepositoryImpl(
             }
         }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observePendingSyncError(): Flow<String?> =
         authRepository.sessionFlow.flatMapLatest { session ->
             if (session == null) {
@@ -191,6 +196,16 @@ class VoidingRepositoryImpl(
         }
 
     override fun observeSyncInProgress(): Flow<Boolean> = activeSyncCount.map { it > 0 }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun observeCloudSyncPreference(): Flow<CloudSyncPreference> =
+        authRepository.sessionFlow.flatMapLatest { session ->
+            if (session == null) {
+                flowOf(CloudSyncPreference(hasUserChoice = true))
+            } else {
+                cloudSyncPreferenceStore.observe(session.userId)
+            }
+        }
 
     override suspend fun delete(localId: String): Result<Unit> {
         val event = eventDao.getById(localId) ?: return Result.failure(
@@ -254,9 +269,13 @@ class VoidingRepositoryImpl(
     }
 
     override suspend fun syncPending(): Result<SyncReport> {
+        val session = authRepository.getSession() ?: return Result.success(SyncReport(0, 0))
+        if (!isCloudSyncEnabled(session.userId)) {
+            return Result.success(SyncReport(0, 0))
+        }
+
         activeSyncCount.update { it + 1 }
         try {
-            val session = authRepository.getSession() ?: return Result.success(SyncReport(0, 0))
             return runCatching {
                 val queue = queueDao.getAll()
                 var accessToken = session.accessToken
@@ -305,6 +324,13 @@ class VoidingRepositoryImpl(
     }
 
     override suspend fun fetchAndSyncAll(): Result<Unit> {
+        val session = authRepository.getSession()
+            ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
+        if (!isCloudSyncEnabled(session.userId)) {
+            repoTrace("fetchAndSyncAll: cloud sync disabled userId=${session.userId}")
+            return Result.success(Unit)
+        }
+
         activeSyncCount.update { it + 1 }
         try {
             // 1. 기존 기기의 미동기화 기록 업로드 완료
@@ -320,8 +346,13 @@ class VoidingRepositoryImpl(
                 )
             }
 
-            val session = authRepository.getSession()
-                ?: return Result.failure(IllegalStateException("로그인이 필요합니다."))
+            if (!isCloudSyncEnabled(session.userId)) {
+                repoTrace(
+                    "fetchAndSyncAll: cloud sync disabled before download " +
+                        "userId=${session.userId}"
+                )
+                return Result.success(Unit)
+            }
             return runCatching {
                 var accessToken = session.accessToken
                 var remoteEventsResult = runCatching {
@@ -485,6 +516,12 @@ class VoidingRepositoryImpl(
     }
 
     private suspend fun syncNowOrSchedule() {
+        val session = authRepository.getSession() ?: return
+        if (!isCloudSyncEnabled(session.userId)) {
+            syncScheduler.cancel()
+            return
+        }
+
         val syncResult = syncPending()
         val shouldScheduleRetry = syncResult.isFailure ||
             (syncResult.getOrNull()?.failCount ?: 0) > 0
@@ -531,6 +568,21 @@ class VoidingRepositoryImpl(
                 queueDao.upsertAll(queueItems)
             }
             syncNowOrSchedule()
+        }
+    }
+
+    override suspend fun setCloudSyncEnabled(isEnabled: Boolean): Result<Unit> {
+        val session = authRepository.getSession() ?: return Result.failure(
+            IllegalStateException("로그인이 필요합니다.")
+        )
+        return runCatching {
+            cloudSyncPreferenceStore.setEnabled(session.userId, isEnabled)
+            if (isEnabled) {
+                requeueAllForUpload().getOrThrow()
+                fetchAndSyncAll().getOrThrow()
+            } else {
+                syncScheduler.cancel()
+            }
         }
     }
 
@@ -618,6 +670,9 @@ class VoidingRepositoryImpl(
         }
         syncNowOrSchedule()
     }
+
+    private suspend fun isCloudSyncEnabled(userId: String): Boolean =
+        cloudSyncPreferenceStore.read(userId).isEnabled
 }
 
 private fun Instant.toLocalDate(): String =

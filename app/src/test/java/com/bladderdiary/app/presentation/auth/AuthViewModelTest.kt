@@ -4,6 +4,7 @@ import com.bladderdiary.app.MainDispatcherRule
 import com.bladderdiary.app.domain.model.AuthAccount
 import com.bladderdiary.app.domain.model.AuthRepository
 import com.bladderdiary.app.domain.model.AuthResult
+import com.bladderdiary.app.domain.model.CloudSyncPreference
 import com.bladderdiary.app.domain.model.SocialProvider
 import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.UserSession
@@ -28,7 +29,12 @@ class AuthViewModelTest {
         val authRepository = FakeAuthRepository(
             initialSession = null
         )
-        val voidingRepository = FakeVoidingRepository()
+        val voidingRepository = FakeVoidingRepository(
+            initialCloudSyncPreference = CloudSyncPreference(
+                isEnabled = true,
+                hasUserChoice = true
+            )
+        )
 
         AuthViewModel(
             authRepository = authRepository,
@@ -44,6 +50,34 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, voidingRepository.fetchAndSyncAllCallCount)
+    }
+
+    @Test
+    fun `클라우드 동기화가 꺼져 있으면 로그인 세션이 있어도 원격 복원을 건너뛴다`() = runTest {
+        val authRepository = FakeAuthRepository(
+            initialSession = null
+        )
+        val voidingRepository = FakeVoidingRepository(
+            initialCloudSyncPreference = CloudSyncPreference(
+                isEnabled = false,
+                hasUserChoice = true
+            )
+        )
+
+        AuthViewModel(
+            authRepository = authRepository,
+            voidingRepository = voidingRepository
+        )
+        authRepository.emitSession(
+            UserSession(
+                userId = "user-1",
+                accessToken = "access",
+                refreshToken = "refresh"
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, voidingRepository.fetchAndSyncAllCallCount)
     }
 
     @Test
@@ -211,8 +245,14 @@ private class FakeAuthRepository(
     }
 }
 
-private class FakeVoidingRepository : VoidingRepository {
+private class FakeVoidingRepository(
+    initialCloudSyncPreference: CloudSyncPreference = CloudSyncPreference(
+        isEnabled = false,
+        hasUserChoice = true
+    )
+) : VoidingRepository {
     var fetchAndSyncAllCallCount: Int = 0
+    private val cloudSyncPreference = MutableStateFlow(initialCloudSyncPreference)
 
     override suspend fun addNow(
         urgency: Int,
@@ -263,6 +303,8 @@ private class FakeVoidingRepository : VoidingRepository {
 
     override fun observeSyncInProgress(): Flow<Boolean> = MutableStateFlow(false)
 
+    override fun observeCloudSyncPreference(): Flow<CloudSyncPreference> = cloudSyncPreference
+
     override suspend fun delete(localId: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun fetchAndSyncAll(): Result<Unit> {
@@ -273,4 +315,12 @@ private class FakeVoidingRepository : VoidingRepository {
     override suspend fun syncPending(): Result<SyncReport> = Result.success(SyncReport(0, 0))
 
     override suspend fun requeueAllForUpload(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun setCloudSyncEnabled(isEnabled: Boolean): Result<Unit> {
+        cloudSyncPreference.value = CloudSyncPreference(
+            isEnabled = isEnabled,
+            hasUserChoice = true
+        )
+        return Result.success(Unit)
+    }
 }

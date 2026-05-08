@@ -12,6 +12,7 @@ import com.bladderdiary.app.domain.model.toAuthAccount
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -43,8 +44,12 @@ class AuthViewModel(
     private var hydratedUserId: String? = null
 
     init {
-        authRepository.sessionFlow
-            .onEach { session ->
+        authRepository.sessionFlow.combine(
+            voidingRepository.observeCloudSyncPreference()
+        ) { session, cloudSyncPreference ->
+            session to cloudSyncPreference
+        }
+            .onEach { (session, cloudSyncPreference) ->
                 _uiState.value = _uiState.value.copy(
                     isLoggedIn = session != null,
                     currentAccount = session?.toAuthAccount(),
@@ -57,6 +62,8 @@ class AuthViewModel(
                 if (session == null) {
                     debugTrace("sessionFlow: no active session")
                     hydratedUserId = null
+                } else if (!cloudSyncPreference.isEnabled) {
+                    debugTrace("sessionFlow: cloud sync disabled userId=${session.userId}")
                 } else if (hydratedUserId != session.userId) {
                     debugTrace("sessionFlow: hydrate start userId=${session.userId}")
                     hydratedUserId = session.userId

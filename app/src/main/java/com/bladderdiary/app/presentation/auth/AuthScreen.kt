@@ -169,7 +169,7 @@ fun AuthScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Google 또는 카카오 계정으로 연결하면 새 기기에서도 기록을 이어서 볼 수 있습니다.",
+                        text = "Google 또는 카카오 계정으로 시작한 뒤 클라우드 동기화 사용 여부를 선택할 수 있습니다.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

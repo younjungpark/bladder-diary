@@ -17,6 +17,7 @@ import com.bladderdiary.app.presentation.e2ee.E2eePassphraseScreen
 import com.bladderdiary.app.presentation.e2ee.E2eePassphraseViewModel
 import com.bladderdiary.app.presentation.main.CalendarScreen
 import com.bladderdiary.app.presentation.main.CalendarViewModel
+import com.bladderdiary.app.presentation.main.CloudSyncRequiredChoiceDialog
 import com.bladderdiary.app.presentation.main.MainScreen
 import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.pin.PinScreen
@@ -64,6 +65,7 @@ fun AppNavGraph() {
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     val pinState by pinViewModel.uiState.collectAsStateWithLifecycle()
     val e2eeState by e2eeViewModel.uiState.collectAsStateWithLifecycle()
+    val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val isCloudDataNoticeAcknowledged by AppGraph.cloudDataNoticeStore.isAcknowledgedFlow
         .collectAsStateWithLifecycle(initialValue = null)
 
@@ -198,11 +200,22 @@ fun AppNavGraph() {
         isCloudDataNoticeAcknowledged == false &&
         !(pinState.isPinSet && !pinState.isUnlocked) &&
         !(!e2eeState.isCheckingRemoteState && e2eeState.isEnabled && !e2eeState.isUnlocked)
+    val canShowRequiredCloudSyncChoice = authState.isLoggedIn &&
+        isCloudDataNoticeAcknowledged == true &&
+        !mainState.hasCloudSyncChoice &&
+        !(pinState.isPinSet && !pinState.isUnlocked) &&
+        !(!e2eeState.isCheckingRemoteState && e2eeState.isEnabled && !e2eeState.isUnlocked)
 
     if (canShowRequiredCloudDataNotice) {
         SensitiveCloudNoticeDialog(
             onConfirm = acknowledgeCloudDataNotice,
             confirmLabel = "확인했습니다"
+        )
+    } else if (canShowRequiredCloudSyncChoice) {
+        CloudSyncRequiredChoiceDialog(
+            isChanging = mainState.isCloudSyncChanging,
+            onUseLocalOnly = { mainViewModel.setCloudSyncEnabled(false) },
+            onEnableCloudSync = { mainViewModel.setCloudSyncEnabled(true) }
         )
     } else if (showCloudDataNoticeDetails) {
         SensitiveCloudNoticeDialog(

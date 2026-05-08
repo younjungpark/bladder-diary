@@ -37,7 +37,7 @@ fun SensitiveCloudNoticeAcknowledgementBlock(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "배뇨 기록은 건강 관련 민감정보일 수 있으며, 로그인하면 기기와 Supabase 클라우드에 저장·동기화됩니다.",
+            text = "배뇨 기록은 건강 관련 민감정보일 수 있으며, 동기화를 켜면 Supabase 클라우드에 저장·동기화됩니다.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -107,13 +107,13 @@ private fun SensitiveCloudNoticeBody() {
             "배뇨 기록 시각, 날짜, 배뇨량, 절박감, 요실금 여부, 야간뇨 여부, 메모는 건강 관련 민감정보일 수 있습니다."
         )
         NoticeParagraph(
-            "로그인하면 기록은 이 기기에 저장되고, 백업과 기기 간 동기화를 위해 Supabase 클라우드에도 저장됩니다."
+            "기록은 먼저 이 기기에 저장됩니다. 클라우드 동기화를 켜면 백업과 기기 간 동기화를 위해 Supabase에도 저장됩니다."
         )
         NoticeParagraph(
             "메모 E2EE는 선택 기능입니다. 사용하지 않으면 메모 내용이 동기화 목적으로 서버에 저장될 수 있습니다."
         )
         NoticeParagraph(
-            "E2EE를 켜도 배뇨량, 절박감, 요실금 여부 같은 구조화된 기록은 통계와 동기화를 위해 서버에 저장될 수 있습니다."
+            "동기화를 켠 경우 E2EE를 켜도 배뇨량, 절박감, 요실금 여부 같은 구조화된 기록은 통계와 동기화를 위해 서버에 저장될 수 있습니다."
         )
         NoticeParagraph(
             "자세한 내용은 개인정보 처리방침의 수집 정보, 보관 방식, 보안 조치 항목을 확인해주세요."

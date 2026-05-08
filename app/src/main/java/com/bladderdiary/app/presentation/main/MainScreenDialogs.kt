@@ -657,3 +657,93 @@ internal fun AccountDeletionDialog(
         }
     )
 }
+
+@Composable
+internal fun CloudSyncToggleDialog(
+    isVisible: Boolean,
+    isEnabled: Boolean,
+    isChanging: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (!isVisible) return
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isChanging) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text(if (isEnabled) "클라우드 동기화 끄기" else "클라우드 동기화 켜기")
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isEnabled) {
+                    Text("앞으로 기록 변경사항을 Supabase 클라우드에 업로드하거나 내려받지 않습니다.")
+                    Text("이 기기의 기록은 유지되지만, 이미 클라우드에 저장된 데이터는 자동으로 삭제되지 않습니다.")
+                } else {
+                    Text("이 기기의 배뇨 기록과 이후 변경사항이 Supabase 클라우드에 저장·동기화됩니다.")
+                    Text("다른 기기에 저장된 기존 클라우드 기록이 이 기기로 병합될 수 있습니다.")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isChanging
+            ) {
+                Text(
+                    when {
+                        isChanging -> "처리 중"
+                        isEnabled -> "끄기"
+                        else -> "켜기"
+                    }
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isChanging
+            ) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+@Composable
+internal fun CloudSyncRequiredChoiceDialog(
+    isChanging: Boolean,
+    onUseLocalOnly: () -> Unit,
+    onEnableCloudSync: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text("클라우드 동기화 선택") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("배뇨 기록은 기본적으로 이 기기에 저장됩니다.")
+                Text("클라우드 동기화를 켜면 기록이 Supabase에 저장되고 다른 기기와 병합됩니다.")
+                Text("로컬만 사용하면 기록은 이 기기에만 남으며, 설정에서 나중에 동기화를 켤 수 있습니다.")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onUseLocalOnly,
+                enabled = !isChanging
+            ) {
+                Text(if (isChanging) "처리 중" else "로컬만 사용")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onEnableCloudSync,
+                enabled = !isChanging
+            ) {
+                Text("동기화 켜기")
+            }
+        }
+    )
+}

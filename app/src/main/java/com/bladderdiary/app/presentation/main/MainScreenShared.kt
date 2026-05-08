@@ -88,12 +88,15 @@ internal fun MainTopBar(
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
+    isCloudSyncEnabled: Boolean,
+    isCloudSyncChanging: Boolean,
     menuExpanded: Boolean,
     onShowSyncStatus: () -> Unit,
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenCloudDataNotice: () -> Unit,
+    onOpenCloudSyncSettings: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
@@ -165,11 +168,14 @@ internal fun MainTopBar(
                 isPinSet = isPinSet,
                 isE2eeEnabled = isE2eeEnabled,
                 isE2eeChecking = isE2eeChecking,
+                isCloudSyncEnabled = isCloudSyncEnabled,
+                isCloudSyncChanging = isCloudSyncChanging,
                 menuExpanded = menuExpanded,
                 onOpenMenu = onOpenMenu,
                 onDismissMenu = onDismissMenu,
                 onTogglePin = onTogglePin,
                 onOpenCloudDataNotice = onOpenCloudDataNotice,
+                onOpenCloudSyncSettings = onOpenCloudSyncSettings,
                 onOpenE2eeSettings = onOpenE2eeSettings,
                 onOpenPdfExport = onOpenPdfExport,
                 isExportingPdf = isExportingPdf,
@@ -188,11 +194,14 @@ private fun MainOverflowMenu(
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
     isE2eeChecking: Boolean,
+    isCloudSyncEnabled: Boolean,
+    isCloudSyncChanging: Boolean,
     menuExpanded: Boolean,
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenCloudDataNotice: () -> Unit,
+    onOpenCloudSyncSettings: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
     isExportingPdf: Boolean,
@@ -241,6 +250,29 @@ private fun MainOverflowMenu(
                     )
                 },
                 onClick = onOpenCloudDataNotice
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        when {
+                            isCloudSyncChanging -> "동기화 설정 변경 중"
+                            isCloudSyncEnabled -> "클라우드 동기화 끄기"
+                            else -> "클라우드 동기화 켜기"
+                        }
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isCloudSyncEnabled) {
+                            Icons.Default.CloudDone
+                        } else {
+                            Icons.Default.CloudOff
+                        },
+                        contentDescription = null
+                    )
+                },
+                onClick = onOpenCloudSyncSettings,
+                enabled = !isCloudSyncChanging
             )
             DropdownMenuItem(
                 text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
@@ -490,6 +522,13 @@ internal data class HomeSyncStatus(
 internal data class UrgencyTone(val container: Color, val content: Color, val border: Color)
 
 internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus = when {
+    !isCloudSyncEnabled -> HomeSyncStatus(
+        icon = Icons.Default.CloudOff,
+        label = "로컬 저장",
+        message = "클라우드 동기화가 꺼져 있습니다. 기록은 이 기기에만 저장됩니다.",
+        tint = palette.syncPendingTint
+    )
+
     isSyncing -> HomeSyncStatus(
         icon = Icons.Default.CloudUpload,
         label = "동기화 중",
