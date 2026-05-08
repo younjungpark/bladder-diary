@@ -107,17 +107,17 @@ internal fun MainContent(
                 )
             }
 
-            if (state.pendingSyncCount > 0) {
+            if (state.pendingSyncError != null && state.pendingSyncCount > 0) {
                 item {
                     InlineNotice(
                         palette = palette,
-                        text = state.pendingSyncError?.let { rawError ->
+                        text = state.pendingSyncError.let { rawError ->
                             if (rawError.isLikelyOfflineSyncError()) {
                                 "오프라인 상태입니다. 연결되면 자동으로 동기화됩니다."
                             } else {
                                 "동기화 오류: ${rawError.toUiErrorText()}"
                             }
-                        } ?: "기록은 안전하게 로컬에 보관되며 연결되면 자동으로 동기화됩니다."
+                        }
                     )
                 }
             }

@@ -18,8 +18,28 @@ interface SyncQueueDao {
     @Update
     suspend fun update(item: SyncQueueEntity)
 
-    @Query("SELECT * FROM sync_queue ORDER BY retry_count ASC")
-    suspend fun getAll(): List<SyncQueueEntity>
+    @Query(
+        """
+        SELECT sq.*
+        FROM sync_queue sq
+        INNER JOIN voiding_events ve ON ve.local_id = sq.event_local_id
+        WHERE ve.user_id = :userId
+        ORDER BY sq.retry_count ASC
+        """
+    )
+    suspend fun getAllForUser(userId: String): List<SyncQueueEntity>
+
+    @Query(
+        """
+        UPDATE sync_queue
+        SET last_error = NULL
+        WHERE event_local_id IN (
+            SELECT local_id FROM voiding_events
+            WHERE user_id = :userId
+        )
+        """
+    )
+    suspend fun clearLastErrorsForUser(userId: String)
 
     @Query(
         """
@@ -37,4 +57,7 @@ interface SyncQueueDao {
 
     @Query("DELETE FROM sync_queue WHERE queue_id = :queueId")
     suspend fun delete(queueId: String)
+
+    @Query("DELETE FROM sync_queue WHERE event_local_id IN (:eventLocalIds)")
+    suspend fun deleteByEventLocalIds(eventLocalIds: List<String>)
 }

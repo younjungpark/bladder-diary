@@ -64,6 +64,7 @@ class AuthViewModel(
                     hydratedUserId = null
                 } else if (!cloudSyncPreference.isEnabled) {
                     debugTrace("sessionFlow: cloud sync disabled userId=${session.userId}")
+                    hydratedUserId = null
                 } else if (hydratedUserId != session.userId) {
                     debugTrace("sessionFlow: hydrate start userId=${session.userId}")
                     hydratedUserId = session.userId

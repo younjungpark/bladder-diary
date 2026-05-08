@@ -10,6 +10,7 @@ import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.UserSession
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.domain.model.VoidingRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -20,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -78,6 +80,36 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, voidingRepository.fetchAndSyncAllCallCount)
+    }
+
+    @Test
+    fun `클라우드 동기화를 다시 켜면 원격 복원을 다시 시도한다`() = runTest {
+        val authRepository = FakeAuthRepository(initialSession = null)
+        val voidingRepository = FakeVoidingRepository(
+            initialCloudSyncPreference = CloudSyncPreference(
+                isEnabled = true,
+                hasUserChoice = true
+            )
+        )
+
+        AuthViewModel(
+            authRepository = authRepository,
+            voidingRepository = voidingRepository
+        )
+        authRepository.emitSession(
+            UserSession(
+                userId = "user-1",
+                accessToken = "access",
+                refreshToken = "refresh"
+            )
+        )
+        advanceUntilIdle()
+        voidingRepository.emitCloudSyncPreference(isEnabled = false)
+        advanceUntilIdle()
+        voidingRepository.emitCloudSyncPreference(isEnabled = true)
+        advanceUntilIdle()
+
+        assertEquals(2, voidingRepository.fetchAndSyncAllCallCount)
     }
 
     @Test
@@ -322,5 +354,12 @@ private class FakeVoidingRepository(
             hasUserChoice = true
         )
         return Result.success(Unit)
+    }
+
+    fun emitCloudSyncPreference(isEnabled: Boolean) {
+        cloudSyncPreference.value = CloudSyncPreference(
+            isEnabled = isEnabled,
+            hasUserChoice = true
+        )
     }
 }

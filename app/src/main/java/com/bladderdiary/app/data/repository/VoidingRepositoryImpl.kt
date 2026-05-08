@@ -277,7 +277,7 @@ class VoidingRepositoryImpl(
         activeSyncCount.update { it + 1 }
         try {
             return runCatching {
-                val queue = queueDao.getAll()
+                val queue = queueDao.getAllForUser(session.userId)
                 var accessToken = session.accessToken
                 var successCount = 0
                 var failCount = 0
@@ -378,7 +378,20 @@ class VoidingRepositoryImpl(
                 )
 
                 // 2. Dto를 Entity로 변환하며 다운로드 반영
-                val entities = dtos.map { dto ->
+                val entities = dtos.mapNotNull { dto ->
+                    val existing = eventDao.getById(dto.id)
+                    if (
+                        existing?.userId == session.userId &&
+                        existing.syncState.hasLocalSyncWork()
+                    ) {
+                        repoTrace(
+                            "fetchAndSyncAll: skip remote overwrite " +
+                                "localId=${existing.localId} " +
+                                "syncState=${existing.syncState}"
+                        )
+                        return@mapNotNull null
+                    }
+
                     val isDeleted = dto.deletedAt != null
                     val epochMs = try {
                         Instant.parse(dto.voidedAt).toEpochMilliseconds()
@@ -522,51 +535,64 @@ class VoidingRepositoryImpl(
             return
         }
 
-        val syncResult = syncPending()
-        val shouldScheduleRetry = syncResult.isFailure ||
-            (syncResult.getOrNull()?.failCount ?: 0) > 0
-        if (shouldScheduleRetry) {
-            syncScheduler.request()
-        }
+        syncScheduler.request()
     }
 
     override suspend fun requeueAllForUpload(): Result<Unit> {
         val session = authRepository.getSession() ?: return Result.failure(
             IllegalStateException("로그인이 필요합니다.")
         )
-        return runCatching {
-            val nowEpochMs = Clock.System.now().toEpochMilliseconds()
-            val activeEvents = eventDao.getActiveByUserId(session.userId)
-            val updatedEvents = activeEvents.map { event ->
-                val memoPayload = e2eeRepository.prepareMemoSyncPayload(
-                    userId = event.userId,
-                    eventId = event.localId,
-                    localDate = event.localDate,
-                    memo = event.memo
-                ).getOrThrow()
-                event.copy(
-                    syncState = SyncState.PENDING_CREATE,
-                    updatedAtEpochMs = nowEpochMs,
-                    volumeMl = event.volumeMl.normalizedVolumeMl(),
-                    urgency = event.urgency.normalizedUrgency(),
-                    hasIncontinence = event.hasIncontinence,
-                    memoCiphertext = memoPayload.memoCiphertext,
-                    memoEncryption = memoPayload.memoEncryption
-                )
+        return requeueActiveEventsForUpload(
+            userId = session.userId,
+            runImmediateSync = true
+        )
+    }
+
+    private suspend fun requeueActiveEventsForUpload(
+        userId: String,
+        runImmediateSync: Boolean
+    ): Result<Unit> = runCatching {
+        val nowEpochMs = Clock.System.now().toEpochMilliseconds()
+        val activeEvents = eventDao.getActiveByUserId(userId)
+        val updatedEvents = activeEvents.map { event ->
+            val memoPayload = e2eeRepository.prepareMemoSyncPayload(
+                userId = event.userId,
+                eventId = event.localId,
+                localDate = event.localDate,
+                memo = event.memo
+            ).getOrThrow()
+            event.copy(
+                syncState = SyncState.PENDING_CREATE,
+                updatedAtEpochMs = nowEpochMs,
+                volumeMl = event.volumeMl.normalizedVolumeMl(),
+                urgency = event.urgency.normalizedUrgency(),
+                hasIncontinence = event.hasIncontinence,
+                memoCiphertext = memoPayload.memoCiphertext,
+                memoEncryption = memoPayload.memoEncryption
+            )
+        }
+        val queueItems = updatedEvents.map { event ->
+            SyncQueueEntity(
+                queueId = UUID.randomUUID().toString(),
+                eventLocalId = event.localId,
+                action = SyncAction.CREATE,
+                retryCount = 0,
+                lastError = null
+            )
+        }
+        val eventLocalIds = updatedEvents.map { event -> event.localId }
+        db.withTransaction {
+            if (eventLocalIds.isNotEmpty()) {
+                queueDao.deleteByEventLocalIds(eventLocalIds)
             }
-            val queueItems = updatedEvents.map { event ->
-                SyncQueueEntity(
-                    queueId = UUID.randomUUID().toString(),
-                    eventLocalId = event.localId,
-                    action = SyncAction.CREATE,
-                    retryCount = 0,
-                    lastError = null
-                )
-            }
-            db.withTransaction {
+            if (updatedEvents.isNotEmpty()) {
                 eventDao.upsertAll(updatedEvents)
+            }
+            if (queueItems.isNotEmpty()) {
                 queueDao.upsertAll(queueItems)
             }
+        }
+        if (runImmediateSync) {
             syncNowOrSchedule()
         }
     }
@@ -578,8 +604,8 @@ class VoidingRepositoryImpl(
         return runCatching {
             cloudSyncPreferenceStore.setEnabled(session.userId, isEnabled)
             if (isEnabled) {
-                requeueAllForUpload().getOrThrow()
-                fetchAndSyncAll().getOrThrow()
+                queueDao.clearLastErrorsForUser(session.userId)
+                syncScheduler.request()
             } else {
                 syncScheduler.cancel()
             }
@@ -691,6 +717,10 @@ private fun Throwable?.isJwtExpired(): Boolean {
 private fun Int?.normalizedVolumeMl(): Int? = this?.takeIf { it > 0 }
 
 private fun Int?.normalizedUrgency(): Int? = this?.takeIf { it in 1..5 }
+
+private fun SyncState.hasLocalSyncWork(): Boolean = this == SyncState.PENDING_CREATE ||
+    this == SyncState.PENDING_DELETE ||
+    this == SyncState.FAILED
 
 private fun repoTrace(message: String, throwable: Throwable? = null) {
     println("[VoidingRepository] $message")

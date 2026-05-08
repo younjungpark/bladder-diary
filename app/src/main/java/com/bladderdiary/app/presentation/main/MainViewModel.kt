@@ -289,11 +289,11 @@ class MainViewModel(
 
     fun confirmDelete() {
         val targetId = _uiState.value.confirmDeleteEventId ?: return
+        _uiState.update { it.copy(confirmDeleteEventId = null) }
         viewModelScope.launch {
             val result = deleteVoidingEventUseCase(targetId)
             _uiState.update {
                 it.copy(
-                    confirmDeleteEventId = null,
                     message = if (result.isSuccess) {
                         "기록을 삭제했습니다."
                     } else {
@@ -327,6 +327,11 @@ class MainViewModel(
                         result.exceptionOrNull()?.message ?: "동기화 설정을 변경하지 못했습니다."
                     }
                 )
+            }
+            if (result.isSuccess && isEnabled) {
+                viewModelScope.launch {
+                    voidingRepository.fetchAndSyncAll()
+                }
             }
         }
     }

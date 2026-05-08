@@ -212,6 +212,17 @@ class MainViewModelTest {
     }
 
     @Test
+    fun `기록 삭제 확정 시 확인 창을 즉시 닫는다`() = runTest {
+        val repository = FakeVoidingRepository()
+        val viewModel = createViewModel(repository, FakeVoidingPdfExporter())
+
+        viewModel.askDelete("event-1")
+        viewModel.confirmDelete()
+
+        assertNull(viewModel.uiState.value.confirmDeleteEventId)
+    }
+
+    @Test
     fun `기록 삭제 실패 시 확인 상태를 해제하고 오류 메시지를 유지한다`() = runTest {
         val repository = FakeVoidingRepository()
         repository.deleteResult = Result.failure(IllegalStateException("삭제 실패"))
@@ -248,6 +259,7 @@ class MainViewModelTest {
 
         assertEquals(true, repository.cloudSyncPreference.value.isEnabled)
         assertEquals(true, repository.cloudSyncPreference.value.hasUserChoice)
+        assertEquals(1, repository.fetchAndSyncAllCallCount)
         assertEquals("클라우드 동기화를 켰습니다.", viewModel.uiState.value.message)
     }
 
@@ -320,6 +332,7 @@ private class FakeVoidingRepository : VoidingRepository {
     var deleteResult: Result<Unit> = Result.success(Unit)
     var lastDeletedLocalId: String? = null
     val deletedLocalIds = mutableListOf<String>()
+    var fetchAndSyncAllCallCount: Int = 0
     val cloudSyncPreference = MutableStateFlow(
         CloudSyncPreference(
             isEnabled = false,
@@ -414,7 +427,10 @@ private class FakeVoidingRepository : VoidingRepository {
         return deleteResult
     }
 
-    override suspend fun fetchAndSyncAll(): Result<Unit> = Result.success(Unit)
+    override suspend fun fetchAndSyncAll(): Result<Unit> {
+        fetchAndSyncAllCallCount += 1
+        return Result.success(Unit)
+    }
 
     override suspend fun syncPending(): Result<SyncReport> = Result.success(SyncReport(0, 0))
 
