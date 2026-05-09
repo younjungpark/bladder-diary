@@ -24,6 +24,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 
 class SupabaseApi {
@@ -32,12 +33,7 @@ class SupabaseApi {
 
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
-            json(
-                Json {
-                    ignoreUnknownKeys = true
-                    explicitNulls = false
-                }
-            )
+            json(SupabaseJson)
         }
     }
 
@@ -212,4 +208,11 @@ class SupabaseApi {
             throw IllegalStateException("$failureMessage: ${response.bodyAsText()}")
         }
     }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+internal val SupabaseJson = Json {
+    ignoreUnknownKeys = true
+    explicitNulls = true
+    encodeDefaults = true
 }

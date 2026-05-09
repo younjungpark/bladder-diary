@@ -1,13 +1,16 @@
 package com.bladderdiary.app.data.repository
 
 import com.bladderdiary.app.data.local.VoidingEventEntity
+import com.bladderdiary.app.data.remote.SupabaseJson
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
 import com.bladderdiary.app.data.security.RecordEncryptionScheme
 import com.bladderdiary.app.domain.model.SyncState
 import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoidingRemoteDtoMappingTest {
@@ -29,6 +32,25 @@ class VoidingRemoteDtoMappingTest {
         assertEquals(MemoEncryptionScheme.NONE, dto.memoEncryption)
         assertEquals("record-ciphertext", dto.recordCiphertext)
         assertEquals(RecordEncryptionScheme.E2EE_RECORD_V1, dto.recordEncryption)
+    }
+
+    @Test
+    fun `기록 본문 암호화 업로드 JSON은 기존 민감 컬럼을 명시적으로 비운다`() {
+        val entity = sampleEntity().copy(
+            recordCiphertext = "record-ciphertext",
+            recordEncryption = RecordEncryptionScheme.E2EE_RECORD_V1
+        )
+
+        val json = SupabaseJson.encodeToString(listOf(entity.toRemoteDtoForUpload()))
+
+        assertTrue(json.contains("\"volume_ml\":null"))
+        assertTrue(json.contains("\"urgency\":null"))
+        assertTrue(json.contains("\"has_incontinence\":false"))
+        assertTrue(json.contains("\"is_nocturia\":false"))
+        assertTrue(json.contains("\"memo_ciphertext\":null"))
+        assertTrue(json.contains("\"memo_encryption\":\"NONE\""))
+        assertTrue(json.contains("\"record_ciphertext\":\"record-ciphertext\""))
+        assertTrue(json.contains("\"record_encryption\":\"E2EE_RECORD_V1\""))
     }
 
     @Test

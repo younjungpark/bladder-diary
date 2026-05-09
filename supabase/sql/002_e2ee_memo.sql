@@ -21,6 +21,7 @@ create table if not exists public.user_e2ee_keys (
 create or replace function public.touch_user_e2ee_keys_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
