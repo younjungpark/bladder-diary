@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -15,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -77,32 +81,33 @@ fun SensitiveCloudNoticeDialog(
     onDismiss: (() -> Unit)? = null,
     confirmLabel: String = "확인했습니다"
 ) {
-    val dismissButton: (@Composable () -> Unit)? = if (onDismiss == null) {
-        null
-    } else {
-        {
-            TextButton(onClick = onDismiss) {
-                Text("닫기")
-            }
-        }
-    }
+    val scrollState = rememberScrollState()
+    val bodyMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.48f
 
     AlertDialog(
         onDismissRequest = { onDismiss?.invoke() },
         title = { Text("민감정보 및 클라우드 저장 안내") },
-        text = { SensitiveCloudNoticeBody() },
+        text = {
+            SensitiveCloudNoticeBody(
+                modifier = Modifier
+                    .heightIn(max = bodyMaxHeight)
+                    .verticalScroll(scrollState)
+            )
+        },
         confirmButton = {
             Button(onClick = onConfirm) {
                 Text(confirmLabel)
             }
-        },
-        dismissButton = dismissButton
+        }
     )
 }
 
 @Composable
-private fun SensitiveCloudNoticeBody() {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun SensitiveCloudNoticeBody(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         NoticeParagraph(
             "배뇨 기록 시각, 날짜, 배뇨량, 절박감, 요실금 여부, 야간뇨 여부, 메모는 건강 관련 민감정보일 수 있습니다."
         )
