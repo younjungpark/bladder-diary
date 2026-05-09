@@ -275,7 +275,7 @@ private fun MainOverflowMenu(
                 enabled = !isCloudSyncChanging
             )
             DropdownMenuItem(
-                text = { Text(if (isE2eeEnabled) "메모 암호화 관리" else "메모 암호화 설정") },
+                text = { Text(if (isE2eeEnabled) "기록 암호화 관리" else "기록 암호화 설정") },
                 leadingIcon = {
                     Icon(
                         imageVector = if (isE2eeEnabled) {

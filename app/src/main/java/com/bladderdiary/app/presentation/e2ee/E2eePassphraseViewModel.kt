@@ -133,33 +133,42 @@ class E2eePassphraseViewModel(
         val current = _uiState.value
         if (current.passphrase.length < MIN_PASSPHRASE_LENGTH) {
             _uiState.update {
-                it.copy(errorMessage = "메모 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
+                it.copy(errorMessage = "클라우드 기록 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
             }
             return
         }
         if (current.passphrase != current.confirmPassphrase) {
-            _uiState.update { it.copy(errorMessage = "메모 암호화 비밀문구가 일치하지 않습니다.") }
+            _uiState.update { it.copy(errorMessage = "클라우드 기록 암호화 비밀문구가 일치하지 않습니다.") }
             return
         }
 
         val setupResult = e2eeRepository.setupPassphrase(current.passphrase)
         if (setupResult.isFailure) {
             _uiState.update {
-                it.copy(errorMessage = setupResult.exceptionOrNull()?.message ?: "E2EE 설정에 실패했습니다.")
+                it.copy(
+                    errorMessage = setupResult.exceptionOrNull()?.message
+                        ?: "클라우드 기록 암호화 설정에 실패했습니다."
+                )
             }
             return
         }
 
         val requeueResult = voidingRepository.requeueAllForUpload()
+        val syncResult = if (requeueResult.isSuccess) {
+            voidingRepository.fetchAndSyncAll()
+        } else {
+            Result.success(Unit)
+        }
         _uiState.update {
             it.copy(
                 passphrase = "",
                 confirmPassphrase = "",
-                errorMessage = requeueResult.exceptionOrNull()?.message,
-                infoMessage = if (requeueResult.isSuccess) {
-                    "메모 암호화가 활성화되었고 기존 메모 재업로드를 시작했습니다."
+                errorMessage = requeueResult.exceptionOrNull()?.message
+                    ?: syncResult.exceptionOrNull()?.message,
+                infoMessage = if (requeueResult.isSuccess && syncResult.isSuccess) {
+                    "클라우드 기록 암호화가 활성화되었고 기존 기록 재동기화를 시작했습니다."
                 } else {
-                    "메모 암호화는 활성화되었지만 기존 메모 재업로드 준비에 실패했습니다."
+                    "클라우드 기록 암호화는 활성화되었지만 기존 기록 재동기화 준비에 실패했습니다."
                 }
             )
         }
@@ -169,12 +178,12 @@ class E2eePassphraseViewModel(
         val current = _uiState.value
         if (current.passphrase.length < MIN_PASSPHRASE_LENGTH) {
             _uiState.update {
-                it.copy(errorMessage = "메모 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
+                it.copy(errorMessage = "클라우드 기록 암호화 비밀문구는 최소 ${MIN_PASSPHRASE_LENGTH}자 이상이어야 합니다.")
             }
             return
         }
         if (current.passphrase != current.confirmPassphrase) {
-            _uiState.update { it.copy(errorMessage = "메모 암호화 비밀문구가 일치하지 않습니다.") }
+            _uiState.update { it.copy(errorMessage = "클라우드 기록 암호화 비밀문구가 일치하지 않습니다.") }
             return
         }
 
@@ -183,7 +192,7 @@ class E2eePassphraseViewModel(
             _uiState.update {
                 it.copy(
                     errorMessage = changeResult.exceptionOrNull()?.message
-                        ?: "메모 암호화 비밀문구 변경에 실패했습니다."
+                        ?: "클라우드 기록 암호화 비밀문구 변경에 실패했습니다."
                 )
             }
             return
@@ -197,7 +206,7 @@ class E2eePassphraseViewModel(
                 infoMessage = null
             )
         }
-        _events.tryEmit(E2eePassphraseEvent.PassphraseChanged("메모 암호화 비밀문구가 변경되었습니다."))
+        _events.tryEmit(E2eePassphraseEvent.PassphraseChanged("클라우드 기록 암호화 비밀문구가 변경되었습니다."))
     }
 
     private suspend fun submitUnlock() {
@@ -206,7 +215,7 @@ class E2eePassphraseViewModel(
             _uiState.update {
                 it.copy(
                     errorMessage = unlockResult.exceptionOrNull()?.message
-                        ?: "메모 암호화 비밀문구 확인에 실패했습니다."
+                        ?: "클라우드 기록 암호화 비밀문구 확인에 실패했습니다."
                 )
             }
             return
@@ -221,7 +230,7 @@ class E2eePassphraseViewModel(
                 infoMessage = if (syncResult.isSuccess) {
                     null
                 } else {
-                    "비밀문구 확인은 되었지만 메모 동기화에 실패했습니다."
+                    "비밀문구 확인은 되었지만 기록 동기화에 실패했습니다."
                 }
             )
         }

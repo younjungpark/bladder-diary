@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [VoidingEventEntity::class, SyncQueueEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -71,6 +71,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE voiding_events ADD COLUMN record_ciphertext TEXT")
+                db.execSQL(
+                    "ALTER TABLE voiding_events " +
+                        "ADD COLUMN record_encryption TEXT NOT NULL DEFAULT 'NONE'"
+                )
+            }
+        }
+
         fun create(context: Context): AppDatabase = Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
@@ -82,7 +92,8 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_3_4,
                 MIGRATION_4_5,
                 MIGRATION_5_6,
-                MIGRATION_6_7
+                MIGRATION_6_7,
+                MIGRATION_7_8
             )
             .build()
     }

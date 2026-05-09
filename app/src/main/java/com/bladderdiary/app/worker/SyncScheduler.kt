@@ -23,7 +23,7 @@ class SyncScheduler(context: Context) {
             .build()
         workManager.enqueueUniqueWork(
             SyncWorker.WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }

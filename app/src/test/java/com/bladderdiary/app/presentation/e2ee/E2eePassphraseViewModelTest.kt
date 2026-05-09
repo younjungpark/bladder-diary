@@ -2,11 +2,13 @@ package com.bladderdiary.app.presentation.e2ee
 
 import com.bladderdiary.app.MainDispatcherRule
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
+import com.bladderdiary.app.data.security.RecordEncryptionScheme
 import com.bladderdiary.app.domain.model.CloudSyncPreference
+import com.bladderdiary.app.domain.model.DecryptedVoidingEventPayload
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.E2eeState
-import com.bladderdiary.app.domain.model.MemoSyncPayload
 import com.bladderdiary.app.domain.model.SyncReport
+import com.bladderdiary.app.domain.model.VoidingEventSyncPayload
 import com.bladderdiary.app.domain.model.VoidingRepository
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -39,11 +41,11 @@ class E2eePassphraseViewModelTest {
 
         advanceUntilIdle()
 
-        assertEquals("메모 암호화 비밀문구가 일치하지 않습니다.", viewModel.uiState.value.errorMessage)
+        assertEquals("클라우드 기록 암호화 비밀문구가 일치하지 않습니다.", viewModel.uiState.value.errorMessage)
     }
 
     @Test
-    fun `잠금 해제 성공 시 메모 동기화를 요청한다`() = runTest {
+    fun `잠금 해제 성공 시 기록 동기화를 요청한다`() = runTest {
         val repo = FakeE2eeRepository(initial = E2eeState(isEnabled = true, isUnlocked = false))
         val voidingRepository = FakeVoidingRepository()
         val viewModel = E2eePassphraseViewModel(
@@ -111,7 +113,7 @@ class E2eePassphraseViewModelTest {
 
         val event = eventDeferred.await()
         assertEquals(
-            E2eePassphraseEvent.PassphraseChanged("메모 암호화 비밀문구가 변경되었습니다."),
+            E2eePassphraseEvent.PassphraseChanged("클라우드 기록 암호화 비밀문구가 변경되었습니다."),
             event
         )
     }
@@ -143,20 +145,51 @@ private class FakeE2eeRepository(initial: E2eeState) : E2eeRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun prepareMemoSyncPayload(
-        userId: String,
-        eventId: String,
-        localDate: String,
-        memo: String?
-    ): Result<MemoSyncPayload> = Result.success(MemoSyncPayload(memo, MemoEncryptionScheme.NONE))
+    override fun isReadyForCloudRecordSync(): Boolean =
+        state.value.isEnabled && state.value.isUnlocked
 
-    override suspend fun decryptMemo(
+    override suspend fun prepareVoidingEventSyncPayload(
         userId: String,
         eventId: String,
         localDate: String,
+        voidedAtEpochMs: Long,
+        memo: String?,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<VoidingEventSyncPayload> = Result.success(
+        VoidingEventSyncPayload(
+            recordCiphertext = null,
+            recordEncryption = RecordEncryptionScheme.NONE,
+            memoCiphertext = memo,
+            memoEncryption = MemoEncryptionScheme.NONE
+        )
+    )
+
+    override suspend fun decryptVoidingEventPayload(
+        userId: String,
+        eventId: String,
+        localDate: String,
+        recordCiphertext: String?,
+        recordEncryption: String,
+        voidedAtEpochMs: Long,
         memoCiphertext: String?,
-        memoEncryption: String
-    ): Result<String?> = Result.success(memoCiphertext)
+        memoEncryption: String,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<DecryptedVoidingEventPayload?> = Result.success(
+        DecryptedVoidingEventPayload(
+            voidedAtEpochMs = voidedAtEpochMs,
+            memo = memoCiphertext,
+            volumeMl = volumeMl,
+            urgency = urgency,
+            hasIncontinence = hasIncontinence,
+            isNocturia = isNocturia
+        )
+    )
 
     override fun clearRuntimeUnlock() = Unit
 }

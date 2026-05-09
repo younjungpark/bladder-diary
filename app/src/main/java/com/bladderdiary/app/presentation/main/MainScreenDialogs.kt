@@ -631,7 +631,7 @@ internal fun AccountDeletionDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("로그인 계정 삭제는 운영자 확인을 거쳐 수동으로 처리되므로 완료까지 시간이 다소 소요될 수 있습니다.")
                 Text(
-                    "다만, 클라우드에 저장된 앱 기록과 메모 암호화 키, 그리고 이 기기의 로컬 데이터(DB, PIN 설정, 로그인 정보)는 즉시 초기화됩니다."
+                    "다만, 클라우드에 저장된 앱 기록과 기록 암호화 키, 그리고 이 기기의 로컬 데이터(DB, PIN 설정, 로그인 정보)는 즉시 초기화됩니다."
                 )
                 Text(
                     text = "이 작업은 되돌릴 수 없습니다. 계속 진행하시려면 'OK'를 눌러주세요.",
@@ -683,8 +683,9 @@ internal fun CloudSyncToggleDialog(
                     Text("앞으로 기록 변경사항을 Supabase 클라우드에 업로드하거나 내려받지 않습니다.")
                     Text("이 기기의 기록은 유지되지만, 이미 클라우드에 저장된 데이터는 자동으로 삭제되지 않습니다.")
                 } else {
-                    Text("이 기기의 배뇨 기록과 이후 변경사항이 Supabase 클라우드에 저장·동기화됩니다.")
+                    Text("기록 암호화 설정 후 이 기기의 배뇨 기록과 이후 변경사항이 Supabase 클라우드에 저장·동기화됩니다.")
                     Text("다른 기기에 저장된 기존 클라우드 기록이 이 기기로 병합될 수 있습니다.")
+                    Text("Supabase에는 날짜, 계정/기록 식별자, 삭제/동기화 메타데이터가 남을 수 있습니다.")
                 }
             }
         },
@@ -725,7 +726,7 @@ internal fun CloudSyncRequiredChoiceDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("배뇨 기록은 기본적으로 이 기기에 저장됩니다.")
-                Text("클라우드 동기화를 켜면 기록이 Supabase에 저장되고 다른 기기와 병합됩니다.")
+                Text("클라우드 동기화를 켜면 기록 암호화 설정 후 Supabase에 저장되고 다른 기기와 병합됩니다.")
                 Text("로컬만 사용하면 기록은 이 기기에만 남으며, 설정에서 나중에 동기화를 켤 수 있습니다.")
             }
         },

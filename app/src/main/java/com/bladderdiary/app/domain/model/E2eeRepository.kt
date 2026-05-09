@@ -9,7 +9,21 @@ data class E2eeState(
     val lastErrorMessage: String? = null
 )
 
-data class MemoSyncPayload(val memoCiphertext: String?, val memoEncryption: String)
+data class VoidingEventSyncPayload(
+    val recordCiphertext: String?,
+    val recordEncryption: String,
+    val memoCiphertext: String?,
+    val memoEncryption: String
+)
+
+data class DecryptedVoidingEventPayload(
+    val voidedAtEpochMs: Long,
+    val memo: String?,
+    val volumeMl: Int?,
+    val urgency: Int?,
+    val hasIncontinence: Boolean,
+    val isNocturia: Boolean
+)
 
 interface E2eeRepository {
     fun observeState(): Flow<E2eeState>
@@ -17,18 +31,31 @@ interface E2eeRepository {
     suspend fun setupPassphrase(passphrase: String): Result<Unit>
     suspend fun changePassphrase(passphrase: String): Result<Unit>
     suspend fun unlock(passphrase: String): Result<Unit>
-    suspend fun prepareMemoSyncPayload(
+    fun isReadyForCloudRecordSync(): Boolean
+    suspend fun prepareVoidingEventSyncPayload(
         userId: String,
         eventId: String,
         localDate: String,
-        memo: String?
-    ): Result<MemoSyncPayload>
-    suspend fun decryptMemo(
+        voidedAtEpochMs: Long,
+        memo: String?,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<VoidingEventSyncPayload>
+    suspend fun decryptVoidingEventPayload(
         userId: String,
         eventId: String,
         localDate: String,
+        recordCiphertext: String?,
+        recordEncryption: String,
+        voidedAtEpochMs: Long,
         memoCiphertext: String?,
-        memoEncryption: String
-    ): Result<String?>
+        memoEncryption: String,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<DecryptedVoidingEventPayload?>
     fun clearRuntimeUnlock()
 }

@@ -35,6 +35,8 @@ erDiagram
         boolean is_nocturia
         string memo_ciphertext
         string memo_encryption
+        string record_ciphertext
+        string record_encryption
     }
 
     SYNC_QUEUE {
@@ -68,6 +70,8 @@ erDiagram
         boolean is_nocturia
         text memo_ciphertext
         text memo_encryption
+        text record_ciphertext
+        text record_encryption
         timestamptz created_at
         timestamptz deleted_at
     }
@@ -105,7 +109,9 @@ erDiagram
 - 로컬 `voiding_events.local_id`는 원격 `public.voiding_events.id`와 같은 이벤트 식별자로 사용된다.
 - 원격 `client_ref`도 현재 구현상 로컬 `local_id`와 동일한 값을 담는다.
 - 로컬 `sync_queue.event_local_id`는 로컬 `voiding_events.local_id`를 참조하는 논리적 FK다.
-- 로컬 `memo`는 앱에서 사용하는 평문 또는 복호화 결과 캐시 성격이고, 원격에는 `memo_ciphertext`와 `memo_encryption`이 저장된다.
+- 로컬 `memo`, `volume_ml`, `urgency`, `has_incontinence`, `is_nocturia`, `voided_at_epoch_ms`는 앱 기능용 평문 로컬 데이터다.
+- 클라우드 기록 암호화가 적용된 원격 row는 `record_ciphertext`와 `record_encryption = E2EE_RECORD_V1`에 정확한 시각, 배뇨량, 절박감, 요실금 여부, 야간뇨 여부, 메모를 담고, 날짜와 최소 메타데이터만 평문으로 유지한다.
+- legacy 원격 row는 `record_encryption = NONE`이며 기존 `memo_ciphertext`와 구조화 필드를 사용한다. 최신 앱은 E2EE 설정 또는 잠금 해제 후 legacy row를 같은 기록 ID의 `E2EE_RECORD_V1` row로 재업로드한다.
 - 원격 `user_e2ee_keys`는 사용자별 E2EE 메타데이터와 wrapped DEK를 1건만 유지한다.
 - 원격 `account_deletion_requests`는 운영자가 Supabase Auth 계정 삭제 대상을 확인하기 위한 요청 큐다.
 - 회원탈퇴는 `voiding_events`와 `user_e2ee_keys`의 사용자 본인 행을 물리 삭제한다.
@@ -125,3 +131,4 @@ erDiagram
 - `supabase/sql/006_add_is_nocturia.sql`
 - `supabase/sql/007_account_data_deletion.sql`
 - `supabase/sql/008_account_deletion_requests.sql`
+- `supabase/sql/009_record_e2ee.sql`

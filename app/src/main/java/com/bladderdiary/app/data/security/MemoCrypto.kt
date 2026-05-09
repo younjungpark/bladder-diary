@@ -17,11 +17,26 @@ object MemoEncryptionScheme {
     const val E2EE_V1 = "E2EE_V1"
 }
 
+object RecordEncryptionScheme {
+    const val NONE = "NONE"
+    const val E2EE_RECORD_V1 = "E2EE_RECORD_V1"
+}
+
 data class MemoKeyDerivation(
     val saltBase64: String,
     val iterations: Int,
     val keyLengthBits: Int,
     val keyBytes: ByteArray
+)
+
+@Serializable
+data class VoidingRecordPlainPayload(
+    val voidedAtEpochMs: Long,
+    val volumeMl: Int? = null,
+    val urgency: Int? = null,
+    val hasIncontinence: Boolean = false,
+    val isNocturia: Boolean = false,
+    val memo: String? = null
 )
 
 @Serializable
@@ -80,7 +95,7 @@ object MemoCrypto {
     ): String = encryptPayload(
         plainBytes = memo.toByteArray(Charsets.UTF_8),
         keyBytes = dekBytes,
-        aad = buildAad(userId, eventId, localDate)
+        aad = buildMemoAad(userId, eventId, localDate)
     )
 
     fun decryptMemo(
@@ -93,9 +108,36 @@ object MemoCrypto {
         val plainBytes = decryptPayload(
             payload = payload,
             keyBytes = dekBytes,
-            aad = buildAad(userId, eventId, localDate)
+            aad = buildMemoAad(userId, eventId, localDate)
         )
         return plainBytes.toString(Charsets.UTF_8)
+    }
+
+    fun encryptRecord(
+        record: VoidingRecordPlainPayload,
+        dekBytes: ByteArray,
+        userId: String,
+        eventId: String,
+        localDate: String
+    ): String = encryptPayload(
+        plainBytes = json.encodeToString(record).toByteArray(Charsets.UTF_8),
+        keyBytes = dekBytes,
+        aad = buildRecordAad(userId, eventId, localDate)
+    )
+
+    fun decryptRecord(
+        payload: String,
+        dekBytes: ByteArray,
+        userId: String,
+        eventId: String,
+        localDate: String
+    ): VoidingRecordPlainPayload {
+        val plainBytes = decryptPayload(
+            payload = payload,
+            keyBytes = dekBytes,
+            aad = buildRecordAad(userId, eventId, localDate)
+        )
+        return json.decodeFromString(plainBytes.toString(Charsets.UTF_8))
     }
 
     fun wrapDek(dekBytes: ByteArray, kekBytes: ByteArray): String = encryptPayload(
@@ -143,8 +185,11 @@ object MemoCrypto {
         return cipher.doFinal(cipherText + tag)
     }
 
-    private fun buildAad(userId: String, eventId: String, localDate: String): String =
+    private fun buildMemoAad(userId: String, eventId: String, localDate: String): String =
         "$userId|$eventId|$localDate"
+
+    private fun buildRecordAad(userId: String, eventId: String, localDate: String): String =
+        "$userId|$eventId|$localDate|record-v1"
 
     private fun randomBytes(size: Int): ByteArray = ByteArray(size).also(secureRandom::nextBytes)
 

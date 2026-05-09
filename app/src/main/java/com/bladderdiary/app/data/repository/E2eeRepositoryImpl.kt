@@ -5,10 +5,13 @@ import com.bladderdiary.app.data.remote.dto.UserE2eeKeyRemoteDto
 import com.bladderdiary.app.data.security.E2eeLocalKeyStoreDataSource
 import com.bladderdiary.app.data.security.MemoCrypto
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
+import com.bladderdiary.app.data.security.RecordEncryptionScheme
+import com.bladderdiary.app.data.security.VoidingRecordPlainPayload
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.DecryptedVoidingEventPayload
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.E2eeState
-import com.bladderdiary.app.domain.model.MemoSyncPayload
+import com.bladderdiary.app.domain.model.VoidingEventSyncPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -208,68 +211,103 @@ class E2eeRepositoryImpl(
         )
     }
 
-    override suspend fun prepareMemoSyncPayload(
+    override fun isReadyForCloudRecordSync(): Boolean =
+        state.value.isEnabled && state.value.isUnlocked
+
+    override suspend fun prepareVoidingEventSyncPayload(
         userId: String,
         eventId: String,
         localDate: String,
-        memo: String?
-    ): Result<MemoSyncPayload> = runCatching {
+        voidedAtEpochMs: Long,
+        memo: String?,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<VoidingEventSyncPayload> = runCatching {
         val isEnabled = state.value.isEnabled
         if (!isEnabled) {
-            MemoSyncPayload(
+            VoidingEventSyncPayload(
+                recordCiphertext = null,
+                recordEncryption = RecordEncryptionScheme.NONE,
                 memoCiphertext = memo,
                 memoEncryption = MemoEncryptionScheme.NONE
             )
         } else {
             val dek = ensureRuntimeDek(userId)
-            if (memo.isNullOrBlank()) {
-                MemoSyncPayload(
-                    memoCiphertext = null,
-                    memoEncryption = MemoEncryptionScheme.E2EE_V1
-                )
-            } else {
-                requireNotNull(dek) { "E2EE 비밀문구 잠금 해제 후 메모를 저장해주세요." }
-                MemoSyncPayload(
-                    memoCiphertext = MemoCrypto.encryptMemo(
-                        memo = memo,
+            requireNotNull(dek) { "E2EE 비밀문구 잠금 해제 후 기록을 저장해주세요." }
+            VoidingEventSyncPayload(
+                recordCiphertext = MemoCrypto.encryptRecord(
+                    record = VoidingRecordPlainPayload(
+                        voidedAtEpochMs = voidedAtEpochMs,
+                        volumeMl = volumeMl,
+                        urgency = urgency,
+                        hasIncontinence = hasIncontinence,
+                        isNocturia = isNocturia,
+                        memo = memo
+                    ),
+                    dekBytes = dek,
+                    userId = userId,
+                    eventId = eventId,
+                    localDate = localDate
+                ),
+                recordEncryption = RecordEncryptionScheme.E2EE_RECORD_V1,
+                memoCiphertext = null,
+                memoEncryption = MemoEncryptionScheme.NONE
+            )
+        }
+    }
+
+    override suspend fun decryptVoidingEventPayload(
+        userId: String,
+        eventId: String,
+        localDate: String,
+        recordCiphertext: String?,
+        recordEncryption: String,
+        voidedAtEpochMs: Long,
+        memoCiphertext: String?,
+        memoEncryption: String,
+        volumeMl: Int?,
+        urgency: Int?,
+        hasIncontinence: Boolean,
+        isNocturia: Boolean
+    ): Result<DecryptedVoidingEventPayload?> {
+        return runCatching {
+            when (recordEncryption.ifBlank { RecordEncryptionScheme.NONE }) {
+                RecordEncryptionScheme.E2EE_RECORD_V1 -> {
+                    if (recordCiphertext.isNullOrBlank()) return@runCatching null
+                    val dek = ensureRuntimeDek(userId) ?: return@runCatching null
+                    val record = MemoCrypto.decryptRecord(
+                        payload = recordCiphertext,
                         dekBytes = dek,
                         userId = userId,
                         eventId = eventId,
                         localDate = localDate
-                    ),
-                    memoEncryption = MemoEncryptionScheme.E2EE_V1
-                )
-            }
-        }
-    }
-
-    override suspend fun decryptMemo(
-        userId: String,
-        eventId: String,
-        localDate: String,
-        memoCiphertext: String?,
-        memoEncryption: String
-    ): Result<String?> {
-        return runCatching {
-            when (memoEncryption) {
-                MemoEncryptionScheme.NONE -> memoCiphertext
-
-                MemoEncryptionScheme.E2EE_V1 -> {
-                    if (memoCiphertext.isNullOrBlank()) {
-                        null
-                    } else {
-                        val dek = ensureRuntimeDek(userId) ?: return@runCatching null
-                        MemoCrypto.decryptMemo(
-                            payload = memoCiphertext,
-                            dekBytes = dek,
-                            userId = userId,
-                            eventId = eventId,
-                            localDate = localDate
-                        )
-                    }
+                    )
+                    DecryptedVoidingEventPayload(
+                        voidedAtEpochMs = record.voidedAtEpochMs,
+                        memo = record.memo,
+                        volumeMl = record.volumeMl,
+                        urgency = record.urgency,
+                        hasIncontinence = record.hasIncontinence,
+                        isNocturia = record.isNocturia
+                    )
                 }
 
-                else -> null
+                else -> DecryptedVoidingEventPayload(
+                    voidedAtEpochMs = voidedAtEpochMs,
+                    memo = decryptLegacyMemo(
+                        userId = userId,
+                        eventId = eventId,
+                        localDate = localDate,
+                        memoCiphertext = memoCiphertext,
+                        memoEncryption = memoEncryption
+                    ),
+                    volumeMl = volumeMl,
+                    urgency = urgency,
+                    hasIncontinence = hasIncontinence,
+                    isNocturia = isNocturia
+                )
             }
         }
     }
@@ -316,6 +354,35 @@ class E2eeRepositoryImpl(
             )
         }
         return restoredDek
+    }
+
+    private suspend fun decryptLegacyMemo(
+        userId: String,
+        eventId: String,
+        localDate: String,
+        memoCiphertext: String?,
+        memoEncryption: String
+    ): String? {
+        return when (memoEncryption.ifBlank { MemoEncryptionScheme.NONE }) {
+            MemoEncryptionScheme.NONE -> memoCiphertext
+
+            MemoEncryptionScheme.E2EE_V1 -> {
+                if (memoCiphertext.isNullOrBlank()) {
+                    null
+                } else {
+                    val dek = ensureRuntimeDek(userId) ?: return null
+                    MemoCrypto.decryptMemo(
+                        payload = memoCiphertext,
+                        dekBytes = dek,
+                        userId = userId,
+                        eventId = eventId,
+                        localDate = localDate
+                    )
+                }
+            }
+
+            else -> null
+        }
     }
 
     private suspend fun <T> withFreshAccessToken(block: suspend (String) -> T): T {

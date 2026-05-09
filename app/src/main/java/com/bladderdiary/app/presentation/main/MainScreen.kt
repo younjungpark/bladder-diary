@@ -47,6 +47,7 @@ fun MainScreen(
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
+    onSetCloudSyncEnabled: (Boolean) -> Unit,
     onConsumeE2eeNotice: () -> Unit,
     onConsumeAccountDeletionError: () -> Unit,
     onDeleteAccount: () -> Unit,
@@ -391,7 +392,7 @@ fun MainScreen(
         },
         onConfirm = {
             showCloudSyncDialog = false
-            viewModel.setCloudSyncEnabled(!state.isCloudSyncEnabled)
+            onSetCloudSyncEnabled(!state.isCloudSyncEnabled)
         }
     )
 }

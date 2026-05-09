@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.bladderdiary.app.data.security.MemoEncryptionScheme
+import com.bladderdiary.app.data.security.RecordEncryptionScheme
 import com.bladderdiary.app.domain.model.SyncState
 
 @Entity(tableName = "voiding_events")
@@ -36,5 +37,9 @@ data class VoidingEventEntity(
     @ColumnInfo(name = "memo_ciphertext")
     val memoCiphertext: String? = null,
     @ColumnInfo(name = "memo_encryption")
-    val memoEncryption: String = MemoEncryptionScheme.NONE
+    val memoEncryption: String = MemoEncryptionScheme.NONE,
+    @ColumnInfo(name = "record_ciphertext")
+    val recordCiphertext: String? = null,
+    @ColumnInfo(name = "record_encryption")
+    val recordEncryption: String = RecordEncryptionScheme.NONE
 )

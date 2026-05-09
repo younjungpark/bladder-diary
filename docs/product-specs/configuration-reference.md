@@ -33,6 +33,7 @@ RELEASE_KEY_PASSWORD=your_key_password
 6. `supabase/sql/006_add_is_nocturia.sql`
 7. `supabase/sql/007_account_data_deletion.sql`
 8. `supabase/sql/008_account_deletion_requests.sql`
+9. `supabase/sql/009_record_e2ee.sql`
 
 ## 자주 쓰는 명령
 

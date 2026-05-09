@@ -75,10 +75,23 @@ fun AppNavGraph() {
     var e2eeSettingsOpenedForSetup by remember { mutableStateOf(false) }
     var mainE2eeNotice by remember { mutableStateOf<String?>(null) }
     var showCloudDataNoticeDetails by remember { mutableStateOf(false) }
+    var pendingCloudSyncEnableAfterE2ee by remember { mutableStateOf(false) }
 
     val acknowledgeCloudDataNotice: () -> Unit = {
         coroutineScope.launch {
             AppGraph.cloudDataNoticeStore.acknowledgeCurrentNotice()
+        }
+    }
+    val requestSetCloudSyncEnabled: (Boolean) -> Unit = { isEnabled ->
+        if (!isEnabled) {
+            pendingCloudSyncEnableAfterE2ee = false
+            mainViewModel.setCloudSyncEnabled(false)
+        } else if (e2eeState.isEnabled && e2eeState.isUnlocked) {
+            mainViewModel.setCloudSyncEnabled(true)
+        } else {
+            pendingCloudSyncEnableAfterE2ee = true
+            showE2eeSettings = true
+            e2eeSettingsOpenedForSetup = !e2eeState.isEnabled
         }
     }
 
@@ -91,6 +104,7 @@ fun AppNavGraph() {
             e2eeSettingsOpenedForSetup = false
             mainE2eeNotice = null
             showCloudDataNoticeDetails = false
+            pendingCloudSyncEnableAfterE2ee = false
         }
     }
 
@@ -114,6 +128,24 @@ fun AppNavGraph() {
         }
     }
 
+    LaunchedEffect(
+        pendingCloudSyncEnableAfterE2ee,
+        e2eeState.isEnabled,
+        e2eeState.isUnlocked
+    ) {
+        if (pendingCloudSyncEnableAfterE2ee && e2eeState.isEnabled && e2eeState.isUnlocked) {
+            pendingCloudSyncEnableAfterE2ee = false
+            showE2eeSettings = false
+            e2eeSettingsOpenedForSetup = false
+            mainViewModel.setCloudSyncEnabled(true)
+        }
+    }
+
+    val requiresCloudRecordEncryption = authState.isLoggedIn &&
+        mainState.isCloudSyncEnabled &&
+        !e2eeState.isCheckingRemoteState &&
+        (!e2eeState.isEnabled || !e2eeState.isUnlocked)
+
     if (!authState.isLoggedIn) {
         AuthScreen(
             viewModel = authViewModel,
@@ -124,6 +156,21 @@ fun AppNavGraph() {
     } else if (pinState.isPinSet && !pinState.isUnlocked) {
         // 이미 PIN이 설정되어 있고 잠긴 상태 (앱 시작/백그라운드 복귀 등)
         PinScreen(viewModel = pinViewModel)
+    } else if (requiresCloudRecordEncryption) {
+        E2eePassphraseScreen(
+            viewModel = e2eeViewModel,
+            entryMode = E2eeEntryMode.AUTO,
+            onCancel = {
+                pendingCloudSyncEnableAfterE2ee = false
+                mainViewModel.setCloudSyncEnabled(false)
+            },
+            onSignOut = {
+                pendingCloudSyncEnableAfterE2ee = false
+                pinViewModel.clearRuntimeUnlock()
+                e2eeViewModel.clearRuntimeUnlock()
+                authViewModel.signOut()
+            }
+        )
     } else if (!e2eeState.isCheckingRemoteState && e2eeState.isEnabled && !e2eeState.isUnlocked) {
         E2eePassphraseScreen(
             viewModel = e2eeViewModel,
@@ -145,6 +192,7 @@ fun AppNavGraph() {
             viewModel = e2eeViewModel,
             entryMode = E2eeEntryMode.MANAGE,
             onCancel = {
+                pendingCloudSyncEnableAfterE2ee = false
                 showE2eeSettings = false
                 e2eeSettingsOpenedForSetup = false
             },
@@ -152,6 +200,7 @@ fun AppNavGraph() {
                 mainE2eeNotice = message
                 showE2eeSettings = false
                 e2eeSettingsOpenedForSetup = false
+                pendingCloudSyncEnableAfterE2ee = false
             }
         )
     } else if (showCalendar) {
@@ -185,6 +234,7 @@ fun AppNavGraph() {
                 showE2eeSettings = true
                 e2eeSettingsOpenedForSetup = !e2eeState.isEnabled
             },
+            onSetCloudSyncEnabled = requestSetCloudSyncEnabled,
             onConsumeE2eeNotice = { mainE2eeNotice = null },
             onConsumeAccountDeletionError = authViewModel::consumeAccountDeletionError,
             onDeleteAccount = authViewModel::deleteAccountData,
@@ -215,7 +265,7 @@ fun AppNavGraph() {
         CloudSyncRequiredChoiceDialog(
             isChanging = mainState.isCloudSyncChanging,
             onUseLocalOnly = { mainViewModel.setCloudSyncEnabled(false) },
-            onEnableCloudSync = { mainViewModel.setCloudSyncEnabled(true) }
+            onEnableCloudSync = { requestSetCloudSyncEnabled(true) }
         )
     } else if (showCloudDataNoticeDetails) {
         SensitiveCloudNoticeDialog(
