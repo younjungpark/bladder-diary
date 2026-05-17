@@ -52,6 +52,7 @@ data class MainUiState(
     val isBackupRunning: Boolean = false,
     val pendingManualBackupContent: String? = null,
     val pendingRestorePreview: BackupRestorePreview? = null,
+    val shouldShowRestoreCloudUploadNotice: Boolean = false,
     val isAdding: Boolean = false,
     val isExportingPdf: Boolean = false,
     val pendingPdfShareFile: VoidingPdfShareFile? = null,
@@ -99,6 +100,14 @@ class MainViewModel(
                 syncStateFlow,
                 backupRepository.observeState()
             ) { date, events, count, syncState, backupState ->
+                val currentState = _uiState.value
+                val shouldShowRestoreCloudUploadNotice =
+                    currentState.shouldShowRestoreCloudUploadNotice &&
+                        (
+                            !syncState.isCloudSyncEnabled ||
+                                syncState.pendingSyncCount > 0 ||
+                                syncState.isSyncing
+                            )
                 MainUiState(
                     selectedDate = date,
                     events = events,
@@ -111,20 +120,21 @@ class MainViewModel(
                     isSyncing = syncState.isSyncing,
                     isCloudSyncEnabled = syncState.isCloudSyncEnabled,
                     hasCloudSyncChoice = syncState.hasCloudSyncChoice,
-                    isCloudSyncChanging = _uiState.value.isCloudSyncChanging,
+                    isCloudSyncChanging = currentState.isCloudSyncChanging,
                     isDriveBackupConnected = backupState.isDriveBackupConnected,
                     isAutoBackupEnabled = backupState.isAutoBackupEnabled,
                     lastBackupSuccessEpochMs = backupState.lastBackupSuccessEpochMs,
                     lastBackupFailureEpochMs = backupState.lastBackupFailureEpochMs,
                     lastBackupErrorMessage = backupState.lastBackupErrorMessage,
                     isBackupRunning = backupState.isBackupRunning,
-                    pendingManualBackupContent = _uiState.value.pendingManualBackupContent,
-                    pendingRestorePreview = _uiState.value.pendingRestorePreview,
-                    isAdding = _uiState.value.isAdding,
-                    isExportingPdf = _uiState.value.isExportingPdf,
-                    pendingPdfShareFile = _uiState.value.pendingPdfShareFile,
-                    confirmDeleteEventId = _uiState.value.confirmDeleteEventId,
-                    message = _uiState.value.message
+                    pendingManualBackupContent = currentState.pendingManualBackupContent,
+                    pendingRestorePreview = currentState.pendingRestorePreview,
+                    shouldShowRestoreCloudUploadNotice = shouldShowRestoreCloudUploadNotice,
+                    isAdding = currentState.isAdding,
+                    isExportingPdf = currentState.isExportingPdf,
+                    pendingPdfShareFile = currentState.pendingPdfShareFile,
+                    confirmDeleteEventId = currentState.confirmDeleteEventId,
+                    message = currentState.message
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -333,6 +343,8 @@ class MainViewModel(
     fun setCloudSyncEnabled(isEnabled: Boolean) {
         if (_uiState.value.isCloudSyncChanging) return
 
+        val shouldShowRestoreCloudUploadNotice =
+            _uiState.value.shouldShowRestoreCloudUploadNotice
         viewModelScope.launch {
             _uiState.update { it.copy(isCloudSyncChanging = true, message = null) }
             val result = voidingRepository.setCloudSyncEnabled(isEnabled)
@@ -341,7 +353,12 @@ class MainViewModel(
                     isCloudSyncChanging = false,
                     message = if (result.isSuccess) {
                         if (isEnabled) {
-                            "클라우드 동기화를 켰습니다."
+                            if (shouldShowRestoreCloudUploadNotice) {
+                                "클라우드 동기화를 켰습니다. " +
+                                    "복원 기록 암호화 업로드는 처음 한 번 오래 걸릴 수 있습니다."
+                            } else {
+                                "클라우드 동기화를 켰습니다."
+                            }
                         } else {
                             "클라우드 동기화를 껐습니다. 기존 클라우드 데이터는 삭제되지 않습니다."
                         }
@@ -349,11 +366,6 @@ class MainViewModel(
                         result.exceptionOrNull()?.message ?: "동기화 설정을 변경하지 못했습니다."
                     }
                 )
-            }
-            if (result.isSuccess && isEnabled) {
-                viewModelScope.launch {
-                    voidingRepository.fetchAndSyncAll()
-                }
             }
         }
     }
@@ -485,6 +497,7 @@ class MainViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(message = null) }
             val result = backupRepository.confirmPendingRestore(mode)
+            val report = result.getOrNull()
             _uiState.update {
                 it.copy(
                     pendingRestorePreview = if (result.isSuccess) {
@@ -492,8 +505,16 @@ class MainViewModel(
                     } else {
                         it.pendingRestorePreview
                     },
+                    shouldShowRestoreCloudUploadNotice = if (
+                        report != null &&
+                        report.restoredCount > 0
+                    ) {
+                        true
+                    } else {
+                        it.shouldShowRestoreCloudUploadNotice
+                    },
                     message = if (result.isSuccess) {
-                        result.getOrThrow().toRestoreMessage()
+                        report?.toRestoreMessage()
                     } else {
                         result.exceptionOrNull()?.message ?: "백업 복원에 실패했습니다."
                     }

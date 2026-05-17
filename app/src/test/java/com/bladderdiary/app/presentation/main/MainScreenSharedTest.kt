@@ -37,6 +37,22 @@ class MainScreenSharedTest {
     }
 
     @Test
+    fun `복원 기록 클라우드 업로드 중 상태는 별도 안내 문구를 표시한다`() {
+        val status = MainUiState(
+            isCloudSyncEnabled = true,
+            isSyncing = true,
+            pendingSyncCount = 2,
+            shouldShowRestoreCloudUploadNotice = true
+        ).toHomeSyncStatus(TestHomePalette)
+
+        assertNotNull(status)
+        assertEquals("복원 기록 동기화 중", status?.label)
+        assertTrue(status?.message.orEmpty().contains("클라우드용으로 암호화해 업로드 중"))
+        assertTrue(status?.message.orEmpty().contains("처음 한 번 오래 걸릴 수 있습니다"))
+        assertEquals(TestHomePalette.syncPendingTint, status?.tint)
+    }
+
+    @Test
     fun `클라우드 동기화 대기 상태는 상단 아이콘을 표시한다`() {
         val status = MainUiState(
             isCloudSyncEnabled = true,

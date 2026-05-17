@@ -588,6 +588,13 @@ internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus?
 
     !isCloudSyncEnabled -> null
 
+    shouldShowRestoreCloudUploadNotice && isSyncing -> HomeSyncStatus(
+        icon = Icons.Default.CloudUpload,
+        label = "복원 기록 동기화 중",
+        message = restoreCloudUploadStatusMessage(pendingSyncCount, isUploading = true),
+        tint = palette.syncPendingTint
+    )
+
     isSyncing -> HomeSyncStatus(
         icon = Icons.Default.CloudUpload,
         label = "동기화 중",
@@ -600,6 +607,13 @@ internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus?
         label = "동기화 오류",
         message = "동기화에 문제가 있어 ${pendingSyncCount}건을 기기에 안전하게 보관 중입니다.",
         tint = palette.syncErrorTint
+    )
+
+    shouldShowRestoreCloudUploadNotice && pendingSyncCount > 0 -> HomeSyncStatus(
+        icon = Icons.Default.CloudUpload,
+        label = "복원 기록 업로드 대기",
+        message = restoreCloudUploadStatusMessage(pendingSyncCount, isUploading = false),
+        tint = palette.syncPendingTint
     )
 
     pendingSyncCount > 0 -> HomeSyncStatus(
@@ -615,6 +629,21 @@ internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus?
         message = "클라우드 동기화가 완료되었습니다.",
         tint = palette.primary
     )
+}
+
+private fun restoreCloudUploadStatusMessage(pendingSyncCount: Int, isUploading: Boolean): String {
+    val actionText = if (isUploading) {
+        "업로드 중입니다"
+    } else {
+        "업로드할 예정입니다"
+    }
+    val countText = if (pendingSyncCount > 0) {
+        " ${pendingSyncCount}건을"
+    } else {
+        "을"
+    }
+    return "Google Drive 또는 백업 파일에서 복원한 기록$countText " +
+        "클라우드용으로 암호화해 $actionText. 처음 한 번 오래 걸릴 수 있습니다."
 }
 
 internal fun MainUiState.toHomeBackupStatus(palette: HomePalette): HomeBackupStatus? = when {

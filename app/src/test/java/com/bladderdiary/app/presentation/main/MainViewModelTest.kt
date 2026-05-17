@@ -264,7 +264,7 @@ class MainViewModelTest {
 
         assertEquals(true, repository.cloudSyncPreference.value.isEnabled)
         assertEquals(true, repository.cloudSyncPreference.value.hasUserChoice)
-        assertEquals(1, repository.fetchAndSyncAllCallCount)
+        assertEquals(0, repository.fetchAndSyncAllCallCount)
         assertEquals("클라우드 동기화를 켰습니다.", viewModel.uiState.value.message)
     }
 
@@ -351,6 +351,12 @@ class MainViewModelTest {
         assertNull(viewModel.uiState.value.pendingRestorePreview)
         assertEquals(BackupRestoreMode.MERGE, backupRepository.lastRestoreMode)
         assertEquals("백업과 합치기를 완료했습니다. 3건을 반영했습니다.", viewModel.uiState.value.message)
+        assertTrue(viewModel.uiState.value.shouldShowRestoreCloudUploadNotice)
+
+        viewModel.setCloudSyncEnabled(true)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.message.orEmpty().contains("복원 기록 암호화 업로드"))
     }
 
     private fun createViewModel(
