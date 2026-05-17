@@ -1,6 +1,10 @@
 package com.bladderdiary.app.core
 
 import android.content.Context
+import com.bladderdiary.app.data.backup.AndroidBackupDekStore
+import com.bladderdiary.app.data.backup.BackupEngine
+import com.bladderdiary.app.data.backup.RoomBackupLocalDataSource
+import com.bladderdiary.app.data.drive.KtorDriveBackupFileClient
 import com.bladderdiary.app.data.local.AppDatabase
 import com.bladderdiary.app.data.local.CloudDataNoticeStore
 import com.bladderdiary.app.data.local.CloudSyncPreferenceStore
@@ -48,6 +52,8 @@ object AppGraph {
         private set
     lateinit var voidingPdfExporter: VoidingPdfExporter
         private set
+    lateinit var backupEngine: BackupEngine
+        private set
     lateinit var cloudDataNoticeStore: CloudDataNoticeStore
         private set
 
@@ -77,6 +83,11 @@ object AppGraph {
         voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
         cloudDataNoticeStore = CloudDataNoticeStore(context.applicationContext)
         cloudSyncPreferenceStore = CloudSyncPreferenceStore(context.applicationContext)
+        backupEngine = BackupEngine(
+            localDataSource = RoomBackupLocalDataSource(db),
+            backupDekStore = AndroidBackupDekStore(context.applicationContext),
+            driveBackupFileClient = KtorDriveBackupFileClient()
+        )
 
         authRepository = AuthRepositoryImpl(
             appContext = context.applicationContext,

@@ -35,13 +35,14 @@
 - Ktor Client
 - kotlinx.serialization
 - Supabase REST/Auth 연동
+- Google Drive `appDataFolder` 암호화 백업/복원 엔진
 
 ## 프로젝트 구조
 
 ```text
 app/src/main/java/com/bladderdiary/app
 |- core/           앱 그래프 및 의존성 초기화
-|- data/           로컬 DB, 원격 API, 저장소 구현, 보안 처리
+|- data/           로컬 DB, 원격 API, 백업 엔진, 저장소 구현, 보안 처리
 |- domain/         모델 및 유스케이스
 |- export/         PDF 보고서 생성
 |- presentation/   인증, 메인, PIN, E2EE 화면과 ViewModel
@@ -128,6 +129,8 @@ app/build/outputs/apk/release/app-release.apk
 - 동기화를 켠 경우 정확한 배뇨 시각, 배뇨량, 절박감, 요실금 여부, 야간뇨 여부, 메모는 기기에서 암호화된 뒤 서버에 저장됩니다.
 - 동기화를 켠 경우에도 날짜, 계정/기록 식별자, 삭제/동기화 메타데이터는 서버에 남을 수 있습니다.
 - 기존 평문 클라우드 기록은 최신 앱에서 암호화 설정 또는 잠금 해제 후 암호문으로 재업로드되지만, 과거 Supabase 백업이나 로그에 남은 평문까지 즉시 삭제된다고 보장할 수는 없습니다.
+- Google Drive 백업/복원은 실시간 동기화가 아니라 백업 전용 비밀번호로 암호화한 최신 스냅샷 1개를 `appDataFolder`에 저장하는 별도 엔진입니다.
+- Google Drive 백업 파일에는 Supabase access token, refresh token, PIN, WorkManager 상태, `sync_queue`가 포함되지 않습니다.
 - 배뇨 기록은 건강 관련 민감정보일 수 있으며, 앱은 로그인 전과 기존 사용자 업데이트 진입 시 민감정보 및 클라우드 저장 안내를 표시합니다.
 - 동기화를 켠 경우 삭제는 소프트 삭제 기반으로 원격 반영됩니다.
 - 오프라인 상태에서 저장한 기록은 로컬에 보관되며, 동기화를 켠 상태라면 연결이 복구될 때 다시 동기화됩니다.

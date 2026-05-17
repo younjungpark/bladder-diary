@@ -59,6 +59,18 @@ interface VoidingEventDao {
         """
         SELECT * FROM voiding_events
         WHERE user_id = :userId
+        ORDER BY updated_at_epoch_ms ASC, local_id ASC
+        """
+    )
+    suspend fun getAllByUserId(userId: String): List<VoidingEventEntity>
+
+    @Query("DELETE FROM voiding_events WHERE user_id = :userId")
+    suspend fun deleteAllForUser(userId: String)
+
+    @Query(
+        """
+        SELECT * FROM voiding_events
+        WHERE user_id = :userId
           AND local_date BETWEEN :startDate AND :endDate
           AND is_deleted = 0
         ORDER BY local_date ASC, voided_at_epoch_ms ASC

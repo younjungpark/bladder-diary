@@ -8,9 +8,11 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+private const val APP_DATABASE_VERSION = 8
+
 @Database(
     entities = [VoidingEventEntity::class, SyncQueueEntity::class],
-    version = 8,
+    version = APP_DATABASE_VERSION,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -19,6 +21,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncQueueDao(): SyncQueueDao
 
     companion object {
+        const val DATABASE_VERSION = APP_DATABASE_VERSION
+
         private const val DATABASE_NAME = "bladder_diary.db"
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {

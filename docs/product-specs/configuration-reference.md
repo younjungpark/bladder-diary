@@ -21,6 +21,12 @@ RELEASE_KEY_ALIAS=your_key_alias
 RELEASE_KEY_PASSWORD=your_key_password
 ```
 
+## Google Drive 백업 설정
+
+- Google Drive 백업/복원 엔진은 Drive REST API의 `appDataFolder`와 `https://www.googleapis.com/auth/drive.appdata` scope를 기준으로 한다.
+- Drive access token은 `local.properties`나 DataStore에 장기 저장하지 않는다. Android 권한 화면에서 받은 짧은 수명 token을 호출 시점에 사용한다.
+- 백업 암호화 비밀번호와 backup DEK는 Supabase E2EE 설정값과 독립적으로 관리한다.
+
 ## Supabase SQL 초기화 순서
 
 아래 파일을 번호 순서대로 적용한다.

@@ -7,6 +7,8 @@
 
 - `offline-sync-flow.md`
   로컬 저장, 큐 적재, 백그라운드 동기화, 원격 병합 흐름
+- `google-drive-backup-restore.md`
+  Google Drive `appDataFolder` 기반 암호화 백업/복원 설계
 - `security-and-lock-flow.md`
   로그인, 계정 전환, PIN, E2EE 흐름
 - `data-model-er.md`
