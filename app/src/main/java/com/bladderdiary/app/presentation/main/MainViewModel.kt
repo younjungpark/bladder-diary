@@ -1,8 +1,12 @@
 package com.bladderdiary.app.presentation.main
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.bladderdiary.app.data.backup.BackupRestoreMode
+import com.bladderdiary.app.domain.model.BackupRepository
+import com.bladderdiary.app.domain.model.BackupRestorePreview
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.domain.model.VoidingRepository
 import com.bladderdiary.app.domain.usecase.AddVoidingEventUseCase
@@ -40,6 +44,14 @@ data class MainUiState(
     val isCloudSyncEnabled: Boolean = false,
     val hasCloudSyncChoice: Boolean = false,
     val isCloudSyncChanging: Boolean = false,
+    val isDriveBackupConnected: Boolean = false,
+    val isAutoBackupEnabled: Boolean = false,
+    val lastBackupSuccessEpochMs: Long? = null,
+    val lastBackupFailureEpochMs: Long? = null,
+    val lastBackupErrorMessage: String? = null,
+    val isBackupRunning: Boolean = false,
+    val pendingManualBackupContent: String? = null,
+    val pendingRestorePreview: BackupRestorePreview? = null,
     val isAdding: Boolean = false,
     val isExportingPdf: Boolean = false,
     val pendingPdfShareFile: VoidingPdfShareFile? = null,
@@ -55,7 +67,8 @@ class MainViewModel(
     private val deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
     private val updateVoidingEventUseCase: UpdateVoidingEventUseCase,
     private val voidingPdfExporter: VoidingPdfExporter,
-    private val voidingRepository: VoidingRepository
+    private val voidingRepository: VoidingRepository,
+    private val backupRepository: BackupRepository
 ) : ViewModel() {
     private val selectedDate = MutableStateFlow(
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -83,8 +96,9 @@ class MainViewModel(
                 selectedDate,
                 selectedDate.flatMapLatest { date -> getDailyEventsUseCase(date) },
                 selectedDate.flatMapLatest { date -> getDailyCountUseCase(date) },
-                syncStateFlow
-            ) { date, events, count, syncState ->
+                syncStateFlow,
+                backupRepository.observeState()
+            ) { date, events, count, syncState, backupState ->
                 MainUiState(
                     selectedDate = date,
                     events = events,
@@ -98,6 +112,14 @@ class MainViewModel(
                     isCloudSyncEnabled = syncState.isCloudSyncEnabled,
                     hasCloudSyncChoice = syncState.hasCloudSyncChoice,
                     isCloudSyncChanging = _uiState.value.isCloudSyncChanging,
+                    isDriveBackupConnected = backupState.isDriveBackupConnected,
+                    isAutoBackupEnabled = backupState.isAutoBackupEnabled,
+                    lastBackupSuccessEpochMs = backupState.lastBackupSuccessEpochMs,
+                    lastBackupFailureEpochMs = backupState.lastBackupFailureEpochMs,
+                    lastBackupErrorMessage = backupState.lastBackupErrorMessage,
+                    isBackupRunning = backupState.isBackupRunning,
+                    pendingManualBackupContent = _uiState.value.pendingManualBackupContent,
+                    pendingRestorePreview = _uiState.value.pendingRestorePreview,
                     isAdding = _uiState.value.isAdding,
                     isExportingPdf = _uiState.value.isExportingPdf,
                     pendingPdfShareFile = _uiState.value.pendingPdfShareFile,
@@ -336,6 +358,157 @@ class MainViewModel(
         }
     }
 
+    fun backupToDrive(accessToken: String, passphrase: String, enableAutoBackup: Boolean = false) {
+        viewModelScope.launch {
+            val chars = passphrase.toCharArray()
+            _uiState.update { it.copy(message = null) }
+            val backupResult = try {
+                backupRepository.backupToDrive(accessToken, chars)
+            } finally {
+                chars.fill('\u0000')
+            }
+            val finalResult = if (backupResult.isSuccess && enableAutoBackup) {
+                backupRepository.setAutoBackupEnabled(true)
+            } else {
+                backupResult
+            }
+            _uiState.update {
+                it.copy(
+                    message = if (finalResult.isSuccess) {
+                        if (enableAutoBackup) {
+                            "Google Drive 자동 백업을 켰습니다. 기록 변경 후 약 30분 뒤 백업됩니다."
+                        } else {
+                            "Google Drive 백업을 저장했습니다."
+                        }
+                    } else {
+                        finalResult.exceptionOrNull()?.message ?: "Google Drive 백업에 실패했습니다."
+                    }
+                )
+            }
+        }
+    }
+
+    fun setAutoBackupEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(message = null) }
+            val result = backupRepository.setAutoBackupEnabled(isEnabled)
+            _uiState.update {
+                it.copy(
+                    message = if (result.isSuccess) {
+                        if (isEnabled) {
+                            "Google Drive 자동 백업을 켰습니다. 기록 변경 후 약 30분 뒤 백업됩니다."
+                        } else {
+                            "Google Drive 자동 백업을 껐습니다."
+                        }
+                    } else {
+                        result.exceptionOrNull()?.message ?: "자동 백업 설정을 변경하지 못했습니다."
+                    }
+                )
+            }
+        }
+    }
+
+    fun createManualBackup(passphrase: String) {
+        viewModelScope.launch {
+            val chars = passphrase.toCharArray()
+            _uiState.update { it.copy(message = null, pendingManualBackupContent = null) }
+            val result = try {
+                backupRepository.createManualBackup(chars)
+            } finally {
+                chars.fill('\u0000')
+            }
+            _uiState.update {
+                it.copy(
+                    pendingManualBackupContent = result.getOrNull(),
+                    message = result.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
+
+    fun consumePendingManualBackupContent(isSaved: Boolean) {
+        _uiState.update {
+            it.copy(
+                pendingManualBackupContent = null,
+                message = if (isSaved) {
+                    "암호화 백업 파일을 저장했습니다."
+                } else {
+                    "백업 파일 저장을 취소했습니다."
+                }
+            )
+        }
+    }
+
+    fun prepareDriveRestore(accessToken: String, passphrase: String) {
+        viewModelScope.launch {
+            val chars = passphrase.toCharArray()
+            _uiState.update { it.copy(message = null, pendingRestorePreview = null) }
+            val result = try {
+                backupRepository.prepareDriveRestore(accessToken, chars)
+            } finally {
+                chars.fill('\u0000')
+            }
+            logBackupPreviewResult(source = "Drive", result = result)
+            _uiState.update {
+                it.copy(
+                    pendingRestorePreview = result.getOrNull(),
+                    message = result.exceptionOrNull().toBackupOperationMessage(
+                        "Google Drive 백업 복원 미리보기를 준비하지 못했습니다."
+                    )
+                )
+            }
+        }
+    }
+
+    fun prepareManualRestore(envelopeJson: String, passphrase: String) {
+        viewModelScope.launch {
+            val chars = passphrase.toCharArray()
+            _uiState.update { it.copy(message = null, pendingRestorePreview = null) }
+            val result = try {
+                backupRepository.prepareManualRestore(envelopeJson, chars)
+            } finally {
+                chars.fill('\u0000')
+            }
+            logBackupPreviewResult(source = "Manual", result = result)
+            _uiState.update {
+                it.copy(
+                    pendingRestorePreview = result.getOrNull(),
+                    message = result.exceptionOrNull().toBackupOperationMessage(
+                        "백업 파일 복원 미리보기를 준비하지 못했습니다."
+                    )
+                )
+            }
+        }
+    }
+
+    fun confirmRestore(mode: BackupRestoreMode) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(message = null) }
+            val result = backupRepository.confirmPendingRestore(mode)
+            _uiState.update {
+                it.copy(
+                    pendingRestorePreview = if (result.isSuccess) {
+                        null
+                    } else {
+                        it.pendingRestorePreview
+                    },
+                    message = if (result.isSuccess) {
+                        result.getOrThrow().toRestoreMessage()
+                    } else {
+                        result.exceptionOrNull()?.message ?: "백업 복원에 실패했습니다."
+                    }
+                )
+            }
+        }
+    }
+
+    fun cancelRestorePreview() {
+        viewModelScope.launch {
+            backupRepository.cancelPendingRestore()
+            _uiState.update { it.copy(pendingRestorePreview = null) }
+        }
+    }
+
     companion object {
         fun factory(
             addVoidingEventUseCase: AddVoidingEventUseCase,
@@ -344,7 +517,8 @@ class MainViewModel(
             deleteVoidingEventUseCase: DeleteVoidingEventUseCase,
             updateVoidingEventUseCase: UpdateVoidingEventUseCase,
             voidingPdfExporter: VoidingPdfExporter,
-            voidingRepository: VoidingRepository
+            voidingRepository: VoidingRepository,
+            backupRepository: BackupRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(
@@ -354,7 +528,8 @@ class MainViewModel(
                 deleteVoidingEventUseCase = deleteVoidingEventUseCase,
                 updateVoidingEventUseCase = updateVoidingEventUseCase,
                 voidingPdfExporter = voidingPdfExporter,
-                voidingRepository = voidingRepository
+                voidingRepository = voidingRepository,
+                backupRepository = backupRepository
             ) as T
         }
     }
@@ -367,3 +542,46 @@ private data class SyncUiSnapshot(
     val isCloudSyncEnabled: Boolean,
     val hasCloudSyncChoice: Boolean
 )
+
+private fun logBackupPreviewResult(source: String, result: Result<BackupRestorePreview>) {
+    val preview = result.getOrNull()
+    if (preview != null) {
+        logBackupDebug(
+            BACKUP_VIEW_MODEL_TAG,
+            "$source restore preview ready records=${preview.recordCount} " +
+                "deleted=${preview.deletedRecordCount}"
+        )
+        return
+    }
+    val error = result.exceptionOrNull()
+    logBackupError(
+        BACKUP_VIEW_MODEL_TAG,
+        "$source restore preview failed: ${error?.javaClass?.name}: ${error?.message}",
+        error
+    )
+}
+
+private fun Throwable?.toBackupOperationMessage(defaultMessage: String): String? {
+    if (this == null) return null
+    return message?.takeIf { it.isNotBlank() } ?: defaultMessage
+}
+
+private fun logBackupDebug(tag: String, message: String) {
+    runCatching {
+        Log.d(tag, message)
+    }
+}
+
+private fun logBackupError(tag: String, message: String, error: Throwable?) {
+    runCatching {
+        Log.e(tag, message, error)
+    }
+}
+
+private fun com.bladderdiary.app.data.backup.BackupRestoreReport.toRestoreMessage(): String =
+    when (mode) {
+        BackupRestoreMode.MERGE -> "백업과 합치기를 완료했습니다. ${restoredCount}건을 반영했습니다."
+        BackupRestoreMode.REPLACE -> "백업으로 교체했습니다. ${restoredCount}건을 반영했습니다."
+    }
+
+private const val BACKUP_VIEW_MODEL_TAG = "BackupViewModel"

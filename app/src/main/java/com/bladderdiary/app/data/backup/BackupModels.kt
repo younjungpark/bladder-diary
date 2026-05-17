@@ -107,5 +107,9 @@ data class BackupEnvelopeCreation(
 data class BackupEnvelopeDecryption(
     val payload: BackupPlainPayloadV1,
     val dekBytes: ByteArray,
-    val passwordEnvelope: BackupEncryptionManifest
+    val passwordEnvelope: BackupEncryptionManifest,
+    val createdAtEpochMs: Long,
+    val appVersionName: String,
+    val appVersionCode: Int,
+    val databaseVersion: Int
 )

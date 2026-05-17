@@ -13,6 +13,7 @@
 - 클라우드 기록 본문 종단간 암호화(E2EE) 비밀문구 설정 / 변경 / 잠금 해제
 - 로그인 전 민감 건강정보 및 선택형 Supabase 클라우드 저장 안내 확인
 - 로그인 후 클라우드 동기화 사용 여부 선택
+- 설정 메뉴의 Google Drive 암호화 백업/복원, 자동 백업, 수동 `.bdbackup` 파일 내보내기/가져오기
 - 기간 선택 기반 PDF 내보내기
 - 설정 메뉴에서 경고 확인 후 회원탈퇴 및 앱 데이터 초기화
 
@@ -35,7 +36,8 @@
 - Ktor Client
 - kotlinx.serialization
 - Supabase REST/Auth 연동
-- Google Drive `appDataFolder` 암호화 백업/복원 엔진
+- Google Identity Services AuthorizationClient
+- Google Drive `appDataFolder` 암호화 백업/복원
 
 ## 프로젝트 구조
 
@@ -47,7 +49,7 @@ app/src/main/java/com/bladderdiary/app
 |- export/         PDF 보고서 생성
 |- presentation/   인증, 메인, PIN, E2EE 화면과 ViewModel
 |- ui/theme/       앱 테마, 색상, 타이포그래피
-|- worker/         백그라운드 동기화 작업
+|- worker/         Supabase 동기화와 Google Drive 자동 백업 작업
 ```
 
 ## 개발 환경
@@ -130,7 +132,12 @@ app/build/outputs/apk/release/app-release.apk
 - 동기화를 켠 경우에도 날짜, 계정/기록 식별자, 삭제/동기화 메타데이터는 서버에 남을 수 있습니다.
 - 기존 평문 클라우드 기록은 최신 앱에서 암호화 설정 또는 잠금 해제 후 암호문으로 재업로드되지만, 과거 Supabase 백업이나 로그에 남은 평문까지 즉시 삭제된다고 보장할 수는 없습니다.
 - Google Drive 백업/복원은 실시간 동기화가 아니라 백업 전용 비밀번호로 암호화한 최신 스냅샷 1개를 `appDataFolder`에 저장하는 별도 엔진입니다.
+- 설정 메뉴의 `백업 및 복원`에서 Google Drive 백업/복원, 자동 백업, 수동 백업 파일 내보내기/가져오기를 사용할 수 있습니다.
+- Google Drive 백업/복원에는 Google 계정 선택과 `drive.appdata` 권한 동의가 필요합니다. Google Drive 앱 설치는 필수가 아니지만 Google Play services, Google 계정, 네트워크 사용 가능 상태가 필요할 수 있습니다.
+- Google Drive를 사용할 수 없거나 권한을 거부한 경우에도 같은 암호화 포맷의 `.bdbackup` 수동 파일 내보내기/가져오기를 사용할 수 있습니다.
+- 자동 백업은 백업 비밀번호로 최초 백업을 만든 뒤 로컬에 보관된 backup DEK가 있을 때만 동작하며, 기록 변경 후 약 30분 뒤 Supabase 동기화 queue와 별도 WorkManager 작업으로 예약됩니다.
 - Google Drive 백업 파일에는 Supabase access token, refresh token, PIN, WorkManager 상태, `sync_queue`가 포함되지 않습니다.
+- 회원탈퇴는 기기 로컬 백업 설정과 자동 백업 키를 초기화하지만, 이미 Google Drive `appDataFolder`에 저장된 암호화 백업 파일이나 사용자가 내보낸 `.bdbackup` 파일은 별도 저장소에 남을 수 있습니다.
 - 배뇨 기록은 건강 관련 민감정보일 수 있으며, 앱은 로그인 전과 기존 사용자 업데이트 진입 시 민감정보 및 클라우드 저장 안내를 표시합니다.
 - 동기화를 켠 경우 삭제는 소프트 삭제 기반으로 원격 반영됩니다.
 - 오프라인 상태에서 저장한 기록은 로컬에 보관되며, 동기화를 켠 상태라면 연결이 복구될 때 다시 동기화됩니다.

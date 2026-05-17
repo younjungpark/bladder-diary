@@ -11,6 +11,8 @@
   테스트 추가 기준과 현재 coverage 운영 방향
 - `test-catalog-guide.md`
   현재 테스트 패키지 구성을 빠르게 읽는 방법
+- `google-drive-backup-restore-qa.md`
+  Google Drive 암호화 백업/복원 수동 QA와 릴리즈 OAuth 검증 기록
 
 ## 함께 보는 문서
 

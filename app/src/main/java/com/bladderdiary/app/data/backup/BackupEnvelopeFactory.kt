@@ -75,7 +75,11 @@ class BackupEnvelopeFactory(
         return BackupEnvelopeDecryption(
             payload = payload,
             dekBytes = dekBytes,
-            passwordEnvelope = envelope.encryption
+            passwordEnvelope = envelope.encryption,
+            createdAtEpochMs = envelope.createdAtEpochMs,
+            appVersionName = envelope.appVersionName,
+            appVersionCode = envelope.appVersionCode,
+            databaseVersion = envelope.databaseVersion
         )
     }
 

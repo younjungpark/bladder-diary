@@ -63,6 +63,38 @@ class BackupEngine(
         report
     }
 
+    suspend fun decryptEnvelope(
+        userId: String,
+        envelopeJson: String,
+        passphrase: CharArray
+    ): Result<BackupEnvelopeDecryption> = runCatching {
+        envelopeFactory.decrypt(
+            envelopeJson = envelopeJson,
+            passphrase = passphrase,
+            targetUserId = userId
+        )
+    }
+
+    suspend fun restoreDecrypted(
+        userId: String,
+        decryption: BackupEnvelopeDecryption,
+        mode: BackupRestoreMode = BackupRestoreMode.MERGE
+    ): Result<BackupRestoreReport> = runCatching {
+        val report = localDataSource.restorePayload(
+            userId = userId,
+            payload = decryption.payload,
+            mode = mode
+        )
+        backupDekStore.save(
+            userId = userId,
+            storedBackupDek = StoredBackupDek(
+                dekBytes = decryption.dekBytes,
+                passwordEnvelope = decryption.passwordEnvelope
+            )
+        )
+        report
+    }
+
     suspend fun uploadLatestBackup(
         accessToken: String,
         userId: String,
@@ -101,6 +133,19 @@ class BackupEngine(
             envelopeJson = envelopeJson,
             passphrase = passphrase,
             mode = mode
+        ).getOrThrow()
+    }
+
+    suspend fun downloadAndDecryptLatestBackup(
+        accessToken: String,
+        userId: String,
+        passphrase: CharArray
+    ): Result<BackupEnvelopeDecryption> = runCatching {
+        val envelopeJson = driveBackupFileClient.downloadLatestBackup(accessToken)
+        decryptEnvelope(
+            userId = userId,
+            envelopeJson = envelopeJson,
+            passphrase = passphrase
         ).getOrThrow()
     }
 }

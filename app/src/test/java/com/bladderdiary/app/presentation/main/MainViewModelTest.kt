@@ -1,6 +1,11 @@
 package com.bladderdiary.app.presentation.main
 
 import com.bladderdiary.app.MainDispatcherRule
+import com.bladderdiary.app.data.backup.BackupRestoreMode
+import com.bladderdiary.app.data.backup.BackupRestoreReport
+import com.bladderdiary.app.domain.model.BackupRepository
+import com.bladderdiary.app.domain.model.BackupRestorePreview
+import com.bladderdiary.app.domain.model.BackupSettingsState
 import com.bladderdiary.app.domain.model.CloudSyncPreference
 import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.SyncState
@@ -263,9 +268,95 @@ class MainViewModelTest {
         assertEquals("클라우드 동기화를 켰습니다.", viewModel.uiState.value.message)
     }
 
+    @Test
+    fun `백업 상태 변경 시 UI 상태에 반영된다`() = runTest {
+        val backupRepository = FakeBackupRepository()
+        val viewModel = createViewModel(
+            repository = FakeVoidingRepository(),
+            exporter = FakeVoidingPdfExporter(),
+            backupRepository = backupRepository
+        )
+
+        backupRepository.state.value = BackupSettingsState(
+            isDriveBackupConnected = true,
+            isAutoBackupEnabled = true,
+            lastBackupSuccessEpochMs = 1234L
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isDriveBackupConnected)
+        assertTrue(viewModel.uiState.value.isAutoBackupEnabled)
+        assertEquals(1234L, viewModel.uiState.value.lastBackupSuccessEpochMs)
+    }
+
+    @Test
+    fun `Google Drive 백업 성공 시 완료 메시지를 노출한다`() = runTest {
+        val backupRepository = FakeBackupRepository()
+        val viewModel = createViewModel(
+            repository = FakeVoidingRepository(),
+            exporter = FakeVoidingPdfExporter(),
+            backupRepository = backupRepository
+        )
+
+        viewModel.backupToDrive("token", "backup-password")
+        advanceUntilIdle()
+
+        assertEquals("token", backupRepository.lastBackupAccessToken)
+        assertEquals("backup-password", backupRepository.lastBackupPassphrase)
+        assertEquals("Google Drive 백업을 저장했습니다.", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `수동 백업 생성 시 내보낼 envelope를 보관한다`() = runTest {
+        val backupRepository = FakeBackupRepository()
+        backupRepository.manualBackupResult = Result.success("{\"backup\":true}")
+        val viewModel = createViewModel(
+            repository = FakeVoidingRepository(),
+            exporter = FakeVoidingPdfExporter(),
+            backupRepository = backupRepository
+        )
+
+        viewModel.createManualBackup("manual-password")
+        advanceUntilIdle()
+
+        assertEquals("manual-password", backupRepository.lastManualBackupPassphrase)
+        assertEquals("{\"backup\":true}", viewModel.uiState.value.pendingManualBackupContent)
+    }
+
+    @Test
+    fun `복원 미리보기 후 병합 복원을 확정한다`() = runTest {
+        val backupRepository = FakeBackupRepository()
+        val preview = BackupRestorePreview(
+            previewId = "preview-1",
+            createdAtEpochMs = 1000L,
+            sourceAppVersionName = "1.0.4",
+            sourceAppVersionCode = 14,
+            sourceDatabaseVersion = 1,
+            recordCount = 3,
+            deletedRecordCount = 0
+        )
+        backupRepository.prepareDriveRestoreResult = Result.success(preview)
+        val viewModel = createViewModel(
+            repository = FakeVoidingRepository(),
+            exporter = FakeVoidingPdfExporter(),
+            backupRepository = backupRepository
+        )
+
+        viewModel.prepareDriveRestore("token", "restore-password")
+        advanceUntilIdle()
+        assertEquals(preview, viewModel.uiState.value.pendingRestorePreview)
+        viewModel.confirmRestore(BackupRestoreMode.MERGE)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.pendingRestorePreview)
+        assertEquals(BackupRestoreMode.MERGE, backupRepository.lastRestoreMode)
+        assertEquals("백업과 합치기를 완료했습니다. 3건을 반영했습니다.", viewModel.uiState.value.message)
+    }
+
     private fun createViewModel(
         repository: FakeVoidingRepository,
-        exporter: FakeVoidingPdfExporter
+        exporter: FakeVoidingPdfExporter,
+        backupRepository: FakeBackupRepository = FakeBackupRepository()
     ): MainViewModel = MainViewModel(
         addVoidingEventUseCase = AddVoidingEventUseCase(repository),
         getDailyEventsUseCase = GetDailyEventsUseCase(repository),
@@ -273,7 +364,8 @@ class MainViewModelTest {
         deleteVoidingEventUseCase = DeleteVoidingEventUseCase(repository),
         updateVoidingEventUseCase = UpdateVoidingEventUseCase(repository),
         voidingPdfExporter = exporter,
-        voidingRepository = repository
+        voidingRepository = repository,
+        backupRepository = backupRepository
     )
 
     private fun sampleEvent(): VoidingEvent = VoidingEvent(
@@ -305,6 +397,97 @@ private class FakeVoidingPdfExporter : VoidingPdfExporter {
         lastEvents = events
         return result
     }
+}
+
+private class FakeBackupRepository : BackupRepository {
+    val state = MutableStateFlow(BackupSettingsState())
+    var driveBackupResult: Result<Unit> = Result.success(Unit)
+    var manualBackupResult: Result<String> = Result.success("backup-envelope")
+    var prepareDriveRestoreResult: Result<BackupRestorePreview> = Result.success(
+        BackupRestorePreview(
+            previewId = "preview",
+            createdAtEpochMs = 1000L,
+            sourceAppVersionName = "1.0.4",
+            sourceAppVersionCode = 14,
+            sourceDatabaseVersion = 1,
+            recordCount = 0,
+            deletedRecordCount = 0
+        )
+    )
+    var prepareManualRestoreResult: Result<BackupRestorePreview> = prepareDriveRestoreResult
+    var confirmRestoreResult: Result<BackupRestoreReport> = Result.success(
+        BackupRestoreReport(
+            mode = BackupRestoreMode.MERGE,
+            restoredCount = 3,
+            replacedExistingCount = 0,
+            keptLocalNewerCount = 0,
+            deletedExistingCount = 0
+        )
+    )
+    var autoBackupResult: Result<Unit> = Result.success(Unit)
+    var lastBackupAccessToken: String? = null
+    var lastBackupPassphrase: String? = null
+    var lastManualBackupPassphrase: String? = null
+    var lastDriveRestoreAccessToken: String? = null
+    var lastDriveRestorePassphrase: String? = null
+    var lastManualRestoreEnvelope: String? = null
+    var lastManualRestorePassphrase: String? = null
+    var lastRestoreMode: BackupRestoreMode? = null
+
+    override fun observeState(): Flow<BackupSettingsState> = state
+
+    override suspend fun backupToDrive(accessToken: String, passphrase: CharArray): Result<Unit> {
+        lastBackupAccessToken = accessToken
+        lastBackupPassphrase = passphrase.concatToString().trimEnd('\u0000')
+        return driveBackupResult
+    }
+
+    override suspend fun backupToDriveWithStoredKey(accessToken: String): Result<Unit> {
+        lastBackupAccessToken = accessToken
+        return driveBackupResult
+    }
+
+    override suspend fun createManualBackup(passphrase: CharArray): Result<String> {
+        lastManualBackupPassphrase = passphrase.concatToString().trimEnd('\u0000')
+        return manualBackupResult
+    }
+
+    override suspend fun createManualBackupWithStoredKey(): Result<String> = manualBackupResult
+
+    override suspend fun prepareDriveRestore(
+        accessToken: String,
+        passphrase: CharArray
+    ): Result<BackupRestorePreview> {
+        lastDriveRestoreAccessToken = accessToken
+        lastDriveRestorePassphrase = passphrase.concatToString().trimEnd('\u0000')
+        return prepareDriveRestoreResult
+    }
+
+    override suspend fun prepareManualRestore(
+        envelopeJson: String,
+        passphrase: CharArray
+    ): Result<BackupRestorePreview> {
+        lastManualRestoreEnvelope = envelopeJson
+        lastManualRestorePassphrase = passphrase.concatToString().trimEnd('\u0000')
+        return prepareManualRestoreResult
+    }
+
+    override suspend fun confirmPendingRestore(
+        mode: BackupRestoreMode
+    ): Result<BackupRestoreReport> {
+        lastRestoreMode = mode
+        confirmRestoreResult = confirmRestoreResult.map { it.copy(mode = mode) }
+        return confirmRestoreResult
+    }
+
+    override suspend fun cancelPendingRestore() = Unit
+
+    override suspend fun setAutoBackupEnabled(isEnabled: Boolean): Result<Unit> {
+        state.value = state.value.copy(isAutoBackupEnabled = isEnabled)
+        return autoBackupResult
+    }
+
+    override suspend fun runAutomaticBackup(): Result<Unit> = autoBackupResult
 }
 
 private class FakeVoidingRepository : VoidingRepository {

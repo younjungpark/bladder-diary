@@ -24,8 +24,20 @@ RELEASE_KEY_PASSWORD=your_key_password
 ## Google Drive 백업 설정
 
 - Google Drive 백업/복원 엔진은 Drive REST API의 `appDataFolder`와 `https://www.googleapis.com/auth/drive.appdata` scope를 기준으로 한다.
+- Android 권한 흐름은 Google Identity Services `AuthorizationClient`를 사용한다. 앱은 사용자가 설정 화면에서 백업/복원을 명시적으로 실행할 때만 Drive 권한을 요청한다.
+- Google Cloud Console에는 Google Drive 백업 권한을 요청할 Android OAuth 클라이언트를 등록해야 한다. 패키지명은 `com.chausoft.bladderdiary`이며, 실기기에 설치하는 빌드의 서명 인증서 SHA-1 지문을 함께 등록한다.
+- 디버그 APK 실기기 검증 시 SHA-1은 아래 명령으로 확인한다.
+
+```powershell
+& "$env:JAVA_HOME\bin\keytool.exe" -list -v -alias androiddebugkey -keystore "$env:USERPROFILE\.android\debug.keystore" -storepass android -keypass android
+```
+
+- 릴리즈 APK를 sideload해 검증할 때는 실제 릴리즈 keystore의 SHA-1 또는 APK 서명 인증서 SHA-1을 Android OAuth 클라이언트로 별도 등록한다. Play Console 배포본을 검증할 때는 Play App Signing 인증서의 SHA-1을 등록해야 한다.
+- OAuth 앱 게시 상태가 Testing이면 디버그/릴리즈 Android OAuth 클라이언트가 같은 테스트 사용자 목록을 공유한다. 테스트에 사용할 Google 계정은 Google Cloud Console의 Google 인증 플랫폼 Audience 설정에서 테스트 사용자로 추가한다.
+- 앱이 `UNREGISTERED_ON_API_CONSOLE`을 반환하면 현재 설치된 APK의 패키지명과 SHA-1 조합이 Google Cloud Console Android OAuth 클라이언트에 등록되지 않은 상태로 본다.
 - Drive access token은 `local.properties`나 DataStore에 장기 저장하지 않는다. Android 권한 화면에서 받은 짧은 수명 token을 호출 시점에 사용한다.
 - 백업 암호화 비밀번호와 backup DEK는 Supabase E2EE 설정값과 독립적으로 관리한다.
+- 자동 백업 상태, 마지막 성공/실패 시각, 로컬 backup DEK envelope는 사용자별 DataStore/Android Keystore에 저장된다. 백업 파일 자체는 Drive `appDataFolder` 최신 스냅샷 1개이며, 수동 fallback은 같은 JSON envelope를 `.bdbackup` 파일로 저장한다.
 
 ## Supabase SQL 초기화 순서
 

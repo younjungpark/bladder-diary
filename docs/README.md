@@ -27,6 +27,8 @@
 - `TEST_COVERAGE.md`
 - `product-specs/index.md`
 - `product-specs/oauth-configuration.md`
+- `design-docs/google-drive-backup-restore.md`
+- `testing/google-drive-backup-restore-qa.md`
 - `testing/README.md`
 
 ## 운영 원칙

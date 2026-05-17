@@ -4,11 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-import com.bladderdiary.app.core.AppGraph
-import com.bladderdiary.app.presentation.main.MainViewModel
 import com.bladderdiary.app.presentation.navigation.AppNavGraph
 import com.bladderdiary.app.ui.theme.BladderDiaryTheme
 import kotlinx.coroutines.channels.Channel
@@ -21,18 +18,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         emitOAuthCallbackIfNeeded(intent)
-
-        val viewModel: MainViewModel by viewModels {
-            MainViewModel.factory(
-                AppGraph.addVoidingEventUseCase,
-                AppGraph.getDailyEventsUseCase,
-                AppGraph.getDailyCountUseCase,
-                AppGraph.deleteVoidingEventUseCase,
-                AppGraph.updateVoidingEventUseCase,
-                AppGraph.voidingPdfExporter,
-                AppGraph.voidingRepository
-            )
-        }
 
         setContent {
             BladderDiaryTheme {

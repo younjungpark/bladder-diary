@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.DropdownMenu
@@ -83,7 +84,8 @@ internal fun ProvideFixedFontScale(content: @Composable () -> Unit) {
 @Composable
 internal fun MainTopBar(
     palette: HomePalette,
-    syncStatus: HomeSyncStatus,
+    syncStatus: HomeSyncStatus?,
+    backupStatus: HomeBackupStatus?,
     currentAccountLabel: String?,
     isPinSet: Boolean,
     isE2eeEnabled: Boolean,
@@ -92,6 +94,7 @@ internal fun MainTopBar(
     isCloudSyncChanging: Boolean,
     menuExpanded: Boolean,
     onShowSyncStatus: () -> Unit,
+    onShowBackupStatus: () -> Unit,
     onOpenMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onTogglePin: () -> Unit,
@@ -99,6 +102,7 @@ internal fun MainTopBar(
     onOpenCloudSyncSettings: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
+    onOpenBackupRestore: () -> Unit,
     isExportingPdf: Boolean,
     isDeletingAccount: Boolean,
     onOpenAccountDeletion: () -> Unit,
@@ -145,20 +149,23 @@ internal fun MainTopBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(palette.surfaceStrong)
-                    .border(1.dp, palette.borderSoft, CircleShape)
-                    .clickable(onClick = onShowSyncStatus),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = syncStatus.icon,
-                    contentDescription = syncStatus.label,
-                    tint = syncStatus.tint,
-                    modifier = Modifier.size(20.dp)
+            backupStatus?.let { status ->
+                StatusIconButton(
+                    palette = palette,
+                    icon = status.icon,
+                    contentDescription = status.label,
+                    tint = status.tint,
+                    onClick = onShowBackupStatus
+                )
+            }
+
+            syncStatus?.let { status ->
+                StatusIconButton(
+                    palette = palette,
+                    icon = status.icon,
+                    contentDescription = status.label,
+                    tint = status.tint,
+                    onClick = onShowSyncStatus
                 )
             }
 
@@ -178,12 +185,39 @@ internal fun MainTopBar(
                 onOpenCloudSyncSettings = onOpenCloudSyncSettings,
                 onOpenE2eeSettings = onOpenE2eeSettings,
                 onOpenPdfExport = onOpenPdfExport,
+                onOpenBackupRestore = onOpenBackupRestore,
                 isExportingPdf = isExportingPdf,
                 isDeletingAccount = isDeletingAccount,
                 onOpenAccountDeletion = onOpenAccountDeletion,
                 onSignOut = onSignOut
             )
         }
+    }
+}
+
+@Composable
+private fun StatusIconButton(
+    palette: HomePalette,
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(palette.surfaceStrong)
+            .border(1.dp, palette.borderSoft, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -204,6 +238,7 @@ private fun MainOverflowMenu(
     onOpenCloudSyncSettings: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
     onOpenPdfExport: () -> Unit,
+    onOpenBackupRestore: () -> Unit,
     isExportingPdf: Boolean,
     isDeletingAccount: Boolean,
     onOpenAccountDeletion: () -> Unit,
@@ -299,6 +334,16 @@ private fun MainOverflowMenu(
                 },
                 onClick = onOpenPdfExport,
                 enabled = !isExportingPdf
+            )
+            DropdownMenuItem(
+                text = { Text("백업 및 복원") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.SettingsBackupRestore,
+                        contentDescription = null
+                    )
+                },
+                onClick = onOpenBackupRestore
             )
             DropdownMenuItem(
                 text = { Text(if (isPinSet) "PIN 해제" else "PIN 설정") },
@@ -453,6 +498,11 @@ internal fun Long.toTimeDisplay(): Pair<String, String> {
     return timeText to meridiem
 }
 
+private fun Long.toBackupStatusTimeText(): String {
+    val (timeText, periodText) = toTimeDisplay()
+    return "$periodText $timeText"
+}
+
 internal fun Long.toIntervalText(): String {
     val minutes = this / (1000 * 60)
     val hours = minutes / 60
@@ -519,15 +569,24 @@ internal data class HomeSyncStatus(
     val tint: Color
 )
 
+internal data class HomeBackupStatus(
+    val icon: ImageVector,
+    val label: String,
+    val message: String,
+    val tint: Color
+)
+
 internal data class UrgencyTone(val container: Color, val content: Color, val border: Color)
 
-internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus = when {
-    !isCloudSyncEnabled -> HomeSyncStatus(
-        icon = Icons.Default.CloudOff,
-        label = "로컬 저장",
-        message = "클라우드 동기화가 꺼져 있습니다. 기록은 이 기기에만 저장됩니다.",
+internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus? = when {
+    isCloudSyncChanging -> HomeSyncStatus(
+        icon = Icons.Default.CloudUpload,
+        label = "동기화 설정 변경 중",
+        message = "클라우드 동기화 설정을 변경하는 중입니다.",
         tint = palette.syncPendingTint
     )
+
+    !isCloudSyncEnabled -> null
 
     isSyncing -> HomeSyncStatus(
         icon = Icons.Default.CloudUpload,
@@ -554,8 +613,42 @@ internal fun MainUiState.toHomeSyncStatus(palette: HomePalette): HomeSyncStatus 
         icon = Icons.Default.CloudDone,
         label = "동기화 완료",
         message = "클라우드 동기화가 완료되었습니다.",
+        tint = palette.primary
+    )
+}
+
+internal fun MainUiState.toHomeBackupStatus(palette: HomePalette): HomeBackupStatus? = when {
+    isBackupRunning -> HomeBackupStatus(
+        icon = Icons.Default.SettingsBackupRestore,
+        label = "Google Drive 백업 중",
+        message = "Google Drive에 백업을 저장하는 중입니다.",
+        tint = palette.syncPendingTint
+    )
+
+    isAutoBackupEnabled && (lastBackupFailureEpochMs != null || lastBackupErrorMessage != null) -> {
+        val errorText = lastBackupErrorMessage?.toUiErrorText(maxLen = 80)
+        HomeBackupStatus(
+            icon = Icons.Default.SettingsBackupRestore,
+            label = "Google Drive 백업 확인 필요",
+            message = if (errorText == null) {
+                "Google Drive 백업을 완료하지 못했습니다. 백업 및 복원에서 확인해 주세요."
+            } else {
+                "Google Drive 백업을 완료하지 못했습니다. $errorText"
+            },
+            tint = palette.syncErrorTint
+        )
+    }
+
+    isAutoBackupEnabled -> HomeBackupStatus(
+        icon = Icons.Default.SettingsBackupRestore,
+        label = "Google Drive 자동 백업 켜짐",
+        message = lastBackupSuccessEpochMs?.let { completedAt ->
+            "Google Drive 자동 백업이 켜져 있습니다. 마지막 성공 ${completedAt.toBackupStatusTimeText()}"
+        } ?: "Google Drive 자동 백업이 켜져 있습니다. 기록 변경 후 약 30분 뒤 백업됩니다.",
         tint = palette.syncReadyTint
     )
+
+    else -> null
 }
 
 internal data class HomePalette(

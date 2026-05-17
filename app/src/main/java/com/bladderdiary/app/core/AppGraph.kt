@@ -2,8 +2,13 @@ package com.bladderdiary.app.core
 
 import android.content.Context
 import com.bladderdiary.app.data.backup.AndroidBackupDekStore
+import com.bladderdiary.app.data.backup.BackupDekStore
 import com.bladderdiary.app.data.backup.BackupEngine
+import com.bladderdiary.app.data.backup.BackupPreferenceStore
+import com.bladderdiary.app.data.backup.BackupRepositoryImpl
 import com.bladderdiary.app.data.backup.RoomBackupLocalDataSource
+import com.bladderdiary.app.data.drive.AndroidDriveAuthorizationClient
+import com.bladderdiary.app.data.drive.DriveAuthorizationClient
 import com.bladderdiary.app.data.drive.KtorDriveBackupFileClient
 import com.bladderdiary.app.data.local.AppDatabase
 import com.bladderdiary.app.data.local.CloudDataNoticeStore
@@ -18,6 +23,7 @@ import com.bladderdiary.app.data.repository.LockRepositoryImpl
 import com.bladderdiary.app.data.repository.VoidingRepositoryImpl
 import com.bladderdiary.app.data.security.E2eeLocalKeyStore
 import com.bladderdiary.app.domain.model.AuthRepository
+import com.bladderdiary.app.domain.model.BackupRepository
 import com.bladderdiary.app.domain.model.E2eeRepository
 import com.bladderdiary.app.domain.model.LockRepository
 import com.bladderdiary.app.domain.model.VoidingRepository
@@ -30,6 +36,7 @@ import com.bladderdiary.app.domain.usecase.SyncEventsUseCase
 import com.bladderdiary.app.domain.usecase.UpdateVoidingEventUseCase
 import com.bladderdiary.app.export.AndroidVoidingPdfExporter
 import com.bladderdiary.app.export.VoidingPdfExporter
+import com.bladderdiary.app.worker.BackupScheduler
 import com.bladderdiary.app.worker.SyncScheduler
 
 object AppGraph {
@@ -39,8 +46,11 @@ object AppGraph {
     private lateinit var supabaseApi: SupabaseApi
     private lateinit var supabaseAuthClient: SupabaseAuthClient
     private lateinit var syncScheduler: SyncScheduler
+    private lateinit var backupScheduler: BackupScheduler
     private lateinit var e2eeLocalKeyStore: E2eeLocalKeyStore
     private lateinit var cloudSyncPreferenceStore: CloudSyncPreferenceStore
+    private lateinit var backupDekStore: BackupDekStore
+    private lateinit var backupPreferenceStore: BackupPreferenceStore
 
     lateinit var authRepository: AuthRepository
         private set
@@ -53,6 +63,10 @@ object AppGraph {
     lateinit var voidingPdfExporter: VoidingPdfExporter
         private set
     lateinit var backupEngine: BackupEngine
+        private set
+    lateinit var backupRepository: BackupRepository
+        private set
+    lateinit var driveAuthorizationClient: DriveAuthorizationClient
         private set
     lateinit var cloudDataNoticeStore: CloudDataNoticeStore
         private set
@@ -79,13 +93,17 @@ object AppGraph {
         supabaseApi = SupabaseApi()
         supabaseAuthClient = SupabaseAuthClient()
         syncScheduler = SyncScheduler(context)
+        backupScheduler = BackupScheduler(context)
         e2eeLocalKeyStore = E2eeLocalKeyStore(context.applicationContext)
         voidingPdfExporter = AndroidVoidingPdfExporter(context.applicationContext)
         cloudDataNoticeStore = CloudDataNoticeStore(context.applicationContext)
         cloudSyncPreferenceStore = CloudSyncPreferenceStore(context.applicationContext)
+        backupDekStore = AndroidBackupDekStore(context.applicationContext)
+        backupPreferenceStore = BackupPreferenceStore(context.applicationContext)
+        driveAuthorizationClient = AndroidDriveAuthorizationClient(context.applicationContext)
         backupEngine = BackupEngine(
             localDataSource = RoomBackupLocalDataSource(db),
-            backupDekStore = AndroidBackupDekStore(context.applicationContext),
+            backupDekStore = backupDekStore,
             driveBackupFileClient = KtorDriveBackupFileClient()
         )
 
@@ -98,18 +116,29 @@ object AppGraph {
             pinStore = pinStore,
             localKeyStore = e2eeLocalKeyStore,
             syncScheduler = syncScheduler,
-            cloudSyncPreferenceStore = cloudSyncPreferenceStore
+            cloudSyncPreferenceStore = cloudSyncPreferenceStore,
+            backupScheduler = backupScheduler,
+            backupDekStore = backupDekStore,
+            backupPreferenceStore = backupPreferenceStore
         )
         e2eeRepository = E2eeRepositoryImpl(
             authRepository = authRepository,
             api = supabaseApi,
             localKeyStore = e2eeLocalKeyStore
         )
+        backupRepository = BackupRepositoryImpl(
+            authRepository = authRepository,
+            backupEngine = backupEngine,
+            preferenceStore = backupPreferenceStore,
+            scheduler = backupScheduler,
+            driveAuthorizationClient = driveAuthorizationClient
+        )
         voidingRepository = VoidingRepositoryImpl(
             db = db,
             authRepository = authRepository,
             api = supabaseApi,
             syncScheduler = syncScheduler,
+            backupScheduler = backupScheduler,
             e2eeRepository = e2eeRepository,
             cloudSyncPreferenceStore = cloudSyncPreferenceStore
         )

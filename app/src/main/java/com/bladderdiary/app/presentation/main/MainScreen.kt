@@ -1,11 +1,16 @@
 package com.bladderdiary.app.presentation.main
 
 import android.app.DatePickerDialog
+import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateFormat
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,6 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bladderdiary.app.data.backup.BACKUP_FILE_EXTENSION
+import com.bladderdiary.app.data.backup.BackupRestoreMode
+import com.bladderdiary.app.data.drive.DriveAuthorizationClient
+import com.bladderdiary.app.data.drive.DriveAuthorizationResult
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.presentation.privacy.SensitiveCloudNoticeDialog
 import kotlinx.coroutines.launch
@@ -44,6 +53,7 @@ fun MainScreen(
     e2eeNoticeMessage: String?,
     isDeletingAccount: Boolean,
     accountDeletionErrorMessage: String?,
+    driveAuthorizationClient: DriveAuthorizationClient,
     onShowCalendar: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenE2eeSettings: () -> Unit,
@@ -59,6 +69,7 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val palette = rememberHomePalette()
     val syncStatus = state.toHomeSyncStatus(palette)
+    val backupStatus = state.toHomeBackupStatus(palette)
     val today = remember {
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
     }
@@ -81,6 +92,166 @@ fun MainScreen(
     var showAccountDeletionDialog by rememberSaveable { mutableStateOf(false) }
     var showCloudDataNoticeDialog by rememberSaveable { mutableStateOf(false) }
     var showCloudSyncDialog by rememberSaveable { mutableStateOf(false) }
+    var showBackupRestoreDialog by rememberSaveable { mutableStateOf(false) }
+    var backupPasswordPurpose by remember { mutableStateOf<BackupPasswordPurpose?>(null) }
+    var authorizedDriveAccessToken by remember { mutableStateOf<String?>(null) }
+    var pendingDriveAction by remember { mutableStateOf<PendingDriveAction?>(null) }
+    var pendingDriveResolution by remember { mutableStateOf<PendingIntent?>(null) }
+    var pendingManualBackupContent by remember { mutableStateOf<String?>(null) }
+    var pendingManualImportContent by remember { mutableStateOf<String?>(null) }
+
+    fun handleAuthorizedDriveAction(action: PendingDriveAction, accessToken: String) {
+        Log.d(BACKUP_UI_TAG, "Drive authorization token received for action=$action")
+        authorizedDriveAccessToken = accessToken
+        when (action) {
+            PendingDriveAction.BackupNow ->
+                backupPasswordPurpose =
+                    BackupPasswordPurpose.DriveBackup
+
+            PendingDriveAction.Restore -> backupPasswordPurpose = BackupPasswordPurpose.DriveRestore
+
+            PendingDriveAction.EnableAutoBackup -> {
+                if (state.isDriveBackupConnected) {
+                    viewModel.setAutoBackupEnabled(true)
+                    authorizedDriveAccessToken = null
+                } else {
+                    backupPasswordPurpose = BackupPasswordPurpose.EnableAutoBackup
+                }
+            }
+        }
+    }
+
+    fun handleDriveAuthorizationResult(
+        action: PendingDriveAction,
+        result: DriveAuthorizationResult
+    ) {
+        when (result) {
+            is DriveAuthorizationResult.Authorized -> {
+                handleAuthorizedDriveAction(action, result.token.accessToken)
+            }
+
+            is DriveAuthorizationResult.RequiresUserResolution -> {
+                Log.d(BACKUP_UI_TAG, "Drive authorization requires resolution for action=$action")
+                pendingDriveAction = action
+                pendingDriveResolution = result.pendingIntent
+            }
+
+            DriveAuthorizationResult.Denied -> {
+                Log.d(BACKUP_UI_TAG, "Drive authorization denied for action=$action")
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Google Drive 권한이 거부되었습니다.")
+                }
+            }
+
+            is DriveAuthorizationResult.Unavailable -> {
+                Log.d(
+                    BACKUP_UI_TAG,
+                    "Drive authorization unavailable for action=$action: ${result.reason}"
+                )
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(result.reason)
+                }
+            }
+        }
+    }
+
+    val driveResolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        Log.d(
+            BACKUP_UI_TAG,
+            "Drive resolution resultCode=${activityResult.resultCode} " +
+                "hasData=${activityResult.data != null}"
+        )
+        val action = pendingDriveAction
+        pendingDriveAction = null
+        if (action == null) return@rememberLauncherForActivityResult
+        handleDriveAuthorizationResult(
+            action = action,
+            result = driveAuthorizationClient.parseAuthorizationResult(activityResult.data)
+        )
+    }
+
+    LaunchedEffect(pendingDriveResolution) {
+        val resolution = pendingDriveResolution ?: return@LaunchedEffect
+        pendingDriveResolution = null
+        val request = IntentSenderRequest.Builder(resolution.intentSender).build()
+        driveResolutionLauncher.launch(request)
+    }
+
+    fun requestDriveAuthorization(action: PendingDriveAction) {
+        coroutineScope.launch {
+            when (val result = driveAuthorizationClient.authorizeDriveAppData()) {
+                is DriveAuthorizationResult.Authorized -> {
+                    handleAuthorizedDriveAction(action, result.token.accessToken)
+                }
+
+                is DriveAuthorizationResult.RequiresUserResolution -> {
+                    handleDriveAuthorizationResult(action, result)
+                }
+
+                DriveAuthorizationResult.Denied -> {
+                    snackbarHostState.showSnackbar("Google Drive 권한이 거부되었습니다.")
+                }
+
+                is DriveAuthorizationResult.Unavailable -> {
+                    snackbarHostState.showSnackbar(result.reason)
+                }
+            }
+        }
+    }
+
+    fun consumeAuthorizedDriveAccessToken(purpose: BackupPasswordPurpose): String? {
+        val token = authorizedDriveAccessToken
+        if (token != null) {
+            authorizedDriveAccessToken = null
+            return token
+        }
+        Log.w(BACKUP_UI_TAG, "Missing Drive access token for purpose=$purpose")
+        coroutineScope.launch {
+            snackbarHostState.showSnackbar("Google Drive 권한을 다시 확인해 주세요.")
+        }
+        return null
+    }
+
+    val manualBackupCreateLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val content = pendingManualBackupContent
+        if (uri == null || content == null) {
+            pendingManualBackupContent = null
+            viewModel.consumePendingManualBackupContent(false)
+            return@rememberLauncherForActivityResult
+        }
+        val saved = runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(content)
+            } ?: error("파일을 열 수 없습니다.")
+        }.isSuccess
+        pendingManualBackupContent = null
+        viewModel.consumePendingManualBackupContent(saved)
+    }
+
+    val manualBackupOpenLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val content = runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
+                reader.readText()
+            } ?: error("파일을 열 수 없습니다.")
+        }
+        if (content.isSuccess) {
+            pendingManualImportContent = content.getOrThrow()
+            backupPasswordPurpose = BackupPasswordPurpose.ManualImport
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    content.exceptionOrNull()?.message ?: "백업 파일을 읽을 수 없습니다."
+                )
+            }
+        }
+    }
 
     val clearEditorState = {
         showEventEditorDialog = false
@@ -159,6 +330,12 @@ fun MainScreen(
         viewModel.consumePendingPdfShareFile()
     }
 
+    LaunchedEffect(state.pendingManualBackupContent) {
+        val content = state.pendingManualBackupContent ?: return@LaunchedEffect
+        pendingManualBackupContent = content
+        manualBackupCreateLauncher.launch("bladderdiary-backup.$BACKUP_FILE_EXTENSION")
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         HomeBackground(
             palette = palette,
@@ -172,6 +349,7 @@ fun MainScreen(
                 MainTopBar(
                     palette = palette,
                     syncStatus = syncStatus,
+                    backupStatus = backupStatus,
                     currentAccountLabel = currentAccountLabel,
                     isPinSet = isPinSet,
                     isE2eeEnabled = isE2eeEnabled,
@@ -180,9 +358,19 @@ fun MainScreen(
                     isCloudSyncChanging = state.isCloudSyncChanging,
                     menuExpanded = menuExpanded,
                     onShowSyncStatus = {
-                        coroutineScope.launch {
-                            snackbarHostState.currentSnackbarData?.dismiss()
-                            snackbarHostState.showSnackbar(syncStatus.message)
+                        syncStatus?.let { status ->
+                            coroutineScope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                snackbarHostState.showSnackbar(status.message)
+                            }
+                        }
+                    },
+                    onShowBackupStatus = {
+                        backupStatus?.let { status ->
+                            coroutineScope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                snackbarHostState.showSnackbar(status.message)
+                            }
                         }
                     },
                     onOpenMenu = { menuExpanded = true },
@@ -209,6 +397,10 @@ fun MainScreen(
                         pdfEndDate = state.selectedDate
                         pdfIncludeMemo = false
                         showPdfExportDialog = true
+                    },
+                    onOpenBackupRestore = {
+                        menuExpanded = false
+                        showBackupRestoreDialog = true
                     },
                     isExportingPdf = state.isExportingPdf,
                     isDeletingAccount = isDeletingAccount,
@@ -395,6 +587,99 @@ fun MainScreen(
             onSetCloudSyncEnabled(!state.isCloudSyncEnabled)
         }
     )
+
+    BackupRestoreDialog(
+        isVisible = showBackupRestoreDialog,
+        isDriveBackupConnected = state.isDriveBackupConnected,
+        isAutoBackupEnabled = state.isAutoBackupEnabled,
+        isBackupRunning = state.isBackupRunning,
+        lastBackupSuccessEpochMs = state.lastBackupSuccessEpochMs,
+        lastBackupFailureEpochMs = state.lastBackupFailureEpochMs,
+        lastBackupErrorMessage = state.lastBackupErrorMessage,
+        onDismiss = {
+            if (!state.isBackupRunning) {
+                showBackupRestoreDialog = false
+            }
+        },
+        onBackupNow = { requestDriveAuthorization(PendingDriveAction.BackupNow) },
+        onRestoreFromDrive = { requestDriveAuthorization(PendingDriveAction.Restore) },
+        onToggleAutoBackup = {
+            if (state.isAutoBackupEnabled) {
+                viewModel.setAutoBackupEnabled(false)
+            } else {
+                requestDriveAuthorization(PendingDriveAction.EnableAutoBackup)
+            }
+        },
+        onExportManualBackup = {
+            backupPasswordPurpose = BackupPasswordPurpose.ManualExport
+        },
+        onImportManualBackup = {
+            manualBackupOpenLauncher.launch(
+                arrayOf(
+                    "application/octet-stream",
+                    "application/json",
+                    "text/plain",
+                    "*/*"
+                )
+            )
+        }
+    )
+
+    BackupPasswordDialog(
+        purpose = backupPasswordPurpose,
+        isBusy = state.isBackupRunning,
+        onDismiss = {
+            if (!state.isBackupRunning) {
+                backupPasswordPurpose = null
+                authorizedDriveAccessToken = null
+            }
+        },
+        onConfirm = { passphrase ->
+            val purpose = backupPasswordPurpose ?: return@BackupPasswordDialog
+            backupPasswordPurpose = null
+            when (purpose) {
+                BackupPasswordPurpose.DriveBackup -> {
+                    val token = consumeAuthorizedDriveAccessToken(purpose)
+                        ?: return@BackupPasswordDialog
+                    viewModel.backupToDrive(token, passphrase)
+                }
+
+                BackupPasswordPurpose.DriveRestore -> {
+                    val token = consumeAuthorizedDriveAccessToken(purpose)
+                        ?: return@BackupPasswordDialog
+                    viewModel.prepareDriveRestore(token, passphrase)
+                }
+
+                BackupPasswordPurpose.EnableAutoBackup -> {
+                    val token = consumeAuthorizedDriveAccessToken(purpose)
+                        ?: return@BackupPasswordDialog
+                    viewModel.backupToDrive(
+                        accessToken = token,
+                        passphrase = passphrase,
+                        enableAutoBackup = true
+                    )
+                }
+
+                BackupPasswordPurpose.ManualExport -> {
+                    viewModel.createManualBackup(passphrase)
+                }
+
+                BackupPasswordPurpose.ManualImport -> {
+                    val content = pendingManualImportContent ?: return@BackupPasswordDialog
+                    viewModel.prepareManualRestore(content, passphrase)
+                    pendingManualImportContent = null
+                }
+            }
+        }
+    )
+
+    BackupRestorePreviewDialog(
+        preview = state.pendingRestorePreview,
+        isBusy = state.isBackupRunning,
+        onMerge = { viewModel.confirmRestore(BackupRestoreMode.MERGE) },
+        onReplace = { viewModel.confirmRestore(BackupRestoreMode.REPLACE) },
+        onDismiss = viewModel::cancelRestorePreview
+    )
 }
 
 internal data class RecordEditorTimeState(val hour: Int, val minute: Int, val label: String)
@@ -426,6 +711,22 @@ private fun Long.toRecordTimeLabel(): String {
     val (timeText, periodText) = toTimeDisplay()
     return "$periodText $timeText"
 }
+
+internal enum class BackupPasswordPurpose {
+    DriveBackup,
+    DriveRestore,
+    EnableAutoBackup,
+    ManualExport,
+    ManualImport
+}
+
+private enum class PendingDriveAction {
+    BackupNow,
+    Restore,
+    EnableAutoBackup
+}
+
+private const val BACKUP_UI_TAG = "BackupDriveUi"
 
 private fun Int.toRecordTimeLabel(minute: Int): String {
     val meridiem = if (this < 12) "오전" else "오후"

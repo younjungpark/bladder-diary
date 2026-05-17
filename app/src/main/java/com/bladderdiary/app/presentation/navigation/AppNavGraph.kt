@@ -59,7 +59,8 @@ fun AppNavGraph() {
             deleteVoidingEventUseCase = AppGraph.deleteVoidingEventUseCase,
             updateVoidingEventUseCase = AppGraph.updateVoidingEventUseCase,
             voidingPdfExporter = AppGraph.voidingPdfExporter,
-            voidingRepository = AppGraph.voidingRepository
+            voidingRepository = AppGraph.voidingRepository,
+            backupRepository = AppGraph.backupRepository
         )
     )
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
@@ -222,6 +223,7 @@ fun AppNavGraph() {
             e2eeNoticeMessage = mainE2eeNotice,
             isDeletingAccount = authState.isDeletingAccount,
             accountDeletionErrorMessage = authState.accountDeletionErrorMessage,
+            driveAuthorizationClient = AppGraph.driveAuthorizationClient,
             onShowCalendar = { showCalendar = true },
             onTogglePin = {
                 if (pinState.isPinSet) {

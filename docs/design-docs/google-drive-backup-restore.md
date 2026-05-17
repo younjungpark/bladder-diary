@@ -153,7 +153,7 @@ BackupPayloadV1
 6. Drive `appDataFolder`에서 기존 `bladderdiary-backup-v1.json`을 찾고, 있으면 업데이트하고 없으면 생성한다.
 7. 마지막 백업 시각과 성공/실패 상태를 로컬 DataStore에 저장한다.
 
-자동 백업은 사용자가 백업을 켠 뒤 기록이 추가, 수정, 삭제될 때 예약한다. 자동 백업은 Supabase sync queue와 별도 WorkManager 작업명으로 관리한다. 네트워크 연결이 없거나 Drive 권한이 없거나 로컬 backup DEK가 없으면 백업을 수행하지 않고 재시도 가능한 상태로 남긴다.
+자동 백업은 사용자가 백업을 켠 뒤 기록이 추가, 수정, 삭제될 때 예약한다. 자동 백업은 Supabase sync queue와 별도 WorkManager 작업명으로 관리한다. 네트워크 실패는 WorkManager 재시도 대상으로 남기고, Drive 권한 재동의 필요나 로컬 backup DEK 누락처럼 사용자 조치가 필요한 상태는 마지막 실패 사유로 저장한다.
 
 ## 복원 흐름
 
@@ -163,10 +163,9 @@ BackupPayloadV1
 4. 사용자는 백업 비밀번호를 입력한다.
 5. 앱은 `wrappedBackupDek`를 풀고 payload를 복호화한다.
 6. 복호화 후 백업 생성 시각, 앱 버전, 기록 수 같은 미리보기 정보를 표시한다.
-7. 로컬 기록이 없으면 바로 복원한다.
-8. 로컬 기록이 있으면 `백업과 합치기`, `백업으로 교체`, `취소`를 제공한다.
+7. 사용자는 `백업과 합치기`, `백업으로 교체`, `취소` 중 하나를 선택한다. 기본 버튼은 기존 기록을 보존하는 `백업과 합치기`다.
 
-기본 복원 정책은 `백업과 합치기`다. 병합 기준은 `localId`이며, 동일 record가 있으면 `updatedAtEpochMs`가 더 최신인 쪽을 사용한다. `isDeleted = true` record는 tombstone으로 취급한다. `백업으로 교체`는 현재 사용자 로컬 기록을 transaction 안에서 백업 스냅샷으로 교체한다.
+기본 복원 정책은 `백업과 합치기`다. 병합 기준은 `localId`이며, 동일 record가 있으면 `updatedAtEpochMs`가 더 최신인 쪽을 사용한다. `isDeleted = true` record는 tombstone으로 취급한다. 따라서 백업 이후 방금 삭제한 기록은 병합 복원에서 로컬 최신 삭제가 유지될 수 있고, 백업 시점으로 되돌려 삭제 기록을 되살리는 테스트나 복구에는 `백업으로 교체`를 사용한다. `백업으로 교체`는 현재 사용자 로컬 기록을 transaction 안에서 백업 스냅샷으로 교체한다.
 
 복원은 반드시 transaction으로 처리한다. 중간에 복호화, schema validation, DB write가 실패하면 기존 로컬 데이터가 깨지지 않아야 한다.
 
@@ -207,7 +206,23 @@ Google Drive 백업은 Supabase 동기화 상태를 켜거나 끄지 않는다. 
 - 백업 암호화는 `BACKUP_AES_GCM_V1` scheme, PBKDF2-HMAC-SHA256, AES-GCM, backup 전용 AAD를 사용한다.
 - 자동 백업은 로컬에 저장된 backup DEK와 password envelope가 있을 때만 새 payload를 만들 수 있으며, 로컬 키가 없으면 실패로 구분한다.
 - 복원은 payload validation 이후 Room transaction으로 반영하며, 기본 모드는 병합이다.
-- 현재 단계는 데이터/저장소 엔진 구현이며, Compose 설정 화면과 Android `AuthorizationClient` 어댑터 연결은 후속 UI 단계에서 붙인다.
+
+## BLA-8 구현 상태
+
+- 설정 메뉴에 `백업 및 복원` 진입점을 추가하고, Supabase `클라우드 동기화`와 Google Drive `백업/복원`을 별도 항목으로 표시한다.
+- `data/backup/BackupRepositoryImpl`이 `BackupEngine`, Drive 권한 port, DataStore 상태, WorkManager 스케줄러를 묶어 ViewModel에서 테스트 가능한 경계를 제공한다.
+- Android Google Identity Services `AuthorizationClient` 어댑터를 추가해 `drive.appdata` scope만 요청한다. Drive access token은 장기 저장하지 않고 작업 시점에만 사용한다.
+- `BackupPreferenceStore`는 사용자별 Drive 백업 연결 여부, 자동 백업 여부, 마지막 성공/실패 시각과 오류 메시지를 보관한다. 건강 기록 내용, 기록 수, 날짜 범위는 이 상태 저장소에 넣지 않는다.
+- 자동 백업은 `google_drive_backup_work` unique WorkManager 작업으로 예약하며, Supabase `voiding_sync_work`와 분리한다. 기록 추가, 수정, 삭제 후 약 30분 지연으로 예약해 짧은 연속 변경을 합친다.
+- `지금 Google Drive 백업`, `Google Drive에서 복원`, 자동 백업 on/off, `.bdbackup` 수동 내보내기/가져오기를 설정 화면에서 제공한다.
+- 복원은 비밀번호 복호화 성공 후 미리보기를 먼저 보여주고, 사용자가 병합/교체를 확정한 뒤에만 Room transaction을 수행한다.
+
+## BLA-13 문서화 상태
+
+- `README.md`와 `PRIVACY_POLICY.md`에 Google Drive 백업/복원이 Supabase 동기화와 별도인 선택 기능임을 반영했다.
+- 개인정보 처리방침은 Google Drive `appDataFolder`, `drive.appdata` 권한, 백업 전용 비밀번호, 자동 백업용 Android Keystore 보관, `.bdbackup` 수동 fallback, 회원탈퇴 후 외부 백업 파일 잔존 가능성을 명시한다.
+- `docs/product-specs/oauth-configuration.md`와 `docs/product-specs/configuration-reference.md`에는 디버그/릴리즈 Android OAuth 클라이언트, Testing 상태의 테스트 사용자, 릴리즈 APK와 Play App Signing SHA-1 차이를 정리했다.
+- `docs/testing/google-drive-backup-restore-qa.md`에 2026-05-17 실기기 릴리즈 APK 기준 수동 QA 기록과 릴리즈 전 확인 명령을 남겼다.
 
 ## 검증 기준
 

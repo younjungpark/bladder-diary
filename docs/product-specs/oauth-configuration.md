@@ -53,6 +53,29 @@ https://<SUPABASE_PROJECT_REF>.supabase.co/auth/v1/callback
 
 현재 OAuth가 Supabase 웹 콜백을 경유하므로, 일반적인 로그인 동작에는 Android 패키지명이나 SHA 인증서 등록이 직접 관여하지 않는다. Google 로그인 방식을 Android 네이티브 SDK나 App Links 기반 흐름으로 바꾸는 경우에만 패키지명과 SHA-1/SHA-256 설정을 별도로 검토한다.
 
+## Google Drive 백업 권한 설정
+
+Google Drive 백업/복원은 Supabase 로그인과 별개의 Android 네이티브 authorization 흐름이다. 이 기능은 Google Identity Services `AuthorizationClient`로 `https://www.googleapis.com/auth/drive.appdata` scope를 요청하므로, Google Cloud Console에 Android OAuth 클라이언트를 별도로 등록해야 한다.
+
+등록 기준:
+
+- 패키지명: `com.chausoft.bladderdiary`
+- SHA-1 인증서 지문: 실기기에 설치하는 APK의 서명 인증서 지문
+- 디버그 APK 검증 시: 로컬 `androiddebugkey`의 SHA-1을 등록
+- 릴리즈 APK/AAB 검증 시: 실제 배포 서명 또는 Play App Signing 인증서의 SHA-1을 등록
+
+OAuth 앱 게시 상태가 Testing이면 Android OAuth 클라이언트를 디버그용과 릴리즈용으로 모두 등록해도 테스트 사용자 목록은 프로젝트의 Google 인증 플랫폼 Audience 설정을 공유한다. 테스트에 사용할 Google 계정은 Audience의 테스트 사용자에 추가해야 하며, 테스트 사용자가 아닌 계정은 릴리즈 APK에서도 접근이 차단될 수 있다.
+
+디버그 키 SHA-1 확인 명령:
+
+```powershell
+& "$env:JAVA_HOME\bin\keytool.exe" -list -v -alias androiddebugkey -keystore "$env:USERPROFILE\.android\debug.keystore" -storepass android -keypass android
+```
+
+Google Drive 권한 화면 이후 로그에 `UNREGISTERED_ON_API_CONSOLE`이 나오면, 현재 설치된 APK의 패키지명과 SHA-1 조합이 Google Cloud Console Android OAuth 클라이언트에 등록되지 않은 상태로 판단한다.
+
+릴리즈 APK를 직접 설치해 검증할 때는 APK가 실제로 어떤 인증서로 서명되었는지 확인한 뒤 해당 SHA-1을 등록한다. Play Store 배포본은 로컬 upload key가 아니라 Play App Signing 인증서로 다시 서명될 수 있으므로, Play Console의 앱 서명 인증서 SHA-1을 별도 확인한다.
+
 ## Kakao 설정 기준
 
 Kakao Developers에서는 Supabase Auth callback URL과 Supabase Provider에서 요청하는 동의항목을 맞춘다.

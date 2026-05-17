@@ -41,6 +41,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,11 +51,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bladderdiary.app.domain.model.BackupRestorePreview
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -715,6 +723,284 @@ internal fun CloudSyncToggleDialog(
 }
 
 @Composable
+internal fun BackupRestoreDialog(
+    isVisible: Boolean,
+    isDriveBackupConnected: Boolean,
+    isAutoBackupEnabled: Boolean,
+    isBackupRunning: Boolean,
+    lastBackupSuccessEpochMs: Long?,
+    lastBackupFailureEpochMs: Long?,
+    lastBackupErrorMessage: String?,
+    onDismiss: () -> Unit,
+    onBackupNow: () -> Unit,
+    onRestoreFromDrive: () -> Unit,
+    onToggleAutoBackup: () -> Unit,
+    onExportManualBackup: () -> Unit,
+    onImportManualBackup: () -> Unit
+) {
+    if (!isVisible) return
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isBackupRunning) {
+                onDismiss()
+            }
+        },
+        title = { Text("백업 및 복원") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("클라우드 동기화는 여러 기기 기록 병합용이고, Google Drive 백업은 재설치나 기기 변경 때 쓰는 암호화 스냅샷입니다.")
+                HorizontalDivider()
+                BackupStatusLine(
+                    label = "Google Drive",
+                    value = if (isDriveBackupConnected) "백업 준비됨" else "아직 백업 없음"
+                )
+                BackupStatusLine(
+                    label = "자동 백업",
+                    value = if (isAutoBackupEnabled) "켜짐" else "꺼짐"
+                )
+                BackupStatusLine(
+                    label = "마지막 성공",
+                    value = lastBackupSuccessEpochMs.toBackupTimestampText()
+                )
+                if (lastBackupFailureEpochMs != null || lastBackupErrorMessage != null) {
+                    BackupStatusLine(
+                        label = "마지막 오류",
+                        value = listOfNotNull(
+                            lastBackupFailureEpochMs.toBackupTimestampText()
+                                .takeUnless { it == "-" },
+                            lastBackupErrorMessage
+                        ).joinToString(" · ").ifBlank { "-" }
+                    )
+                }
+                HorizontalDivider()
+                OutlinedButton(
+                    onClick = onBackupNow,
+                    enabled = !isBackupRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(if (isBackupRunning) "처리 중" else "지금 Google Drive 백업")
+                }
+                OutlinedButton(
+                    onClick = onRestoreFromDrive,
+                    enabled = !isBackupRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Google Drive에서 복원")
+                }
+                OutlinedButton(
+                    onClick = onToggleAutoBackup,
+                    enabled = !isBackupRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(if (isAutoBackupEnabled) "자동 백업 끄기" else "자동 백업 켜기")
+                }
+                HorizontalDivider()
+                OutlinedButton(
+                    onClick = onExportManualBackup,
+                    enabled = !isBackupRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("백업 파일 내보내기")
+                }
+                OutlinedButton(
+                    onClick = onImportManualBackup,
+                    enabled = !isBackupRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("백업 파일 가져오기")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isBackupRunning
+            ) {
+                Text("닫기")
+            }
+        }
+    )
+}
+
+@Composable
+private fun BackupStatusLine(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 12.dp)
+        )
+    }
+}
+
+@Composable
+internal fun BackupPasswordDialog(
+    purpose: BackupPasswordPurpose?,
+    isBusy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    if (purpose == null) return
+    var passphrase by remember(purpose) { mutableStateOf("") }
+    val title = when (purpose) {
+        BackupPasswordPurpose.DriveBackup -> "백업 비밀번호"
+        BackupPasswordPurpose.DriveRestore -> "복원 비밀번호"
+        BackupPasswordPurpose.EnableAutoBackup -> "자동 백업 비밀번호"
+        BackupPasswordPurpose.ManualExport -> "백업 파일 비밀번호"
+        BackupPasswordPurpose.ManualImport -> "가져오기 비밀번호"
+    }
+    val body = when (purpose) {
+        BackupPasswordPurpose.DriveBackup,
+        BackupPasswordPurpose.EnableAutoBackup,
+        BackupPasswordPurpose.ManualExport -> {
+            "Supabase 기록 암호화 비밀문구와 별개인 백업 전용 비밀번호입니다. 복원할 때 필요하니 잊지 않게 보관해 주세요."
+        }
+
+        BackupPasswordPurpose.DriveRestore,
+        BackupPasswordPurpose.ManualImport -> {
+            "백업을 만들 때 사용한 백업 전용 비밀번호를 입력해 주세요. 비밀번호가 틀리면 로컬 기록은 변경되지 않습니다."
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isBusy) {
+                onDismiss()
+            }
+        },
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(body)
+                OutlinedTextField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = { Text("백업 비밀번호") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(passphrase) },
+                enabled = passphrase.isNotBlank() && !isBusy
+            ) {
+                Text(if (isBusy) "처리 중" else "확인")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isBusy
+            ) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+@Composable
+internal fun BackupRestorePreviewDialog(
+    preview: BackupRestorePreview?,
+    isBusy: Boolean,
+    onMerge: () -> Unit,
+    onReplace: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (preview == null) return
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isBusy) {
+                onDismiss()
+            }
+        },
+        title = { Text("백업 복원 미리보기") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("복원 방식을 선택해 주세요. 백업과 합치기는 더 최신인 로컬 변경을 보존합니다.")
+                Text("방금 삭제한 기록까지 되살리려면 백업으로 교체를 선택해 주세요.")
+                HorizontalDivider()
+                BackupStatusLine(
+                    label = "백업 생성",
+                    value = preview.createdAtEpochMs.toBackupTimestampText()
+                )
+                BackupStatusLine(
+                    label = "기록 수",
+                    value = "${preview.recordCount}건"
+                )
+                if (preview.deletedRecordCount > 0) {
+                    BackupStatusLine(
+                        label = "삭제 기록",
+                        value = "${preview.deletedRecordCount}건"
+                    )
+                }
+                BackupStatusLine(
+                    label = "앱 버전",
+                    value = "${preview.sourceAppVersionName} (${preview.sourceAppVersionCode})"
+                )
+                BackupStatusLine(
+                    label = "DB 버전",
+                    value = preview.sourceDatabaseVersion.toString()
+                )
+                HorizontalDivider()
+                OutlinedButton(
+                    onClick = onMerge,
+                    enabled = !isBusy,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        text = if (isBusy) "처리 중" else "백업과 합치기\n로컬 최신 변경 보존",
+                        textAlign = TextAlign.Center
+                    )
+                }
+                OutlinedButton(
+                    onClick = onReplace,
+                    enabled = !isBusy,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        text = "백업으로 교체\n백업 시점으로 되돌리기",
+                        textAlign = TextAlign.Center
+                    )
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isBusy,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("취소")
+                }
+            }
+        },
+        confirmButton = {}
+    )
+}
+
+@Composable
 internal fun CloudSyncRequiredChoiceDialog(
     isChanging: Boolean,
     onUseLocalOnly: () -> Unit,
@@ -747,4 +1033,13 @@ internal fun CloudSyncRequiredChoiceDialog(
             }
         }
     )
+}
+
+private fun Long?.toBackupTimestampText(): String {
+    if (this == null) return "-"
+    val localDateTime = Instant.fromEpochMilliseconds(this)
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+    return "${localDateTime.year}년 ${localDateTime.monthNumber}월 ${localDateTime.dayOfMonth}일 " +
+        "${localDateTime.hour.toString().padStart(2, '0')}:" +
+        localDateTime.minute.toString().padStart(2, '0')
 }

@@ -43,7 +43,7 @@ class KtorDriveBackupFileClient(private val client: HttpClient = defaultClient()
 
     override suspend fun downloadLatestBackup(accessToken: String): String {
         val existing = findLatestBackupFile(accessToken) ?: throw BackupNotFoundException()
-        val response = client.get("$DRIVE_UPLOAD_BASE/files/${existing.fileId}") {
+        val response = client.get("$DRIVE_BASE/files/${existing.fileId}") {
             header(HttpHeaders.Authorization, "Bearer $accessToken")
             url {
                 parameters.append("alt", "media")

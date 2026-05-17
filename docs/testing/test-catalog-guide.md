@@ -12,6 +12,8 @@
   저장소 계층 상태 전이와 보호 로직을 확인할 때 본다.
 - `app/src/test/java/com/bladderdiary/app/data/security/`
   암호화/해시 같은 순수 로직을 확인할 때 본다.
+- `app/src/test/java/com/bladderdiary/app/data/backup/`
+  Google Drive 및 수동 백업 envelope, 복원 planner, backup engine fake 연동을 확인할 때 본다.
 - `app/src/test/java/com/bladderdiary/app/export/`
   PDF 집계와 보고서 구성을 확인할 때 본다.
 - `app/src/test/java/com/bladderdiary/app/presentation/`

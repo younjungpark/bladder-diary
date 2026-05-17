@@ -13,5 +13,6 @@
 ## 함께 보는 문서
 
 - `testing/smoke-tests.md`
+- `testing/google-drive-backup-restore-qa.md`
 - `RELIABILITY.md`
 - `product-specs/configuration-reference.md`

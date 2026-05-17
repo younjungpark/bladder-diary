@@ -3,6 +3,8 @@ package com.bladderdiary.app.data.repository
 import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import com.bladderdiary.app.data.backup.BackupDekStore
+import com.bladderdiary.app.data.backup.BackupPreferenceStore
 import com.bladderdiary.app.data.local.AppDatabase
 import com.bladderdiary.app.data.local.CloudSyncPreferenceStore
 import com.bladderdiary.app.data.remote.PinStoreDataSource
@@ -18,6 +20,7 @@ import com.bladderdiary.app.domain.model.AuthResult
 import com.bladderdiary.app.domain.model.SocialProvider
 import com.bladderdiary.app.domain.model.UserSession
 import com.bladderdiary.app.domain.model.toAuthAccount
+import com.bladderdiary.app.worker.BackupWorkScheduler
 import com.bladderdiary.app.worker.SyncScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -33,7 +36,10 @@ class AuthRepositoryImpl(
     private val pinStore: PinStoreDataSource,
     private val localKeyStore: E2eeLocalKeyStoreDataSource,
     private val syncScheduler: SyncScheduler,
-    private val cloudSyncPreferenceStore: CloudSyncPreferenceStore
+    private val cloudSyncPreferenceStore: CloudSyncPreferenceStore,
+    private val backupScheduler: BackupWorkScheduler,
+    private val backupDekStore: BackupDekStore,
+    private val backupPreferenceStore: BackupPreferenceStore
 ) : AuthRepository {
     override val sessionFlow: Flow<UserSession?> = sessionStore.sessionFlow
     override val rememberedAccountFlow: Flow<AuthAccount?> = sessionStore.rememberedAccountFlow
@@ -107,11 +113,14 @@ class AuthRepositoryImpl(
                 api.deleteAccountData(token, session.userId)
             }
             syncScheduler.cancel()
+            backupScheduler.cancel()
             withContext(Dispatchers.IO) {
                 db.clearAllTables()
                 pinStore.clearUser(session.userId)
                 localKeyStore.clearDek(session.userId)
                 cloudSyncPreferenceStore.clearUser(session.userId)
+                backupDekStore.clear(session.userId)
+                backupPreferenceStore.clearUser(session.userId)
                 sessionStore.clearAll()
             }
         }

@@ -17,6 +17,7 @@ import com.bladderdiary.app.domain.model.SyncReport
 import com.bladderdiary.app.domain.model.SyncState
 import com.bladderdiary.app.domain.model.VoidingEvent
 import com.bladderdiary.app.domain.model.VoidingRepository
+import com.bladderdiary.app.worker.BackupWorkScheduler
 import com.bladderdiary.app.worker.SyncScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,7 @@ class VoidingRepositoryImpl(
     private val authRepository: AuthRepository,
     private val api: SupabaseApi,
     private val syncScheduler: SyncScheduler,
+    private val backupScheduler: BackupWorkScheduler,
     private val e2eeRepository: E2eeRepository,
     private val cloudSyncPreferenceStore: CloudSyncPreferenceStore
 ) : VoidingRepository {
@@ -81,6 +83,7 @@ class VoidingRepositoryImpl(
                 volumeMl = volumeMl
             )
             syncNowOrSchedule()
+            backupScheduler.request()
         }
     }
 
@@ -116,6 +119,7 @@ class VoidingRepositoryImpl(
                 volumeMl = volumeMl
             )
             syncNowOrSchedule()
+            backupScheduler.request()
         }
     }
 
@@ -235,6 +239,7 @@ class VoidingRepositoryImpl(
                 queueDao.upsert(queueItem)
             }
             syncNowOrSchedule()
+            backupScheduler.request()
         }
     }
 
@@ -794,6 +799,7 @@ class VoidingRepositoryImpl(
             queueDao.upsert(queueItem)
         }
         syncNowOrSchedule()
+        backupScheduler.request()
     }
 
     private suspend fun isCloudSyncEnabled(userId: String): Boolean =

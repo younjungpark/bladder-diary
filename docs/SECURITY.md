@@ -34,6 +34,7 @@
 - `app/src/main/java/com/bladderdiary/app/presentation/auth/`
 - `app/src/main/java/com/bladderdiary/app/presentation/pin/`
 - `app/src/main/java/com/bladderdiary/app/presentation/e2ee/`
+- `app/src/main/java/com/bladderdiary/app/presentation/main/`
 
 ## 문서 갱신 규칙
 
@@ -51,7 +52,9 @@
 - 클라우드 기록 암호화는 클라우드 동기화 사용 전 필요한 기능이며, 비밀문구를 잊어버리면 암호화된 클라우드 기록 본문을 복구할 수 없다.
 - Google Drive 백업 암호화는 Supabase E2EE 비밀문구와 분리된 백업 전용 비밀번호를 사용한다.
 - 백업 파일 manifest와 파일명에는 기록 수, 날짜 범위, 메모, 배뇨량, 절박감 같은 민감 건강정보를 넣지 않는다.
+- Google Drive 권한은 설정 화면에서 사용자가 백업/복원 작업을 명시적으로 시작할 때 `AuthorizationClient`로 요청하며, `drive.appdata` scope만 사용한다.
 - 자동 백업용 backup DEK는 Android Keystore로 감싼 뒤 DataStore에 보관하고, Drive access token은 장기 저장하지 않는다.
+- 복원 미리보기는 백업 비밀번호로 payload 복호화와 validation이 끝난 뒤에만 기록 수와 생성 시각을 보여준다. 파일명과 Drive manifest에는 민감 기록 의미를 담지 않는다.
 - Supabase에는 날짜, 계정/기록 식별자, 삭제/동기화 메타데이터가 남을 수 있다.
 - 기존 평문 클라우드 기록은 최신 앱에서 암호문으로 재업로드하지만, 과거 Supabase 백업이나 로그에 남은 평문까지 즉시 삭제된다고 보장할 수는 없다.
 - 회원탈퇴는 클라이언트에 `service_role` 키를 두지 않고, 운영자 확인용 요청 기록을 남긴 뒤 앱 데이터만 사용자 권한으로 삭제한다.

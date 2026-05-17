@@ -45,6 +45,8 @@
 ## Google Drive 백업 안정성 메모
 
 - Google Drive 백업은 최신 스냅샷 1개를 생성/업로드/다운로드하는 엔진이며, Supabase `sync_queue`에 백업 작업을 넣지 않는다.
+- 자동 백업은 `google_drive_backup_work` unique WorkManager 작업으로 예약하며 Supabase `voiding_sync_work`와 분리한다. 기록 추가, 수정, 삭제 후 약 30분 지연으로 다시 예약해 짧은 연속 변경을 하나의 백업으로 합친다.
 - 복원은 먼저 백업 비밀번호 복호화와 payload validation을 끝낸 뒤 Room transaction 안에서 반영한다.
-- 병합 복원은 같은 `localId`에서 `updatedAtEpochMs`가 더 최신인 백업 기록만 반영하고, 더 최신인 로컬 기록은 유지한다.
+- 병합 복원은 같은 `localId`에서 `updatedAtEpochMs`가 더 최신인 백업 기록만 반영하고, 더 최신인 로컬 기록은 유지한다. 방금 삭제한 기록처럼 로컬 tombstone이 백업 기록보다 최신이면 병합에서는 되살리지 않으므로, 백업 시점으로 되돌리는 복구 테스트에는 `백업으로 교체`를 사용한다.
 - 교체 복원은 현재 사용자 로컬 기록을 백업 스냅샷으로 바꾸며, 복원된 기록은 `SYNCED` 상태의 로컬 데이터로 취급한다.
+- 수동 `.bdbackup` 내보내기/가져오기는 Drive가 없거나 권한을 거부한 환경에서 같은 envelope와 같은 복원 정책을 사용하는 fallback이다.

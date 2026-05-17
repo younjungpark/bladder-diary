@@ -82,17 +82,46 @@ class BackupRestorePlannerTest {
         assertEquals("new", plan.recordsToUpsert.single().memo)
     }
 
+    @Test
+    fun `병합 복원은 백업보다 최신인 로컬 삭제 기록을 유지한다`() {
+        val plan = BackupRestorePlanner.plan(
+            userId = "user-1",
+            localRecords = listOf(
+                entity(
+                    localId = "deleted-locally",
+                    updatedAtEpochMs = 300L,
+                    syncState = SyncState.PENDING_DELETE,
+                    isDeleted = true
+                )
+            ),
+            backupRecords = listOf(
+                record(
+                    localId = "deleted-locally",
+                    updatedAtEpochMs = 200L,
+                    memo = "backup-before-delete"
+                )
+            ),
+            mode = BackupRestoreMode.MERGE
+        )
+
+        assertTrue(plan.recordsToUpsert.isEmpty())
+        assertTrue(plan.syncQueueEventLocalIdsToClear.isEmpty())
+        assertEquals(0, plan.report.restoredCount)
+        assertEquals(1, plan.report.keptLocalNewerCount)
+    }
+
     private fun entity(
         localId: String,
         updatedAtEpochMs: Long,
         syncState: SyncState = SyncState.SYNCED,
-        memo: String? = null
+        memo: String? = null,
+        isDeleted: Boolean = false
     ): VoidingEventEntity = VoidingEventEntity(
         localId = localId,
         userId = "user-1",
         voidedAtEpochMs = 1_777_000_000_000L,
         localDate = "2026-04-20",
-        isDeleted = false,
+        isDeleted = isDeleted,
         syncState = syncState,
         updatedAtEpochMs = updatedAtEpochMs,
         memo = memo,
